@@ -27,12 +27,23 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
   if (!shipmentId) return null;
 
   // Tech Giant Upgrade: Local state for executive summary (populated from backend)
-  const [executiveSummary, setExecutiveSummary] = useState<any>({
+  const [decisionData, setDecisionData] = useState<any>({
     recommended_action: "Reroute via Intermodal Rail",
-    profit_impact_delta: "₹14,20,000",
+    profit_impact_delta: "1420000",
     risk_reduction_pct: "37%",
+    confidence_score: 0.92,
     operational_alert: "Critical disruption detected",
-    executive_narrative: "This route avoids high-loss scenarios in 78% of cases."
+    executive_narrative: "This route avoids high-loss scenarios in 78% of cases.",
+    components: {
+        avg_revenue: 5000000,
+        avg_cost: 800000,
+        avg_penalty: 150000,
+        avg_loss: 50000
+    },
+    granular_breakdown: {
+        costs: { transport: 600000, fuel: 120000, handling: 40000, storage: 30000, customs: 10000 },
+        losses: { damage: 5000, spoilage: 15000, lost_sales: 20000, inventory: 10000 }
+    }
   });
 
   const handleExecute = async () => {
@@ -70,16 +81,16 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
       <div className="panel-body">
         {/* Pillar 5 Upgrade: Executive Decision Banner (Top Panel) */}
         <ExecutiveDecisionBanner 
-          action={executiveSummary.recommended_action}
-          profitImpact={executiveSummary.profit_impact_delta}
-          riskReduction={executiveSummary.risk_reduction_pct}
-          isCritical={executiveSummary.operational_alert.includes("Critical")}
+          action={decisionData.recommended_action}
+          profitImpact={decisionData.profit_impact_delta}
+          riskReduction={decisionData.risk_reduction_pct}
+          isCritical={decisionData.operational_alert.includes("Critical")}
         />
 
         <div className="score-section">
-          <div className={`score-circle ${riskAppetite === 'CONSERVATIVE' ? 'safe' : riskAppetite === 'AGGRESSIVE' ? 'warning' : 'critical'}`}>
-            <span className="score-value">{riskAppetite === 'CONSERVATIVE' ? '92%' : riskAppetite === 'AGGRESSIVE' ? '74%' : '85%'}</span>
-            <span className="score-label">Integrity Score</span>
+          <div className={`score-circle ${decisionData.confidence_score > 0.8 ? 'safe' : decisionData.confidence_score > 0.6 ? 'warning' : 'critical'}`}>
+            <span className="score-value">{(decisionData.confidence_score * 100).toFixed(0)}%</span>
+            <span className="score-label">Confidence Score</span>
           </div>
           <div className="score-context">
             <ShieldAlert className="text-critical" size={24} />
@@ -119,25 +130,35 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         ]} />
 
         <div className="drivers-section">
-          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Hardened EFI Component Breakdown</h3>
-          <ul className="driver-list grid grid-cols-2 gap-2">
-            <li className="driver-item safe flex flex-col items-start p-2 rounded bg-surface border border-subtle">
-              <span className="text-[8px] font-bold text-muted uppercase">Avg Revenue (R)</span>
-              <span className="text-xs font-black text-primary">₹14,20,000</span>
-            </li>
-            <li className="driver-item warning flex flex-col items-start p-2 rounded bg-surface border border-subtle">
-              <span className="text-[8px] font-bold text-muted uppercase">Op Cost (C)</span>
-              <span className="text-xs font-black text-critical">-₹2,10,000</span>
-            </li>
-            <li className="driver-item critical flex flex-col items-start p-2 rounded bg-surface border border-subtle">
-              <span className="text-[8px] font-bold text-muted uppercase">SLA Penalty (D)</span>
-              <span className="text-xs font-black text-critical">-₹45,000</span>
-            </li>
-            <li className="driver-item flex flex-col items-start p-2 rounded bg-surface border border-subtle">
-              <span className="text-[8px] font-bold text-muted uppercase">Loss Factor (L)</span>
-              <span className="text-xs font-black text-secondary">-₹12,000</span>
-            </li>
-          </ul>
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Hardened EFI Breakdown (Formula 2.0)</h3>
+          <div className="grid grid-cols-2 gap-4">
+             <div className="bg-surface p-3 rounded-xl border border-subtle">
+                <span className="text-[9px] font-bold text-muted uppercase block mb-2">Total Costs (C)</span>
+                <ul className="space-y-1">
+                   {Object.entries(decisionData.granular_breakdown?.costs || {}).map(([key, val]: [string, any]) => (
+                      <li key={key} className="flex justify-between text-[10px]">
+                         <span className="capitalize text-secondary">{key}</span>
+                         <span className="font-bold">₹{val.toLocaleString()}</span>
+                      </li>
+                   ))}
+                </ul>
+             </div>
+             <div className="bg-surface p-3 rounded-xl border border-subtle">
+                <span className="text-[9px] font-bold text-muted uppercase block mb-2">Total Losses (L)</span>
+                <ul className="space-y-1">
+                   {Object.entries(decisionData.granular_breakdown?.losses || {}).map(([key, val]: [string, any]) => (
+                      <li key={key} className="flex justify-between text-[10px]">
+                         <span className="capitalize text-secondary">{key}</span>
+                         <span className="font-bold text-critical">₹{val.toLocaleString()}</span>
+                      </li>
+                   ))}
+                </ul>
+             </div>
+          </div>
+          <div className="mt-3 p-2 bg-brand-primary/5 rounded border border-brand-primary/20 flex justify-between items-center text-[10px]">
+             <span className="font-bold text-brand-primary">SLA PENALTY (D)</span>
+             <span className="font-black">₹{decisionData.components.avg_penalty.toLocaleString()}</span>
+          </div>
         </div>
 
         <div className="action-section">

@@ -40,6 +40,7 @@ class StochasticMIPOptimizer:
                     efi_res = self.efi_engine.calculate_efi(
                         scen_data["revenue"], scen_data["cost"], 
                         scen_data["penalty"], scen_data["loss"],
+                        breakdown=scen_data.get("breakdown"),
                         risk_aversion_lambda=target_lambda,
                         alpha=target_alpha
                     )
@@ -51,7 +52,8 @@ class StochasticMIPOptimizer:
                         "expected_outcome": fallback_val,
                         "cvar_shortfall": fallback_val * 0.8,
                         "confidence_score": 0.8,
-                        "components": {"avg_revenue": order_val, "avg_cost": base_cost, "avg_penalty": 0, "avg_loss": 0}
+                        "components": {"avg_revenue": 50000, "avg_cost": 5000, "avg_penalty": 0, "avg_loss": 0},
+                        "granular_breakdown": {}
                     }
                 
                 action["efi_calculation"] = efi_res
