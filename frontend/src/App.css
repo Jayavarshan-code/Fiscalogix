@@ -1,0 +1,5 @@
+/* App.css is largely unneeded as logic shifts to CSS Modules or inline composition for complex components. Keeping base styles here. */
+#root {
+  height: 100%;
+  width: 100%;
+}

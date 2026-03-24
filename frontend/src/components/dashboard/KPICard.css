@@ -1,0 +1,82 @@
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 240px;
+}
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kpi-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kpi-icon-wrapper {
+  color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+  padding: 8px;
+  border-radius: var(--border-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.kpi-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+  margin-top: auto;
+}
+
+.kpi-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-sm);
+}
+
+.trend-up {
+  color: var(--semantic-safe);
+  background-color: var(--semantic-safe-bg);
+}
+
+.trend-down {
+  color: var(--semantic-critical);
+  background-color: var(--semantic-critical-bg);
+}
+
+.trend-label {
+  color: var(--text-tertiary);
+}
+
+/* Status variants for border highlights */
+.status-safe {
+  border-top: 3px solid var(--semantic-safe);
+}
+
+.status-warning {
+  border-top: 3px solid var(--semantic-warning);
+}
+
+.status-critical {
+  border-top: 3px solid var(--semantic-critical);
+}

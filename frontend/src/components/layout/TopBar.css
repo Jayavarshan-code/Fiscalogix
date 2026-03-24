@@ -1,0 +1,129 @@
+.app-topbar {
+  height: var(--topbar-height);
+  width: calc(100vw - var(--sidebar-width));
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 5;
+}
+
+.topbar-search {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-md);
+  padding: 8px 16px;
+  width: 320px;
+  transition: border-color 0.2s;
+}
+
+.topbar-search:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 2px var(--brand-primary-light);
+}
+
+.search-icon {
+  color: var(--text-tertiary);
+  margin-right: 8px;
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.tenant-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.875rem;
+}
+
+.tenant-label {
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+.tenant-select {
+  border: 1px solid var(--border-subtle);
+  background-color: transparent;
+  padding: 6px 12px;
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+
+.icon-btn {
+  color: var(--text-secondary);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.alert-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  background-color: var(--semantic-critical);
+  border-radius: 50%;
+}
+
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--border-radius-md);
+}
+
+.user-profile:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.user-avatar {
+  background-color: var(--brand-primary-light);
+  color: var(--brand-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}

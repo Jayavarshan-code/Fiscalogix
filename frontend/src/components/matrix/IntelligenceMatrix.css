@@ -1,0 +1,131 @@
+.matrix-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.matrix-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.grid-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-grid {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.data-grid th {
+  background-color: var(--bg-surface-elevated);
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+}
+
+.data-grid td {
+  padding: 14px 16px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.data-grid tbody tr {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.data-grid tbody tr:hover {
+  background-color: var(--bg-surface-hover);
+}
+
+.data-grid tbody tr.selected {
+  background-color: var(--brand-primary-light);
+}
+
+.data-grid tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.font-medium {
+  font-weight: 600;
+  color: var(--text-primary) !important;
+}
+
+.text-critical {
+  color: var(--semantic-critical) !important;
+  font-weight: 600;
+}
+
+.text-safe {
+  color: var(--semantic-safe) !important;
+  font-weight: 600;
+}
+
+.risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: var(--border-radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.risk-badge[data-level="high"] {
+  background-color: var(--semantic-critical-bg);
+  color: var(--semantic-critical);
+}
+
+.risk-badge[data-level="medium"] {
+  background-color: var(--semantic-warning-bg);
+  color: var(--semantic-warning);
+}
+
+.risk-badge[data-level="low"] {
+  background-color: var(--semantic-safe-bg);
+  color: var(--semantic-safe);
+}
+
+.action-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+
+.action-none {
+  color: var(--text-tertiary);
+  border-color: var(--border-strong);
+  background: transparent;
+}
+
+.action-reroute {
+  color: var(--brand-primary);
+  border-color: var(--brand-primary);
+  background-color: var(--brand-primary-light);
+}
+
+.action-cancel {
+  color: var(--semantic-critical);
+  border-color: var(--semantic-critical);
+  background-color: var(--semantic-critical-bg);
+}

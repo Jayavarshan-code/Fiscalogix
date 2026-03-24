@@ -1,0 +1,11 @@
+--- FISCALOGIX REDIS BENCHMARK ---
+ML Delay Model (100 rows):
+  Cold: 0.201594s
+  Warm: 0.007075s
+  Improvement: 96.5%
+
+OR-Tools MIP Optimizer (1000 items):
+  Cold: 0.547143s
+  Warm: 0.058945s
+  Improvement: 89.2%
+
