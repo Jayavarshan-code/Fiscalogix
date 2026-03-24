@@ -183,14 +183,14 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
                         <span className="text-[11px] font-bold block">RAIL (STABLE)</span>
                         <span className="text-[10px] text-secondary">T+3 days • -12% Risk</span>
                      </div>
-                     <span className="text-[11px] font-mono font-bold">$14,200 ReVM</span>
+                     <span className="text-[11px] font-mono font-bold">₹14,200 EFI</span>
                   </div>
                   <div className="flex justify-between items-center p-2 rounded bg-surface border border-subtle opacity-60">
                      <div>
                         <span className="text-[11px] font-bold block">OCEAN (SLOW)</span>
                         <span className="text-[10px] text-secondary">T+14 days • +5% Risk</span>
                      </div>
-                     <span className="text-[11px] font-mono font-bold">$9,800 ReVM</span>
+                     <span className="text-[11px] font-mono font-bold">₹9,800 EFI</span>
                   </div>
                </div>
             </div>

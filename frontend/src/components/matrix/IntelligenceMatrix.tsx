@@ -10,12 +10,12 @@ interface ShipmentRow {
   route: string;
   status: string;
   total_value_usd: number;
-  margin_usd: number;
+  expected_efi: number;
   expected_arrival_utc: string | null;
   ml_confidence_score: number;
   ml_risk_detected: boolean;
   // Tech Giant Fields
-  robust_revm_floor: number;
+  robust_efi_floor: number;
   contagion_score_t48: number;
 }
 
@@ -80,7 +80,7 @@ export const IntelligenceMatrix: React.FC = () => {
     const headers = ['Shipment ID', 'PO Number', 'Route Line', 'Order Value', 'Margin/Risk Val', 'Risk Score', 'Status'];
     const csvContent = "data:text/csv;charset=utf-8," 
       + headers.join(",") + "\n"
-      + data.map(e => `${e.id},${e.po_number},${e.route},${e.total_value_usd},${e.margin_usd},${e.ml_confidence_score},${e.status}`).join("\n");
+      + data.map(e => `${e.id},${e.po_number},${e.route},${e.total_value_usd},${e.expected_efi},${e.ml_confidence_score},${e.status}`).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -138,8 +138,8 @@ export const IntelligenceMatrix: React.FC = () => {
                     <th className="sortable-header" onClick={() => toggleSort('po_number')} style={{cursor: 'pointer'}}>PO Number {getSortIcon('po_number')}</th>
                     <th>Route Line</th>
                     <th className="sortable-header" onClick={() => toggleSort('total_value_usd')} style={{cursor: 'pointer'}}>Order Value {getSortIcon('total_value_usd')}</th>
-                    <th className="sortable-header" onClick={() => toggleSort('margin_usd')} style={{cursor: 'pointer'}}>Expected ReVM {getSortIcon('margin_usd')}</th>
-                    <th className="sortable-header" onClick={() => toggleSort('robust_revm_floor')} style={{cursor: 'pointer'}}>Robust Floor {getSortIcon('robust_revm_floor')}</th>
+                    <th className="sortable-header" onClick={() => toggleSort('expected_efi')} style={{cursor: 'pointer'}}>Expected EFI {getSortIcon('expected_efi')}</th>
+                    <th className="sortable-header" onClick={() => toggleSort('robust_efi_floor')} style={{cursor: 'pointer'}}>Resilience Floor {getSortIcon('robust_efi_floor')}</th>
                     <th className="sortable-header" onClick={() => toggleSort('ml_confidence_score')} style={{cursor: 'pointer'}}>Risk Score {getSortIcon('ml_confidence_score')}</th>
                     <th className="sortable-header" onClick={() => toggleSort('contagion_score_t48')} style={{cursor: 'pointer'}}>Predictive (48h) {getSortIcon('contagion_score_t48')}</th>
                     <th>Recommended Action</th>
@@ -170,11 +170,11 @@ export const IntelligenceMatrix: React.FC = () => {
                         <td className="font-medium text-brand-primary">{row.po_number}</td>
                         <td className="text-sm">{row.route}</td>
                         <td className="font-medium">${row.total_value_usd.toLocaleString()}</td>
-                        <td className={row.margin_usd < 0 ? 'text-critical' : 'text-safe'}>
-                          ${row.margin_usd.toLocaleString()}
+                        <td className={row.expected_efi < 0 ? 'text-critical' : 'text-safe'}>
+                          ${row.expected_efi.toLocaleString()}
                         </td>
                         <td className="text-brand-secondary font-semibold">
-                          ${row.robust_revm_floor.toLocaleString()}
+                          ${row.robust_efi_floor.toLocaleString()}
                         </td>
                         <td>
                           <div className="risk-badge" data-level={row.ml_confidence_score > 0.8 ? 'high' : row.ml_confidence_score > 0.4 ? 'medium' : 'low'}>

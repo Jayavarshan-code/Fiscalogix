@@ -6,15 +6,15 @@ interface ScenarioData {
   cost: string;
   risk: string;
   delay: string;
-  profit: string;
+  efi: string;
   isSafe?: boolean;
 }
 
 export const ScenarioComparisonMatrix: React.FC = () => {
   const scenarios: ScenarioData[] = [
-    { name: 'Route A (Rail)', cost: '$7.8k', risk: 'Low', delay: 't+3d', profit: '$14.2k', isSafe: true },
-    { name: 'Route B (Ocean)', cost: '$3.1k', risk: 'Med', delay: 't+14d', profit: '$9.8k' },
-    { name: 'Route C (Truck)', cost: '$5.2k', risk: 'High', delay: 't+1d', profit: '-$2.4k' },
+    { name: 'Route A (Rail)', cost: '$7.8k', risk: 'Low', delay: 't+3d', efi: '₹14.2k', isSafe: true },
+    { name: 'Route B (Ocean)', cost: '$3.1k', risk: 'Med', delay: 't+14d', efi: '₹9.8k' },
+    { name: 'Route C (Truck)', cost: '$5.2k', risk: 'High', delay: 't+1d', efi: '-₹2.4k' },
   ];
 
   return (
@@ -32,7 +32,7 @@ export const ScenarioComparisonMatrix: React.FC = () => {
               <th className="p-4 border-b border-subtle"><div className="flex items-center gap-1"><DollarSign size={10} /> Cost</div></th>
               <th className="p-4 border-b border-subtle"><div className="flex items-center gap-1"><Shield size={10} /> Risk</div></th>
               <th className="p-4 border-b border-subtle"><div className="flex items-center gap-1"><Clock size={10} /> Delay</div></th>
-              <th className="p-4 border-b border-subtle"><div className="flex items-center gap-1"><TrendingUp size={10} /> Profit</div></th>
+              <th className="p-4 border-b border-subtle"><div className="flex items-center gap-1"><TrendingUp size={10} /> EFI</div></th>
             </tr>
           </thead>
           <tbody>
@@ -49,8 +49,8 @@ export const ScenarioComparisonMatrix: React.FC = () => {
                   {s.risk}
                 </td>
                 <td className="p-4 text-[10px] text-muted border-b border-subtle">{s.delay}</td>
-                <td className={`p-4 text-[11px] font-black border-b border-subtle ${s.profit.startsWith('-') ? 'text-critical' : 'text-safe'}`}>
-                  {s.profit}
+                <td className={`p-4 text-[11px] font-black border-b border-subtle ${s.efi.startsWith('-') ? 'text-critical' : 'text-safe'}`}>
+                  {s.efi}
                 </td>
               </tr>
             ))}

@@ -46,10 +46,9 @@ class StochasticMIPOptimizer:
         objective = solver.Objective()
         for s_idx, actions in enumerate(candidate_matrix):
             for a_idx, action in enumerate(actions):
-                scenarios = action.get("scenario_results", [action.get("simulated_revm", 0.0)])
                 # USE THE DYNAMIC ALPHA FOR OBJECTIVE WEIGHTING
-                robust_revm = self._calculate_cvar(scenarios, target_alpha)
-                objective.SetCoefficient(x[(s_idx, a_idx)], robust_revm)
+                robust_efi = self._calculate_cvar(scenarios, target_alpha)
+                objective.SetCoefficient(x[(s_idx, a_idx)], robust_efi)
 
         objective.SetMaximization()
         solver.set_time_limit(5000)
@@ -64,7 +63,7 @@ class StochasticMIPOptimizer:
                             for a_idx, action in enumerate(actions) if x[(s_idx, a_idx)].solution_value() == 1)
             
             if used_cash > (available_cash * 0.9):
-                tight_constraints.append("CASH_LIQUIDITY: >90% budget utilized. Higher ReVM decisions were bypassed due to capital lock.")
+                tight_constraints.append("CASH_LIQUIDITY: >90% budget utilized. Higher EFI decisions were bypassed due to capital lock.")
 
         optimized_decisions = []
         if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
@@ -72,8 +71,8 @@ class StochasticMIPOptimizer:
                 for a_idx, action in enumerate(actions):
                     if x[(s_idx, a_idx)].solution_value() == 1:
                         scen_results = action.get("scenario_results", [0])
-                        mean_revm = np.mean(scen_results)
-                        robust_revm = self._calculate_cvar(scen_results, target_alpha)
+                        mean_efi = np.mean(scen_results)
+                        robust_efi = self._calculate_cvar(scen_results, target_alpha)
                         
                         best_case = max(scen_results)
                         worst_case = min(scen_results)
@@ -103,8 +102,8 @@ class StochasticMIPOptimizer:
                         optimized_decisions.append({
                             "shipment_id": action.get("shipment_id"),
                             "action": action["action_name"],
-                            "expected_revm": round(mean_revm, 2),
-                            "robust_revm_floor": round(robust_revm, 2),
+                            "expected_efi": round(mean_efi, 2),
+                            "robust_efi_floor": round(robust_efi, 2),
                             "risk_posture": risk_appetite,
                             "executive_summary": {
                                 "recommended_action": action["action_name"],

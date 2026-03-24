@@ -41,7 +41,7 @@ class ActionSimulator:
             if is_critical and action_row.get("delay_days", 0) > 0:
                 future_cost *= 2.0
                 
-            sim_revm = profit - risk_pen - future_cost
-            results.append(round(float(sim_revm), 2))
+            sim_efi = profit - risk_pen - future_cost
+            results.append(round(float(sim_efi), 2))
             
         return results

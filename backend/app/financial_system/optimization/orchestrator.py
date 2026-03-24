@@ -31,14 +31,14 @@ class ProfitOptimizationOrchestrator:
         # 2. Command Stochastic Mathematical Global Solution
         best_decision_set = stochastic_solver.optimize(candidate_matrix, available_cash=available_liquidity)
         
-        total_revm_retained = sum(d["expected_revm"] for d in best_decision_set)
-        total_robust_floor = sum(d["robust_revm_floor"] for d in best_decision_set)
+        total_efi_retained = sum(d["expected_efi"] for d in best_decision_set)
+        total_robust_floor = sum(d["robust_efi_floor"] for d in best_decision_set)
         
         return {
             "solver": "Stochastic SCIP Backend (Conditional Value at Risk)",
             "optimized_decisions": best_decision_set,
             "expected_improvement": {
-                "expected_revm_usd": round(total_revm_retained, 2),
+                "expected_efi_usd": round(total_efi_retained, 2),
                 "robust_floor_usd": round(total_robust_floor, 2),
                 "stochastic_assurance": "Robust to 90th percentile market shocks"
             }

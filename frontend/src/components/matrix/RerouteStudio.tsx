@@ -23,7 +23,7 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
     risk: number;
     feasibility: number;
     riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
-    revm: number;
+    efi: number;
     path: string[];
     status: string;
     breakdown: Record<string, number>;
@@ -37,7 +37,7 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
       risk: 0.87,
       feasibility: 62,
       riskLevel: 'HIGH' as const,
-      revm: 11200,
+      efi: 11200,
       path: ['Port of Rotterdam', 'Hub A', 'Chicago WH'],
       status: 'CRITICAL SHOCK',
       breakdown: { Truck: 4800, Handling: 400 }
@@ -51,7 +51,7 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
       risk: 0.12,
       feasibility: 94,
       riskLevel: 'LOW' as const,
-      revm: 14500,
+      efi: 14500,
       path: ['Port of Rotterdam', 'Rail Terminal 4', 'Chicago Intermodal'],
       status: 'OPTIMAL ROBUSTNESS',
       breakdown: { Rail: 6800, Handling: 1000 }
@@ -65,7 +65,7 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
       risk: 0.05,
       feasibility: 88,
       riskLevel: 'MEDIUM' as const,
-      revm: 9800,
+      efi: 9800,
       path: ['Port of Rotterdam', 'Atlantic Lane 2', 'Port of NY', 'Chicago WH'],
       status: 'CONSERVATIVE',
       breakdown: { Ocean: 2400, Truck: 400, Handling: 300 }
@@ -137,8 +137,8 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
            <main className="analysis-main">
               <div className="stats-row">
                  <div className="stat-card">
-                    <span className="label">Expected ReVM</span>
-                    <span className="value">${(activeMode.revm).toLocaleString()}</span>
+                    <span className="label">Expected EFI</span>
+                    <span className="value">₹{(activeMode.efi).toLocaleString()}</span>
                     <span className="trend text-safe"><TrendingDown size={12} /> -2% vs Baseline</span>
                  </div>
                  <div className="stat-card">
@@ -148,7 +148,7 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
                  </div>
                  <div className="stat-card">
                     <span className="label">Base Cost</span>
-                    <span className="value">${activeMode.cost.toLocaleString()}</span>
+                    <span className="value">₹{activeMode.cost.toLocaleString()}</span>
                     <span className="trend text-muted">Spot Market +5%</span>
                  </div>
               </div>
@@ -176,8 +176,8 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
 
               <div className="stochastic-deep-dive mt-6">
                  <StochasticScenarioChart 
-                    cvarFloor={activeMode.revm - (activeMode.risk * 5000)} 
-                    scenarios={Array.from({length: 20}, () => activeMode.revm + (Math.random() - 0.5) * 4000)}
+                    cvarFloor={activeMode.efi - (activeMode.risk * 5000)} 
+                    scenarios={Array.from({length: 20}, () => activeMode.efi + (Math.random() - 0.5) * 4000)}
                  />
               </div>
 
