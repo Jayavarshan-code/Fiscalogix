@@ -3,12 +3,12 @@ from app.financial_system.optimization.action_simulator import ActionSimulator
 from app.financial_system.optimization.mip_optimizer import MIPOptimizer
 
 class ProfitOptimizationOrchestrator:
-    def __init__(self, risk, time, future):
+    def __init__(self, risk, time, future, route_optimizer=None):
         """
         Receives active instances of REVM Core ML Models logically injecting them into Simulators.
         Upgraded from Greedy to Operations Research (MIP) level mathematics.
         """
-        self.generator = CandidateActionGenerator()
+        self.generator = CandidateActionGenerator(route_optimizer=route_optimizer)
         self.simulator = ActionSimulator(risk, time, future)
         
     def optimize(self, enriched_records, available_liquidity):
