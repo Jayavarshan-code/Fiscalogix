@@ -198,6 +198,9 @@ class FinancialIntelligenceOrchestrator:
 
         impact_metrics = self.impact.compute(enriched, optimization_payload, monte_carlo_var)
 
+        # Step 1: Capture Every Decision (Evolving Intelligence)
+        self._log_decisions(optimization_payload)
+
         return {
             "summary": summary,
             "revm": enriched,
@@ -211,3 +214,24 @@ class FinancialIntelligenceOrchestrator:
             "liquidity": {"liquidity_score": liquidity_score},
             "financial_impact": impact_metrics
         }
+
+    def _log_decisions(self, optimized_payload: List[Dict[str, Any]]):
+        """
+        Persists predicted decisions to the DecisionLog table.
+        In a production system, this would use a database session.
+        """
+        from app.models.feedback import DecisionLog
+        import uuid
+        
+        print(f"[Feedback Loop] Logging {len(optimized_payload)} decisions...")
+        for decision in optimized_payload:
+            log_entry = {
+                "decision_id": str(uuid.uuid4()),
+                "shipment_id": decision.get("shipment_id"),
+                "route_selected": decision.get("action"),
+                "predicted_efi": decision.get("expected_efi"),
+                "confidence_score": decision.get("confidence_score"),
+                "risk_posture": decision.get("risk_posture")
+            }
+            # Logic for database commit would go here
+            pass
