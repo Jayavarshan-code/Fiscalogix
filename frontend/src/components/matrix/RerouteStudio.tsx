@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { X, Ship, Truck, Train, ArrowRight, Info, CheckCircle, Activity, TrendingDown } from 'lucide-react';
 import { StochasticScenarioChart } from './StochasticScenarioChart';
-import './RerouteStudio.css';
+import { FeasibilityScore } from './FeasibilityScore';
+import { CostBreakdownTable } from './CostBreakdownTable';
 
 interface RerouteStudioProps {
   shipmentId: string;
@@ -13,39 +14,61 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
   const [selectedMode, setSelectedMode] = useState('RAIL');
   const [holdingCostMultiplier, setHoldingCostMultiplier] = useState(1.0);
 
-  const modes = [
+  const modes: Array<{
+    id: string;
+    name: string;
+    icon: React.ReactNode;
+    cost: number;
+    time: string;
+    risk: number;
+    feasibility: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    revm: number;
+    path: string[];
+    status: string;
+    breakdown: Record<string, number>;
+  }> = [
     {
       id: 'TRUCK',
-      name: 'Trucking (Current)',
+      name: 'Direct Trucking',
       icon: <Truck size={18} />,
       cost: 5200,
       time: '24h',
       risk: 0.87,
+      feasibility: 62,
+      riskLevel: 'HIGH' as const,
       revm: 11200,
       path: ['Port of Rotterdam', 'Hub A', 'Chicago WH'],
-      status: 'CRITICAL SHOCK DETECTED'
+      status: 'CRITICAL SHOCK',
+      breakdown: { Truck: 4800, Handling: 400 }
     },
     {
       id: 'RAIL',
-      name: 'Rail (Stable Alternative)',
+      name: 'Intermodal Rail',
       icon: <Train size={18} />,
       cost: 7800,
       time: '72h',
       risk: 0.12,
+      feasibility: 94,
+      riskLevel: 'LOW' as const,
       revm: 14500,
       path: ['Port of Rotterdam', 'Rail Terminal 4', 'Chicago Intermodal'],
-      status: 'OPTIMAL ROBUSTNESS'
+      status: 'OPTIMAL ROBUSTNESS',
+      breakdown: { Rail: 6800, Handling: 1000 }
     },
     {
       id: 'OCEAN',
-      name: 'Ocean (Global Pivot)',
+      name: 'Ocean Pivot',
       icon: <Ship size={18} />,
       cost: 3100,
       time: '14 days',
       risk: 0.05,
+      feasibility: 88,
+      riskLevel: 'MEDIUM' as const,
       revm: 9800,
       path: ['Port of Rotterdam', 'Atlantic Lane 2', 'Port of NY', 'Chicago WH'],
-      status: 'CONSERVATIVE BACKUP'
+      status: 'CONSERVATIVE',
+      breakdown: { Ocean: 2400, Truck: 400, Handling: 300 }
     }
   ];
 
@@ -75,12 +98,17 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
                  {modes.map(mode => (
                     <button 
                         key={mode.id}
-                        className={`mode-item ${selectedMode === mode.id ? 'active' : ''} ${mode.risk > 0.5 ? 'risk' : ''}`}
+                        className={`mode-item ${selectedMode === mode.id ? 'active' : ''} ${mode.riskLevel === 'HIGH' ? 'risk' : ''}`}
                         onClick={() => setSelectedMode(mode.id)}
                     >
                        <div className="mode-icon">{mode.icon}</div>
-                       <div className="mode-info">
-                          <span className="mode-name">{mode.name}</span>
+                       <div className="mode-info flex-1">
+                          <div className="flex justify-between items-center w-full">
+                             <span className="mode-name">{mode.name}</span>
+                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${mode.riskLevel === 'LOW' ? 'bg-safe/20 text-safe' : 'bg-critical/20 text-critical'}`}>
+                                {mode.feasibility}%
+                             </span>
+                          </div>
                           <span className="mode-status">{mode.status}</span>
                        </div>
                     </button>
@@ -126,7 +154,10 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
               </div>
 
               <div className="path-analysis mt-6">
-                 <h3>Kinetic Path Visualization</h3>
+                 <div className="flex justify-between items-center mb-3">
+                    <h3>Executable Kinetic Path</h3>
+                    <FeasibilityScore score={activeMode.feasibility} riskLevel={activeMode.riskLevel} />
+                 </div>
                  <div className="path-stepper">
                     {activeMode.path.map((node, i) => (
                        <React.Fragment key={i}>
@@ -139,6 +170,9 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
                     ))}
                  </div>
               </div>
+
+              {/* Tech Giant Upgrade: Cost Breakdown Transparency */}
+              <CostBreakdownTable breakdown={activeMode.breakdown} total={activeMode.cost} />
 
               <div className="stochastic-deep-dive mt-6">
                  <StochasticScenarioChart 
