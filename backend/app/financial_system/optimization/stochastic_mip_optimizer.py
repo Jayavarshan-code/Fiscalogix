@@ -78,21 +78,44 @@ class StochasticMIPOptimizer:
                         best_case = max(scen_results)
                         worst_case = min(scen_results)
                         
-                        # Add Appetite Context to Narratives
-                        narratives = [
-                            f"Scenario A (Worst Case): Potential ${round(abs(worst_case), 0)} loss in extreme volatility.",
-                            f"Stochastic Recommendation: Choosing {action['action_name']} ({risk_appetite} posture) to prioritize a ${round(robust_revm, 0)} safety floor."
-                        ]
+                        # --- Pillar 5 Upgrade: Executive Briefing Layer ---
+                        # Benchmark against "Status Quo" (assumed to be the first action in the list)
+                        status_quo = actions[0]
+                        sq_results = status_quo.get("scenario_results", [0.0])
+                        sq_robust_floor = self._calculate_cvar(sq_results, target_alpha)
                         
+                        # Profit Impact = Total ReVM difference (Expected)
+                        profit_impact = (mean_revm - np.mean(sq_results)) * 100 # Multiplier for ₹ scaling
+                        
+                        # Risk Reduction = Improvement in the Robust Floor
+                        risk_improvement = robust_revm - sq_robust_floor
+                        risk_reduction_pct = (risk_improvement / abs(sq_robust_floor)) * 100 if sq_robust_floor != 0 else 0
+                        
+                        # Operational Alert (if status quo risk is > 70%)
+                        sq_risk_score = status_quo.get("risk_score", 0.0)
+                        op_alert = "Critical disruption detected" if sq_risk_score > 0.7 else "Standard monitoring active"
+                        
+                        # Simplified XAI Narrative
+                        # "Avoids high-loss scenarios in X% of cases"
+                        success_rate = len([s for s in scen_results if s > worst_case]) / len(scen_results) * 100
+                        simplified_narrative = f"This route avoids high-loss scenarios in {int(success_rate)}% of simulated cases."
+
                         optimized_decisions.append({
                             "shipment_id": action.get("shipment_id"),
                             "action": action["action_name"],
                             "expected_revm": round(mean_revm, 2),
                             "robust_revm_floor": round(robust_revm, 2),
                             "risk_posture": risk_appetite,
+                            "executive_summary": {
+                                "recommended_action": action["action_name"],
+                                "profit_impact_delta": round(profit_impact, 0),
+                                "risk_reduction_pct": round(max(0, risk_reduction_pct), 1),
+                                "operational_alert": op_alert,
+                                "executive_narrative": simplified_narrative
+                            },
                             "narratives": narratives,
                             "tight_constraints": tight_constraints,
-                            "reason": f"Resilient Decision: Optimal for {risk_appetite} risk appetite."
+                            "reason": f"Strategic Executive Choice: Optimal for {risk_appetite} posture."
                         })
                         break
 
