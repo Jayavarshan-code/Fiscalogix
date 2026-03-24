@@ -62,6 +62,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
             <Zap size={18} />
             Optimization (POE)
           </a>
+          <a href="#" className={`nav-item ${activeView === 'shield' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'shield')}>
+            <Shield size={18} />
+            AI Shield (Governance)
+          </a>
           <a href="#" className="nav-item">
             <Shuffle size={18} />
             Scenario Simulation

@@ -8,8 +8,10 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { IngestionStudio } from './components/ingestion/IngestionStudio';
 import './App.css';
 
+import { GovernanceDashboardMatrix } from './components/matrix/GovernanceDashboard';
+
 const MainApp = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'matrix' | 'admin' | 'ingest'>('ingest');
+  const [activeView, setActiveView] = useState<'dashboard' | 'matrix' | 'admin' | 'ingest' | 'shield'>('matrix');
   const { currentUser } = useAuth();
 
   if (!currentUser) {
@@ -17,11 +19,12 @@ const MainApp = () => {
   }
 
   return (
-    <Shell activeView={activeView} onNavigate={(view) => setActiveView(view as 'dashboard' | 'matrix' | 'admin' | 'ingest')}>
+    <Shell activeView={activeView} onNavigate={(view) => setActiveView(view as any)}>
       {activeView === 'dashboard' && <Dashboard />}
       {activeView === 'matrix' && <IntelligenceMatrix />}
       {activeView === 'ingest' && <IngestionStudio />}
       {activeView === 'admin' && <AdminDashboard />}
+      {activeView === 'shield' && <GovernanceDashboardMatrix />}
     </Shell>
   );
 };
