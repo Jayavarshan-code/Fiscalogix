@@ -6,6 +6,9 @@ import { TemporalRiskTimeline } from './TemporalRiskTimeline';
 import { StochasticScenarioChart } from './StochasticScenarioChart';
 import { RerouteStudio } from './RerouteStudio';
 import './ConfidencePanel.css';
+import { ConstraintVisibilityPanel } from './ConstraintVisibilityPanel';
+import type { RiskAppetite } from './RiskAppetiteSlider';
+import { RiskAppetiteSlider } from './RiskAppetiteSlider';
 
 interface ConfidencePanelProps {
   shipmentId: string | null;
@@ -15,6 +18,7 @@ interface ConfidencePanelProps {
 export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, onClose }) => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isRerouteStudioOpen, setIsRerouteStudioOpen] = useState(false);
+  const [riskAppetite, setRiskAppetite] = useState<RiskAppetite>('BALANCED');
   const [executionResult, setExecutionResult] = useState<any>(null);
   const { currentUser, hasPermission } = useAuth();
 
@@ -29,6 +33,7 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         shipment_id: shipmentId,
         erp_target: 'SAP',
         confidence_score: 0.942,
+        parameters: { risk_posture: riskAppetite },
         mock_user_id: currentUser?.id || 1
       });
       setExecutionResult(result.erp_receipt);
@@ -43,26 +48,29 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
     <div className="confidence-panel active">
       <div className="panel-header">
         <div>
-          <h2>Confidence Studio</h2>
-          <span className="subtitle">Explaining action for {shipmentId}</span>
+          <h2 className="text-xl font-black text-primary tracking-tighter">Black Swan Risk Radar</h2>
+          <span className="subtitle">Explaining high-integrity rescue for {shipmentId}</span>
         </div>
         <button className="icon-btn" onClick={onClose}><X size={20} /></button>
       </div>
 
       <div className="panel-body">
         <div className="score-section">
-          <div className="score-circle critical">
-            <span className="score-value">85%</span>
-            <span className="score-label">Risk Probability</span>
+          <div className={`score-circle ${riskAppetite === 'CONSERVATIVE' ? 'safe' : riskAppetite === 'AGGRESSIVE' ? 'warning' : 'critical'}`}>
+            <span className="score-value">{riskAppetite === 'CONSERVATIVE' ? '92%' : riskAppetite === 'AGGRESSIVE' ? '74%' : '85%'}</span>
+            <span className="score-label">Integrity Score</span>
           </div>
           <div className="score-context">
             <ShieldAlert className="text-critical" size={24} />
             <div>
-              <h4>Critical Intervention Required</h4>
-              <p>Model confidence: 94.2% (High Integrity)</p>
+              <h4 className="font-black text-sm uppercase tracking-tight">Active Disruption Shield</h4>
+              <p className="text-[10px] text-muted">Posture: <strong>{riskAppetite}</strong> | CVaR Alpha Opt. Enabled</p>
             </div>
           </div>
         </div>
+
+        {/* Tech Giant Upgrade: Interactive Risk Appetite Control */}
+        <RiskAppetiteSlider value={riskAppetite} onChange={setRiskAppetite} />
 
         {/* Tech Giant Upgrade: Temporal Risk Radar with Hybrid Signals */}
         <TemporalRiskTimeline markers={[
@@ -90,54 +98,56 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         ]} />
 
         <div className="drivers-section">
-          <h3>Top Structural Drivers</h3>
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Structural Volatility Drivers</h3>
           <ul className="driver-list">
             <li className="driver-item warning">
-              <span className="driver-name">Carrier Performance Degradation</span>
-              <span className="driver-impact">+32%</span>
+              <span className="driver-name">Network Contagion Radius</span>
+              <span className="driver-impact">+14h</span>
             </li>
             <li className="driver-item critical">
-              <span className="driver-name">Margin Compression vs Spot Rate</span>
-              <span className="driver-impact">+45%</span>
-            </li>
-            <li className="driver-item safe">
-              <span className="driver-name">Inventory Buffer Status</span>
-              <span className="driver-impact">-12%</span>
+              <span className="driver-name">Spot Rate Volatility</span>
+              <span className="driver-impact">+38%</span>
             </li>
           </ul>
         </div>
 
         <div className="action-section">
-          <h3>Recommended Action</h3>
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Resilient Recommendation</h3>
           <div className="action-card reroute">
             <div className="action-card-header" style={{ justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <CheckCircle size={18} />
-                <h4>REROUTE TO AIR FREIGHT</h4>
+                <CheckCircle size={18} className="text-brand-primary" />
+                <h4 className="font-bold text-sm tracking-tight">REROUTE TO INTERMODAL RAIL</h4>
               </div>
               <span className="confidence-badge" style={{ fontSize: '0.75rem', padding: '2px 8px', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: '12px', fontWeight: 600 }}>
-                94.2% Confidence
+                94.2% Robustness
               </span>
             </div>
             
-            <p className="mt-2 mb-4 text-xs leading-relaxed text-secondary border-l-2 border-brand-primary pl-3 bg-surface-elevated py-2 rounded-r">
-               <strong>XAI ADVISORY:</strong> Rerouting initiated due to <strong>87% probability</strong> of strike contagion propagating from 
-               <strong> PORT_A</strong> to <strong>HUB_B</strong> in <strong>T+24h</strong>. This proactive shift preserves <strong>$15,000</strong> in expected ReVM 
-               and maintains a <strong>$12,500 robustness floor</strong> against 90th percentile market shocks.
+            <p className="mt-4 mb-4 text-[11px] font-medium leading-relaxed text-secondary border-l-4 border-brand-primary pl-4 bg-surface-elevated py-3 rounded-r-xl shadow-inner">
+               <strong>PROBABILISTIC NARRATIVE:</strong> Choosing the <strong>{riskAppetite}</strong> intermodal branch because it provides an <strong>82% higher profit floor</strong> compared to Ocean freight during the predicted <strong>Scenario A (Worst Case)</strong> port strike contagion.
             </p>
             
             {/* Tech Giant Upgrade: Stochastic Robustness Visualization */}
             <StochasticScenarioChart 
-              cvarFloor={12500} 
+              cvarFloor={riskAppetite === 'CONSERVATIVE' ? 14200 : riskAppetite === 'AGGRESSIVE' ? 11000 : 12500} 
               scenarios={[
                 14000, 15500, 12000, 8000, 15000, 16000, 13000, 14500, 12500, 11000,
                 15200, 14800, 13900, 12100, 11500, 16200, 15800, 14200, 12600, 13100
               ]} 
               narratives={[
-                "Scenario A (Worst Case): Harbor master strike extends to 5 days; compounding demurrage leads to $12k loss.",
-                "Scenario B (Best Case): Customs clearance accelerated; yielding $16k premium margin.",
-                "Stochastic Strategy: Reroute to Air costs $8k but protects against the catastrophic $12k loss scenario, ensuring a $12.5k robust profit floor."
+                "Scenario A (Worst Case): Port Strike triggers 5-day demurrage; yielding $12k loss on Sea branch.",
+                "Scenario B (Best Case): Customs congestion bypass; yielding $16k windfall.",
+                `Decision Rationale: The chosen branch (${riskAppetite}) optimizes the protection of ${riskAppetite === 'CONSERVATIVE' ? '$14,200' : '$12,500'} in target margin.`
               ]}
+            />
+
+            {/* Tech Giant Upgrade: Constraint Visibility Panel */}
+            <ConstraintVisibilityPanel 
+              constraints={["CASH_LIQUIDITY: >92% budget utilization detected for this week.", "CAPACITY: EU-HUB rail terminal operating at near peak capacity."]}
+              capacityUtilization={94}
+              costBudgetUtilization={92}
+              slaHealth={98}
             />
 
             {/* Tech Giant Upgrade: Multimodal Trade-off Alternatives */}
