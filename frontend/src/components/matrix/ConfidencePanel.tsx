@@ -7,6 +7,8 @@ import { StochasticScenarioChart } from './StochasticScenarioChart';
 import { RerouteStudio } from './RerouteStudio';
 import './ConfidencePanel.css';
 import { ConstraintVisibilityPanel } from './ConstraintVisibilityPanel';
+import { ExecutiveDecisionBanner } from './ExecutiveDecisionBanner';
+import { ScenarioComparisonMatrix } from './ScenarioComparisonMatrix';
 import type { RiskAppetite } from './RiskAppetiteSlider';
 import { RiskAppetiteSlider } from './RiskAppetiteSlider';
 
@@ -48,13 +50,21 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
     <div className="confidence-panel active">
       <div className="panel-header">
         <div>
-          <h2 className="text-xl font-black text-primary tracking-tighter">Black Swan Risk Radar</h2>
-          <span className="subtitle">Explaining high-integrity rescue for {shipmentId}</span>
+          <h2 className="text-xl font-black text-primary tracking-tighter">Executive Decision Cockpit</h2>
+          <span className="subtitle tracking-tight">Mission Control for {shipmentId}</span>
         </div>
         <button className="icon-btn" onClick={onClose}><X size={20} /></button>
       </div>
 
       <div className="panel-body">
+        {/* Pillar 5 Upgrade: Executive Decision Banner (Top Panel) */}
+        <ExecutiveDecisionBanner 
+          action="Reroute via Intermodal Rail"
+          profitImpact="₹14,20,000"
+          riskReduction="37%"
+          isCritical={true}
+        />
+
         <div className="score-section">
           <div className={`score-circle ${riskAppetite === 'CONSERVATIVE' ? 'safe' : riskAppetite === 'AGGRESSIVE' ? 'warning' : 'critical'}`}>
             <span className="score-value">{riskAppetite === 'CONSERVATIVE' ? '92%' : riskAppetite === 'AGGRESSIVE' ? '74%' : '85%'}</span>
@@ -63,8 +73,8 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
           <div className="score-context">
             <ShieldAlert className="text-critical" size={24} />
             <div>
-              <h4 className="font-black text-sm uppercase tracking-tight">Active Disruption Shield</h4>
-              <p className="text-[10px] text-muted">Posture: <strong>{riskAppetite}</strong> | CVaR Alpha Opt. Enabled</p>
+              <h4 className="font-black text-sm uppercase tracking-tight">Strategic Disruption Shield</h4>
+              <p className="text-[10px] text-muted">Risk Posture: <strong>{riskAppetite === 'CONSERVATIVE' ? 'Maximum Safety' : riskAppetite === 'AGGRESSIVE' ? 'Maximum Profit' : 'Balanced'}</strong></p>
             </div>
           </div>
         </div>
@@ -77,7 +87,7 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
             { 
               time_hours: 0, 
               score: 0.15, 
-              label: 'NOW',
+              label: 'START',
               bands: [0.10, 0.15, 0.25],
               signals: [{ type: 'AIS', message: 'Vessel Queue: 12 ships' }]
             },
@@ -98,34 +108,34 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         ]} />
 
         <div className="drivers-section">
-          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Structural Volatility Drivers</h3>
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Operational Risk Drivers</h3>
           <ul className="driver-list">
             <li className="driver-item warning">
-              <span className="driver-name">Network Contagion Radius</span>
-              <span className="driver-impact">+14h</span>
+              <span className="driver-name">Network Propagation</span>
+              <span className="driver-impact">+14h Delay</span>
             </li>
             <li className="driver-item critical">
-              <span className="driver-name">Spot Rate Volatility</span>
-              <span className="driver-impact">+38%</span>
+              <span className="driver-name">Market Rate Volatility</span>
+              <span className="driver-impact">+38% Cost</span>
             </li>
           </ul>
         </div>
 
         <div className="action-section">
-          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Resilient Recommendation</h3>
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Executive Recommendation</h3>
           <div className="action-card reroute">
             <div className="action-card-header" style={{ justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle size={18} className="text-brand-primary" />
-                <h4 className="font-bold text-sm tracking-tight">REROUTE TO INTERMODAL RAIL</h4>
+                <h4 className="font-bold text-sm tracking-tight tracking-tighter">REROUTE TO INTERMODAL RAIL</h4>
               </div>
               <span className="confidence-badge" style={{ fontSize: '0.75rem', padding: '2px 8px', backgroundColor: 'rgba(37, 99, 235, 0.1)', borderRadius: '12px', fontWeight: 600 }}>
-                94.2% Robustness
+                High Execution Feasibility
               </span>
             </div>
             
             <p className="mt-4 mb-4 text-[11px] font-medium leading-relaxed text-secondary border-l-4 border-brand-primary pl-4 bg-surface-elevated py-3 rounded-r-xl shadow-inner">
-               <strong>PROBABILISTIC NARRATIVE:</strong> Choosing the <strong>{riskAppetite}</strong> intermodal branch because it provides an <strong>82% higher profit floor</strong> compared to Ocean freight during the predicted <strong>Scenario A (Worst Case)</strong> port strike contagion.
+               <strong>STRATEGIC INSIGHT:</strong> This route <strong>avoids high-loss scenarios in 78% of simulated cases</strong>. Choosing the <strong>{riskAppetite}</strong> intermodal path protects your target margin by bypassing the port strike corridor.
             </p>
             
             {/* Tech Giant Upgrade: Stochastic Robustness Visualization */}
@@ -136,15 +146,18 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
                 15200, 14800, 13900, 12100, 11500, 16200, 15800, 14200, 12600, 13100
               ]} 
               narratives={[
-                "Scenario A (Worst Case): Port Strike triggers 5-day demurrage; yielding $12k loss on Sea branch.",
-                "Scenario B (Best Case): Customs congestion bypass; yielding $16k windfall.",
-                `Decision Rationale: The chosen branch (${riskAppetite}) optimizes the protection of ${riskAppetite === 'CONSERVATIVE' ? '$14,200' : '$12,500'} in target margin.`
+                "Extreme Scenario: Port Strike triggers 5-day demurrage; yielding heavy losses on Sea branch.",
+                "Optimal Scenario: Customs congestion bypass; yielding maximum profit.",
+                `Reasoning: This choice protects ${riskAppetite === 'CONSERVATIVE' ? '$14,200' : '$12,500'} in margin against predicted shocks.`
               ]}
             />
 
+            {/* Pillar 5 Upgrade: Side-by-Side Scenario Comparison Table */}
+            <ScenarioComparisonMatrix />
+
             {/* Tech Giant Upgrade: Constraint Visibility Panel */}
             <ConstraintVisibilityPanel 
-              constraints={["CASH_LIQUIDITY: >92% budget utilization detected for this week.", "CAPACITY: EU-HUB rail terminal operating at near peak capacity."]}
+              constraints={["Liquidity: High budget utilization detected.", "Capacity: EU-HUB rail terminal near peak."]}
               capacityUtilization={94}
               costBudgetUtilization={92}
               slaHealth={98}
