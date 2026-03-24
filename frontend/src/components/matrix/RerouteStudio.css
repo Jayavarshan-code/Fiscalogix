@@ -1,0 +1,223 @@
+.reroute-studio-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.reroute-studio-content {
+  width: 100%;
+  max-width: 1100px;
+  max-height: 85vh;
+  background: var(--surface);
+  border: 1px solid var(--subtle);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleUp 0.3s ease-out;
+}
+
+.studio-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.studio-header h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.mode-sidebar {
+  padding: 1.5rem;
+  background: var(--surface-elevated);
+  border-right: 1px solid var(--subtle);
+  overflow-y: auto;
+}
+
+.mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.mode-item {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--subtle);
+  border-radius: 12px;
+  background: var(--surface);
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mode-item:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.mode-item.active {
+  border-color: var(--brand-primary);
+  background: rgba(37, 99, 235, 0.05);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.mode-item.risk {
+  border-left: 4px solid var(--critical);
+}
+
+.mode-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface-elevated);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  border: 1px solid var(--subtle);
+}
+
+.active .mode-icon {
+  background: var(--brand-primary);
+  color: white;
+  border-color: var(--brand-primary);
+}
+
+.mode-name {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mode-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.analysis-main {
+  padding: 2rem;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.stat-card {
+  padding: 1.25rem;
+  background: var(--surface-elevated);
+  border: 1px solid var(--subtle);
+  border-radius: 14px;
+}
+
+.stat-card .label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.stat-card .value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.path-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1.25rem;
+  background: var(--surface-elevated);
+  border-radius: 12px;
+  border: 1px solid var(--subtle);
+}
+
+.path-node {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.node-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.node-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.btn-execute {
+  width: 100%;
+  padding: 1.25rem;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-execute.safe {
+  background: var(--brand-primary);
+  color: white;
+  box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.4);
+}
+
+.btn-execute.critical {
+  background: var(--critical);
+  color: white;
+  box-shadow: 0 10px 20px -5px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }

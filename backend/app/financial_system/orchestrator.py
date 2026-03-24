@@ -74,7 +74,29 @@ class FinancialIntelligenceOrchestrator:
         self.route_optimizer.add_edge("CAPE", "EU", 11200, 1.1, 45, 1200)
 
         # Route 3: Trans-Pacific
-        self.route_optimizer.add_edge("CN", "US", 11000, 1.4, 60, 3000)
+        self.route_optimizer.add_edge("CN", "US", 11000, 1.4, 60, 3000, transport_mode="Ocean")
+        
+        # --- Domestic / Inland Logistics Layers ---
+        self.route_optimizer.add_node("HUB_A", territory_type="Friendly") # Truck Hub
+        self.route_optimizer.add_node("HUB_B", territory_type="Friendly") # Rail Hub
+        self.route_optimizer.add_node("RETAILER_X", territory_type="Friendly") # Final Destination
+        
+        # Domestic Edges (Trucking vs Rail)
+        # Link 1: EU Port to Hub A (Truck - FAST & CHEAP - Dist: 500km)
+        self.route_optimizer.add_edge("EU", "HUB_A", 500, 1.0, 30, 50, transport_mode="Truck")
+        # Link 2: EU Port to Hub B (Rail - STABLE - Dist: 600km)
+        self.route_optimizer.add_edge("EU", "HUB_B", 600, 2.0, 60, 500, transport_mode="Rail")
+        
+        # Last Mile
+        self.route_optimizer.add_edge("HUB_A", "RETAILER_X", 100, 1.0, 30, 20, transport_mode="Truck")
+        self.route_optimizer.add_edge("HUB_B", "RETAILER_X", 150, 1.0, 30, 20, transport_mode="Truck")
+        
+        # ACTIVE SCENARIO: Labor Strike on Primary Trucking Lane (EU -> HUB_A)
+        self.route_optimizer.set_strike("EU", "HUB_A", active=True)
+        
+        # --- Tech Giant AI Sync ---
+        # Inject the physical graph topology into the Risk Engine for contagion modeling
+        self.risk.set_contagion_context(self.route_optimizer.graph)
 
     def run(self, tenant_id: str = "default_tenant"):
         data = self.core.compute(tenant_id=tenant_id)

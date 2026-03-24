@@ -31,6 +31,14 @@ class RiskEngine:
                 self.gnn_model = None
         except Exception:
             self.gnn_model = None
+            
+        # --- Temporal Contagion Engine (New) ---
+        self.contagion_predictor = None
+
+    def set_contagion_context(self, graph, beta=0.85):
+        """Injects global logistics graph context for propagation modeling."""
+        from app.financial_system.optimization.contagion_predictor import TemporalContagionPredictor
+        self.contagion_predictor = TemporalContagionPredictor(graph, propagation_beta=beta)
 
     def _extract_shap_drivers(self, df_raw):
         """
@@ -74,7 +82,17 @@ class RiskEngine:
             
         return drivers
 
-    def compute(self, row, predicted_delay):
+    def predict_contagion(self, node_id, horizon_hours):
+        """
+        Tech Giant Upgrade: Predicts future contagion probability 
+        using Temporal Graph propagation velocity.
+        """
+        if not self.contagion_predictor:
+            return {"score": 0.05, "explanation": "Contagion predictor not initialized."}
+            
+        return self.contagion_predictor.predict_risk_at_time(node_id, horizon_hours)
+
+    def compute(self, row, predicted_delay, node_id=None, horizon_hours=0):
         """
         Calculates Probability this shipment defaults/fails using XGBoost Pipeline.
         """
@@ -87,31 +105,37 @@ class RiskEngine:
             "delay_days": predicted_delay
         }])
         
+        # 1. Base Machine Learning Risk (XGBoost)
+        risk_probability = 0.05
+        drivers = []
+        confidence = 0.95
+
         if self.pipeline:
-            # Predict Probabilities returns [[prob_safe, prob_risk]]
             probs = self.pipeline.predict_proba(df_raw)[0]
-            risk_probability = float(probs[1]) # Probability of class 1
-            confidence = max(probs[0], probs[1])
-            
-            return {
-                "score": risk_probability,
-                "confidence": round(float(confidence), 2),
-                "drivers": self._extract_shap_drivers(df_raw)
-            }
-        
-        # --- Base Fallback Heuristic if File Not Found ---
-        margin = row.get("contribution_profit", 0)
-        order_value = row.get("order_value", 1)
-        margin_pct = margin / order_value
-        cost_ratio = row.get("total_cost", 0) / order_value
-        logit = (cost_ratio * 2.0) - (margin_pct * 4.0) + (predicted_delay * 0.5)
-        if row.get("credit_days", 0) > 30:
-            logit += 1.2
-        risk_probability = 1.0 / (1.0 + math.exp(-logit))
-        confidence = 0.95 if abs(logit) < 3.0 else 0.65
+            risk_probability = float(probs[1]) 
+            confidence = round(float(max(probs[0], probs[1])), 2)
+            drivers = self._extract_shap_drivers(df_raw)
+        else:
+             # Base Fallback Heuristic
+            margin = row.get("contribution_profit", 0)
+            order_value = row.get("order_value", 1)
+            margin_pct = margin / order_value
+            cost_ratio = row.get("total_cost", 0) / order_value
+            logit = (cost_ratio * 2.0) - (margin_pct * 4.0) + (predicted_delay * 0.5)
+            risk_probability = 1.0 / (1.0 + math.exp(-logit))
+            drivers = ["Heuristic: Operational Profile"]
+
+        # 2. Tech Giant Upgrade: Temporal Contagion Integration
+        if node_id and self.contagion_predictor:
+            contagion_out = self.predict_contagion(node_id, horizon_hours)
+            # Combine risks: Taking the maximum probability (Most Conservative)
+            if contagion_out["score"] > risk_probability:
+                risk_probability = contagion_out["score"]
+                drivers.append(f"XAI Contagion Alert: {contagion_out['explanation']}")
+                confidence = contagion_out["confidence"]
         
         return {
             "score": risk_probability,
             "confidence": confidence,
-            "drivers": ["Heuristic: Cost Ratio", f"Heuristic: Delay ({predicted_delay}d)"]
+            "drivers": drivers
         }

@@ -19,6 +19,9 @@ class ShipmentRow(BaseModel):
     expected_arrival_utc: Optional[datetime]
     ml_confidence_score: float
     ml_risk_detected: bool
+    # Tech Giant Evolution Fields
+    robust_revm_floor: float
+    contagion_score_t48: float
 
 class PaginatedResponse(BaseModel):
     total_records: int
@@ -70,6 +73,18 @@ def get_paginated_shipments(
         margin = s.margin_usd if s.margin_usd else (s.total_value_usd * 0.15 if s.total_value_usd else 0)
         risk_score = s.ml_confidence_score if s.ml_confidence_score is not None else 0.5
         
+        # 6. Tech Giant Intelligence Injection
+        # Ideally, this would be pre-calculated in a batch job or cached
+        # For the dashboard, we simulate the 'Robust Floor' as the 10th percentile outcome
+        robust_floor = margin * (0.85 if risk_score > 0.5 else 0.98)
+        
+        # Scenario: Future risk (T+48h). 
+        # If the current risk is low but it's on a multimodal hub, show predictive contagion.
+        contagion_48 = risk_score
+        if "HUB" in route_str or "PORT" in route_str:
+             # Sample logic: Predict risk spike if near gateways
+             contagion_48 = min(1.0, risk_score * 1.4 + 0.1)
+        
         formatted_data.append({
             "id": s.raw_source_uuid or f"SYS-{s.id}",
             "po_number": s.po_number or "N/A",
@@ -79,7 +94,9 @@ def get_paginated_shipments(
             "margin_usd": margin,
             "expected_arrival_utc": s.expected_arrival_utc,
             "ml_confidence_score": risk_score,
-            "ml_risk_detected": s.ml_risk_detected or False
+            "ml_risk_detected": s.ml_risk_detected or False,
+            "robust_revm_floor": round(robust_floor, 2),
+            "contagion_score_t48": round(contagion_48, 3)
         })
         
     return {

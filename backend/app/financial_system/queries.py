@@ -11,6 +11,8 @@ def get_financial_twin_query():
         sku.holding_cost_per_day,
         fp.wacc,
         fp.penalty_rate,
+        sku.is_critical,
+        sku.unit_value,
         COALESCE(c.credit_days, 0) AS credit_days,
         COALESCE(c.payment_delay_days, 0) AS payment_delay_days,
 

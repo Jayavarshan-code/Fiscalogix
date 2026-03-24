@@ -14,6 +14,9 @@ interface ShipmentRow {
   expected_arrival_utc: string | null;
   ml_confidence_score: number;
   ml_risk_detected: boolean;
+  // Tech Giant Fields
+  robust_revm_floor: number;
+  contagion_score_t48: number;
 }
 
 export const IntelligenceMatrix: React.FC = () => {
@@ -135,8 +138,10 @@ export const IntelligenceMatrix: React.FC = () => {
                     <th className="sortable-header" onClick={() => toggleSort('po_number')} style={{cursor: 'pointer'}}>PO Number {getSortIcon('po_number')}</th>
                     <th>Route Line</th>
                     <th className="sortable-header" onClick={() => toggleSort('total_value_usd')} style={{cursor: 'pointer'}}>Order Value {getSortIcon('total_value_usd')}</th>
-                    <th className="sortable-header" onClick={() => toggleSort('margin_usd')} style={{cursor: 'pointer'}}>Margin at Risk {getSortIcon('margin_usd')}</th>
+                    <th className="sortable-header" onClick={() => toggleSort('margin_usd')} style={{cursor: 'pointer'}}>Expected ReVM {getSortIcon('margin_usd')}</th>
+                    <th className="sortable-header" onClick={() => toggleSort('robust_revm_floor')} style={{cursor: 'pointer'}}>Robust Floor {getSortIcon('robust_revm_floor')}</th>
                     <th className="sortable-header" onClick={() => toggleSort('ml_confidence_score')} style={{cursor: 'pointer'}}>Risk Score {getSortIcon('ml_confidence_score')}</th>
+                    <th className="sortable-header" onClick={() => toggleSort('contagion_score_t48')} style={{cursor: 'pointer'}}>Predictive (48h) {getSortIcon('contagion_score_t48')}</th>
                     <th>Recommended Action</th>
                     <th style={{ width: '40px' }}></th>
                   </tr>
@@ -168,10 +173,19 @@ export const IntelligenceMatrix: React.FC = () => {
                         <td className={row.margin_usd < 0 ? 'text-critical' : 'text-safe'}>
                           ${row.margin_usd.toLocaleString()}
                         </td>
+                        <td className="text-brand-secondary font-semibold">
+                          ${row.robust_revm_floor.toLocaleString()}
+                        </td>
                         <td>
                           <div className="risk-badge" data-level={row.ml_confidence_score > 0.8 ? 'high' : row.ml_confidence_score > 0.4 ? 'medium' : 'low'}>
                             {row.ml_confidence_score > 0.8 && <AlertTriangle size={12} />}
                             {(row.ml_confidence_score * 100).toFixed(0)}%
+                          </div>
+                        </td>
+                        <td>
+                          <div className="risk-badge" data-level={row.contagion_score_t48 > 0.8 ? 'high' : row.contagion_score_t48 > 0.4 ? 'medium' : 'low'}>
+                            {(row.contagion_score_t48 * 100).toFixed(0)}%
+                            {row.contagion_score_t48 > row.ml_confidence_score && <ArrowUp size={10} className="ml-0.5" />}
                           </div>
                         </td>
                         <td>

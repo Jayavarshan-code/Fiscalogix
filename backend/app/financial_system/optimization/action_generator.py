@@ -1,8 +1,9 @@
 import copy
 
 class CandidateActionGenerator:
-    def __init__(self, route_optimizer=None):
+    def __init__(self, route_optimizer=None, risk_engine=None):
         self.route_optimizer = route_optimizer
+        self.risk_engine = risk_engine
 
     def generate(self, row):
         """
@@ -31,20 +32,26 @@ class CandidateActionGenerator:
             expedite["delay_days"] = max(0, expedite.get("delay_days", 0) - 5)
             actions.append(expedite)
             
-        # Action D: Reroute (Optimized via Geopolitical Route Engine)
+        # Action D: Reroute (Optimized via Multimodal Engine)
+        is_critical = row.get("is_critical", False)
         if self.route_optimizer:
             # Extract origin/dest from route string (e.g., "US-CN" -> "US", "CN")
             current_route = row.get("route", "UNKNOWN-UNKNOWN")
             parts = current_route.split("-")
             if len(parts) == 2:
-                opt_res = self.route_optimizer.find_best_route(parts[0], parts[1])
+                opt_res = self.route_optimizer.find_best_route(
+                    parts[0], parts[1], 
+                    is_critical=is_critical, 
+                    risk_engine=self.risk_engine
+                )
                 if opt_res:
                     reroute = copy.deepcopy(row)
-                    reroute["action_name"] = "REROUTE_OPTIMIZED"
+                    # Tactical branding based on Goods Nature
+                    reroute["action_name"] = "SAFE_TRUCK_REROUTE" if is_critical else "REROUTE_OPTIMIZED"
                     reroute["route"] = opt_res["route"]
                     reroute["total_cost"] = opt_res["operational_cost_usd"]
                     reroute["delay_days"] = round(opt_res["total_duration_hours"] / 24.0, 1)
-                    reroute["reason"] = f"Geopolitical Shift: {opt_res['total_distance_km']}km via {opt_res['nodes'][1]}"
+                    reroute["reason"] = f"Multimodal Opt ({'Critical' if is_critical else 'Standard'}): {opt_res['total_distance_km']}km via {opt_res['nodes'][1]}"
                     actions.append(reroute)
         else:
             # Fallback to simple reroute if no engine provided
