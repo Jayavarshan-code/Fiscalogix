@@ -9,7 +9,9 @@ def get_redis_client():
         host=REDIS_HOST, 
         port=REDIS_PORT, 
         db=0, 
-        decode_responses=True
+        decode_responses=True,
+        socket_timeout=1.0,
+        socket_connect_timeout=1.0
     )
     return redis.Redis(connection_pool=pool)
 

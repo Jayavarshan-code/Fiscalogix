@@ -1,4 +1,3 @@
-import concurrent.futures
 from app.financial_system.engine import FinancialCoreEngine
 from app.financial_system.delay_model import DelayPredictionModel
 from app.financial_system.demand_model import DemandPredictionModel
@@ -19,6 +18,7 @@ from app.financial_system.executive.buffer_engine import CashBufferEngine
 from app.financial_system.executive.liquidity_engine import LiquidityScoreEngine
 from app.financial_system.executive.impact_engine import ImpactEngine
 from app.financial_system.optimization.orchestrator import ProfitOptimizationOrchestrator
+from app.financial_system.optimization.route_optimizer import GeopoliticalRouteOptimizer
 
 class FinancialIntelligenceOrchestrator:
 
@@ -43,7 +43,38 @@ class FinancialIntelligenceOrchestrator:
         self.liquidity = LiquidityScoreEngine()
         self.impact = ImpactEngine()
         
-        self.poe = ProfitOptimizationOrchestrator(self.risk, self.time, self.future)
+        # Geopolitical Route Optimization Engine (High-Fidelity Rerouting)
+        self.route_optimizer = GeopoliticalRouteOptimizer(risk_aversion_beta=3.5)
+        self._seed_geopolitical_graph()
+
+        self.poe = ProfitOptimizationOrchestrator(self.risk, self.time, self.future, route_optimizer=self.route_optimizer)
+
+    def _seed_geopolitical_graph(self):
+        """
+        Seeds the global supply chain topology for Dijkstra-based pathfinding.
+        """
+        # Global Ports & Transit Hubs
+        self.route_optimizer.add_node("CN", territory_type="Friendly")
+        self.route_optimizer.add_node("SG", territory_type="Friendly")
+        self.route_optimizer.add_node("ADEN", territory_type="Enemy") # Conflict Risk
+        self.route_optimizer.add_node("SUEZ", territory_type="Neutral")
+        self.route_optimizer.add_node("EU", territory_type="Friendly")
+        self.route_optimizer.add_node("CAPE", territory_type="Friendly") # Alternative
+        self.route_optimizer.add_node("US", territory_type="Friendly")
+        
+        # Known Competitive Routes
+        # Route 1: Asia to Europe (Suez)
+        self.route_optimizer.add_edge("CN", "SG", 2600, 1.1, 45, 500)
+        self.route_optimizer.add_edge("SG", "ADEN", 6200, 1.1, 45, 1000)
+        self.route_optimizer.add_edge("ADEN", "SUEZ", 2400, 1.1, 45, 4500)
+        self.route_optimizer.add_edge("SUEZ", "EU", 5800, 1.1, 45, 2000)
+        
+        # Route 2: Asia to Europe (Cape of Good Hope - Long but safe)
+        self.route_optimizer.add_edge("SG", "CAPE", 11500, 1.1, 45, 1200)
+        self.route_optimizer.add_edge("CAPE", "EU", 11200, 1.1, 45, 1200)
+
+        # Route 3: Trans-Pacific
+        self.route_optimizer.add_edge("CN", "US", 11000, 1.4, 60, 3000)
 
     def run(self, tenant_id: str = "default_tenant"):
         data = self.core.compute(tenant_id=tenant_id)
@@ -57,8 +88,21 @@ class FinancialIntelligenceOrchestrator:
         fx_outputs_array = self.fx.compute_batch(data, predicted_delays_array)
         sla_outputs_array = self.sla.compute_batch(data, predicted_delays_array)
         
+        # --- Phase 1.5: Sync GNN Contagion Signals into Route Optimizer ---
+        # Map the batch risk outputs into the topological graph
+        gnn_mapping = {data[i].get("shipment_id"): risk_outputs_array[i]["score"] for i in range(len(data))}
+        # Also map geographical identifiers if present
+        for i, row in enumerate(data):
+            route_id = row.get("route", "").split("-")[0] # Simple heuristic
+            if route_id:
+                gnn_mapping[route_id] = risk_outputs_array[i]["score"]
+        
+        print("[Phase 1.5] Syncing GNN Risks...")
+        self.route_optimizer.sync_gnn_risk(gnn_mapping)
+
         enriched = []
         # --- Phase 2: Chronological Synthesis Iteration ---
+        print(f"[Phase 2] Synthesizing {len(data)} records...")
         for i, row in enumerate(data):
             contribution_profit = row.get("contribution_profit", 0.0)
             order_value = row.get("order_value", 0.0)
@@ -113,24 +157,20 @@ class FinancialIntelligenceOrchestrator:
         cash_metrics = cashflow_report["metrics"]
         ending_cash = cashflow_report.get("cash_position", {}).get("ending_cash", 50000.0)
         
-        # --- Phase 4: Structural Multiprocessing (Concurrent Executive Logic) ---
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_confidence = executor.submit(self.confidence.compute, enriched, shocks)
-            future_scen_1 = executor.submit(self.scenario.simulate, enriched, "delay +2 days", delay_shift=2)
-            future_scen_2 = executor.submit(self.scenario.simulate, enriched, "demand drop -5%", demand_shift_pct=-0.05)
-            
-            # Submits exactly 1,000 algorithmic cycles into a separate processing thread mapping Probabilistic VaR limits
-            future_monte = executor.submit(self.monte_carlo.simulate_var, enriched, 1000)
-            
-            future_liquidity = executor.submit(self.liquidity.compute, ending_cash, timeline, shocks, enriched)
-            future_poe = executor.submit(self.poe.optimize, enriched, ending_cash)
-
-            # Synchronous barrier resolving thread futures
-            global_confidence = future_confidence.result()
-            scenarios = [future_scen_1.result(), future_scen_2.result()]
-            monte_carlo_var = future_monte.result()
-            liquidity_score = future_liquidity.result()
-            optimization_payload = future_poe.result()
+        # --- Phase 4: Sequential Executive Logic (No Thread Thrashing) ---
+        global_confidence = self.confidence.compute(enriched, shocks)
+        scen_1 = self.scenario.simulate(enriched, "delay +2 days", delay_shift=2)
+        scen_2 = self.scenario.simulate(enriched, "demand drop -5%", demand_shift_pct=-0.05)
+        scenarios = [scen_1, scen_2]
+        
+        # Sequentially map Probabilistic VaR limits (1,000 algorithmic cycles)
+        print("[Phase 4.1] Running Monte Carlo...")
+        monte_carlo_var = self.monte_carlo.simulate_var(enriched, 1000)
+        
+        print("[Phase 4.2] Running Liquidity Optimization...")
+        liquidity_score = self.liquidity.compute(ending_cash, timeline, shocks, enriched)
+        print("[Phase 4.3] Running POE Optimization...")
+        optimization_payload = self.poe.optimize(enriched, ending_cash)
         
         buffer_rec = self.buffer.compute(cash_metrics["peak_deficit"], shocks, global_confidence)
 

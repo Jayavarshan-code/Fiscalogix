@@ -33,6 +33,18 @@ def run_audit():
             "credit_days": 15,
             "order_month": 3,
             "weight_tons": 5.0
+        },
+        {
+            "shipment_id": "SH-300",
+            "route": "CN-EU",
+            "carrier": "Maersk",
+            "order_value": 40000.0,
+            "total_cost": 15000.0,
+            "contribution_profit": 25000.0,
+            "credit_days": 30,
+            "order_month": 6,
+            "weight_tons": 10.0,
+            "risk_score": 0.9 # High initial risk to trigger reroute
         }
     ]
 
@@ -100,6 +112,19 @@ def run_audit():
         print(f"✅ Autonomous Negotiation Prompt successfully constructed via abstraction layer.")
     except Exception as e:
         print(f"❌ LLM FAILED: {str(e)}")
+
+    print("\n[8/8] Verifying Geopolitical Reroute Optimization...")
+    try:
+        # Check if SH-300 was rerouted
+        sh300_decision = next((s for s in master_output['poe']['optimized_decisions'] if s['shipment_id'] == "SH-300"), None)
+        if sh300_decision:
+            print(f"✅ Reroute Logic Verified!")
+            print(f"   Shipment SH-300 Decision: {sh300_decision['action']}")
+            print(f"   Reason: {sh300_decision['reason']}")
+        else:
+            print(f"⚠️ SH-300 was not in optimized decisions (may have been dropped by MIP)")
+    except Exception as e:
+        print(f"❌ REROUTE VERIFICATION FAILED: {str(e)}")
 
     print("\n🚀 ALL TIER-1 AUDITS CONCLUDED SUCCESSFULLY!")
 

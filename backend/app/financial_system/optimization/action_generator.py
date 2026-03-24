@@ -1,6 +1,9 @@
 import copy
 
 class CandidateActionGenerator:
+    def __init__(self, route_optimizer=None):
+        self.route_optimizer = route_optimizer
+
     def generate(self, row):
         """
         Generates actionable operational branches (Ship, Delay, Expedite, Cancel) for a specific shipment.
@@ -28,13 +31,29 @@ class CandidateActionGenerator:
             expedite["delay_days"] = max(0, expedite.get("delay_days", 0) - 5)
             actions.append(expedite)
             
-        # Action D: Reroute (Carrier swap, modifies base systemic risk profile)
-        reroute = copy.deepcopy(row)
-        reroute["action_name"] = "REROUTE"
-        reroute["carrier"] = "PremiumCarrier"
-        reroute["total_cost"] = reroute.get("total_cost", 0) * 1.10
-        reroute["delay_days"] = max(0, reroute.get("delay_days", 0) - 2)
-        actions.append(reroute)
+        # Action D: Reroute (Optimized via Geopolitical Route Engine)
+        if self.route_optimizer:
+            # Extract origin/dest from route string (e.g., "US-CN" -> "US", "CN")
+            current_route = row.get("route", "UNKNOWN-UNKNOWN")
+            parts = current_route.split("-")
+            if len(parts) == 2:
+                opt_res = self.route_optimizer.find_best_route(parts[0], parts[1])
+                if opt_res:
+                    reroute = copy.deepcopy(row)
+                    reroute["action_name"] = "REROUTE_OPTIMIZED"
+                    reroute["route"] = opt_res["route"]
+                    reroute["total_cost"] = opt_res["operational_cost_usd"]
+                    reroute["delay_days"] = round(opt_res["total_duration_hours"] / 24.0, 1)
+                    reroute["reason"] = f"Geopolitical Shift: {opt_res['total_distance_km']}km via {opt_res['nodes'][1]}"
+                    actions.append(reroute)
+        else:
+            # Fallback to simple reroute if no engine provided
+            reroute = copy.deepcopy(row)
+            reroute["action_name"] = "REROUTE"
+            reroute["carrier"] = "PremiumCarrier"
+            reroute["total_cost"] = reroute.get("total_cost", 0) * 1.10
+            reroute["delay_days"] = max(0, reroute.get("delay_days", 0) - 2)
+            actions.append(reroute)
         
         # Action E: Cancel (Nukes everything)
         cancel = copy.deepcopy(row)

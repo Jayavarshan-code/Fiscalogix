@@ -11,7 +11,11 @@ class Neo4jConnection:
         self.__pwd = pwd
         self.__driver = None
         try:
-            self.__driver = GraphDatabase.driver(self.__uri, auth=(self.__user, self.__pwd))
+            self.__driver = GraphDatabase.driver(
+                self.__uri, 
+                auth=(self.__user, self.__pwd),
+                connection_timeout=2.0
+            )
         except Exception as e:
             print("Failed to create the Neo4j driver:", e)
 
