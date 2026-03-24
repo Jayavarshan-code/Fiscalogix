@@ -64,11 +64,29 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
           </div>
         </div>
 
-        {/* Tech Giant Upgrade: Temporal Risk Timeline */}
+        {/* Tech Giant Upgrade: Temporal Risk Radar with Hybrid Signals */}
         <TemporalRiskTimeline markers={[
-            { time_hours: 0, score: 0.15, label: 'Origin (Rotterdam)' },
-            { time_hours: 24, score: 0.87, label: 'Hub Contagion' },
-            { time_hours: 48, score: 0.92, label: 'Destination Shock' }
+            { 
+              time_hours: 0, 
+              score: 0.15, 
+              label: 'NOW',
+              bands: [0.10, 0.15, 0.25],
+              signals: [{ type: 'AIS', message: 'Vessel Queue: 12 ships' }]
+            },
+            { 
+              time_hours: 24, 
+              score: 0.87, 
+              label: 'HUB_B',
+              bands: [0.65, 0.87, 0.95],
+              signals: [{ type: 'NEWS', message: 'Strike Alert: industrial terminal' }]
+            },
+            { 
+              time_hours: 48, 
+              score: 0.92, 
+              label: 'DEST_C',
+              bands: [0.70, 0.92, 0.99],
+              signals: [{ type: 'WEATHER', message: 'Heavy Squall Warning' }]
+            }
         ]} />
 
         <div className="drivers-section">
