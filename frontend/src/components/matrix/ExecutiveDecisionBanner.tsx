@@ -42,8 +42,8 @@ export const ExecutiveDecisionBanner: React.FC<ExecutiveDecisionBannerProps> = (
               <TrendingUp className="text-brand-primary" size={18} />
             </div>
             <div>
-              <span className="block text-[9px] font-bold text-muted uppercase">Profit Impact</span>
-              <span className="text-sm font-black text-safe">+{profitImpact}</span>
+              <span className="block text-[9px] font-bold text-muted uppercase">EFI Strategy Delta</span>
+              <span className="text-sm font-black text-safe">{profitImpact.startsWith('-') ? '' : '+'}₹{(parseInt(profitImpact.replace(/[^0-9-]/g, '')) || 0).toLocaleString()}</span>
             </div>
           </div>
           <div className="flex items-center gap-3">

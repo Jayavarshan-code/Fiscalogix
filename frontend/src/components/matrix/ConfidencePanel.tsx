@@ -119,15 +119,23 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         ]} />
 
         <div className="drivers-section">
-          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Operational Risk Drivers</h3>
-          <ul className="driver-list">
-            <li className="driver-item warning">
-              <span className="driver-name">Network Propagation</span>
-              <span className="driver-impact">+14h Delay</span>
+          <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Hardened EFI Component Breakdown</h3>
+          <ul className="driver-list grid grid-cols-2 gap-2">
+            <li className="driver-item safe flex flex-col items-start p-2 rounded bg-surface border border-subtle">
+              <span className="text-[8px] font-bold text-muted uppercase">Avg Revenue (R)</span>
+              <span className="text-xs font-black text-primary">₹14,20,000</span>
             </li>
-            <li className="driver-item critical">
-              <span className="driver-name">Market Rate Volatility</span>
-              <span className="driver-impact">+38% Cost</span>
+            <li className="driver-item warning flex flex-col items-start p-2 rounded bg-surface border border-subtle">
+              <span className="text-[8px] font-bold text-muted uppercase">Op Cost (C)</span>
+              <span className="text-xs font-black text-critical">-₹2,10,000</span>
+            </li>
+            <li className="driver-item critical flex flex-col items-start p-2 rounded bg-surface border border-subtle">
+              <span className="text-[8px] font-bold text-muted uppercase">SLA Penalty (D)</span>
+              <span className="text-xs font-black text-critical">-₹45,000</span>
+            </li>
+            <li className="driver-item flex flex-col items-start p-2 rounded bg-surface border border-subtle">
+              <span className="text-[8px] font-bold text-muted uppercase">Loss Factor (L)</span>
+              <span className="text-xs font-black text-secondary">-₹12,000</span>
             </li>
           </ul>
         </div>
