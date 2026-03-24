@@ -133,6 +133,11 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
                 14000, 15500, 12000, 8000, 15000, 16000, 13000, 14500, 12500, 11000,
                 15200, 14800, 13900, 12100, 11500, 16200, 15800, 14200, 12600, 13100
               ]} 
+              narratives={[
+                "Scenario A (Worst Case): Harbor master strike extends to 5 days; compounding demurrage leads to $12k loss.",
+                "Scenario B (Best Case): Customs clearance accelerated; yielding $16k premium margin.",
+                "Stochastic Strategy: Reroute to Air costs $8k but protects against the catastrophic $12k loss scenario, ensuring a $12.5k robust profit floor."
+              ]}
             />
 
             {/* Tech Giant Upgrade: Multimodal Trade-off Alternatives */}

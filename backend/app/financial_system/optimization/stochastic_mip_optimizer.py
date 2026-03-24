@@ -69,10 +69,20 @@ class StochasticMIPOptimizer:
             for s_idx, actions in enumerate(candidate_matrix):
                 for a_idx, action in enumerate(actions):
                     if x[(s_idx, a_idx)].solution_value() == 1:
-                        # Identify the 'Regret' to explain the robustness
-                        mean_revm = np.mean(action.get("scenario_results", [0]))
-                        robust_revm = self._calculate_cvar(action.get("scenario_results", [0]))
+                        # Tech Giant Upgrade: Scenario Narratives (Turning math into stories)
+                        scen_results = action.get("scenario_results", [0])
+                        mean_revm = np.mean(scen_results)
+                        robust_revm = self._calculate_cvar(scen_results)
                         regret_delta = mean_revm - robust_revm
+                        
+                        best_case = max(scen_results)
+                        worst_case = min(scen_results)
+                        
+                        narratives = [
+                            f"Scenario A (Worst Case): Compounding delays at node could lead to ${round(abs(worst_case), 0)} financial shrinkage.",
+                            f"Scenario B (Best Case): Smooth transit window yielding ${round(best_case, 0)} maximum margin.",
+                            f"Stochastic Strategy: Choosing {action['action_name']} because it prevents the ${round(abs(worst_case), 0)} catastrophic loss, trading ${round(action.get('total_cost', 0), 0)} in immediate cost for high-integrity protection."
+                        ]
                         
                         optimized_decisions.append({
                             "shipment_id": action.get("shipment_id"),
@@ -81,7 +91,8 @@ class StochasticMIPOptimizer:
                             "robust_revm_floor": round(robust_revm, 2),
                             "regret_risk": round(regret_delta, 2),
                             "cost_burn": action.get("total_cost", 0),
-                            "reason": f"Stochastic Robustness: Chosen because even in the worst 10% of market scenarios, this action retains ${round(robust_revm, 0)}."
+                            "narratives": narratives,
+                            "reason": f"Robust Decision: Chosen to preserve a ${round(robust_revm, 0)} floor across 90th percentile market shocks."
                         })
                         break
 
