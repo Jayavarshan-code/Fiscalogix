@@ -1,0 +1,44 @@
+FISCALOGIX STRATEGIC PILLAR ANALYSIS
+=====================================
+
+Pillar 1: Semantic Data Kinetic (The Foundation)
+-----------------------------------------------
+- Where: backend/app/financial_system/ai_mapper.py
+- How: Uses LLM-style semantic reasoning (simulated token-matching) to map chaotic ERP headers (SAP/Oracle/Netsuite) to the target Data Warehouse schema automatically.
+- Why: ENTERPRISE SPEED. Traditional competitors require 3 months of manual data mapping. Fiscalogix does it in seconds.
+- Purpose: To ingest millions of rows of "dirty" data and turn them into a structured, unified "Source of Truth" without human intervention.
+
+Pillar 2: Predictive Temporal Engine (The Brain)
+-----------------------------------------------
+- Where: backend/app/financial_system/optimization/contagion_predictor.py
+- How: Implements Propagation Velocity Modeling. It treats the supply chain as a graph where disruptions travel like waves. It predicts risk arrival at Node B (e.g., T+48h) based on a shock at Node A (T+0).
+- Why: PRE-EMPTION. Competitors (Project44) tell you where a ship IS. Fiscalogix tells you where the RISK WILL BE.
+- Purpose: To provide a 48-72 hour predictive window, allowing the system to reroute BEFORE the disruption physically stops the cargo.
+
+Pillar 3: Stochastic Profit Optimizer (The Heart)
+-----------------------------------------------
+- Where: backend/app/financial_system/optimization/stochastic_mip_optimizer.py
+- How: Uses Conditional Value at Risk (CVaR) to solve 1,000 parallel futures (Monte Carlo simulation) simultaneously. It identifies the action that maintains the highest "Profit Floor" (Robustness).
+- Why: REGRET MINIMIZATION. Standard tools maximize for the "Average Case." Fiscalogix maximizes for the "Black Swan" (the worst-case survival).
+- Purpose: To ensure the company remains profitable regardless of whether the market goes up or down.
+
+Pillar 4: Multimodal Logistics (The Body)
+-----------------------------------------------
+- Where: backend/app/financial_system/optimization/orchestrator.py
+- How: Unifies Sea, Rail, and Trucking into a single graph-routing model. It calculates the financial "Kinetic Energy" (ReVM) for each mode in real-time.
+- Why: COHESION. Global trade is fragmented. Sea teams don't talk to Truck teams. Fiscalogix treats the entire globe as a SINGLE KINETIC STREAM.
+- Purpose: To allow autonomous, "One-Click" pivoting between Maritime (Ocean) and Domestic (Rail/Truck) logistics based on a unified profit metric.
+
+Pillar 5: Command & Control Studio (The Soul)
+-----------------------------------------------
+- Where: frontend/src/components/matrix/RerouteStudio.tsx, frontend/src/components/matrix/ConfidencePanel.tsx
+- How: High-fidelity, side-by-side "What-If" comparisons with interactive financial kinetic sliders. Surfacers Technical XAI advisors for every recommendation.
+- Why: TRUST. Executives will not automate a $10M reroute if it's a "Black Box." Fiscalogix EXPLAINS the math simply and visually.
+- Purpose: To bridge the gap between high-math AI output and human executive decision-making.
+
+Pillar 6: Self-Governing Lifecycle (The Shield)
+-----------------------------------------------
+- Where: backend/app/financial_system/ml_pipeline/retrainer.py
+- How: Uses Kolmogorov-Smirnov (K-S) Drift Detection. It automatically monitors the AI's accuracy and rejects any new model that has "rotted" due to changing market patterns.
+- Why: RELIABILITY. AI models decay when trade lanes shift (e.g., Red Sea Suez diversion). Our system self-identifies model rot.
+- Purpose: To provide enterprise-grade "Set it and Forget it" AI governance that maintains peak accuracy without manual intervention.
