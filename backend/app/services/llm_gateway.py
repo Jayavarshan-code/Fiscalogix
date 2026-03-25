@@ -84,9 +84,23 @@ class LlmGateway:
         
         response_content = await self.execute_agentic_task(system_prompt, user_prompt)
         
+    async def interpret_spatial_risk(self, h3_index: str, telemetry: Dict[str, Any]) -> AgentResponse:
+        """
+        MAX-STANDARD: Spatial Intelligence (Pillar 2).
+        Translates H3 hexagonal grid-state into executive risk narratives.
+        """
+        system_prompt = (
+            "You are a Spatial Intelligence Analyst. Explain how specific "
+            "geographical telemetry (AIS/Weather) in a hexagonal H3 cell "
+            "impacts logistical flow. Be concise and tactical."
+        )
+        user_prompt = f"Hex Index: {h3_index}. Telemetry Context: {telemetry}."
+        
+        response_content = await self.execute_agentic_task(system_prompt, user_prompt)
+        
         return AgentResponse(
-            agent_name="Graph Interpreter",
+            agent_name="Spatial Strategist",
             content=response_content,
-            suggested_actions=["Quarantine Shared Carrier", "Audit Shared Route Topology"],
-            metadata=causality
+            suggested_actions=["Divert from Hexagon", "Increase Lead Time for Route"],
+            metadata={"h3_index": h3_index}
         )
