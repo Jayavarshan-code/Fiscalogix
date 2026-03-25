@@ -15,7 +15,18 @@ from app.api.v1.endpoints.predict import router as v1_predict
 from app.api.v1.endpoints.optimize import router as v1_optimize
 from app.api.v1.endpoints.mapping import router as v1_mapping
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Fiscalogix Financial Engine - Enterprise Hub")
+
+# --- CORS Configuration (Essential for Vercel <-> Koyeb Bridge) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Replace with your specific Vercel URL in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # UI Routes
 app.include_router(twin_router)
