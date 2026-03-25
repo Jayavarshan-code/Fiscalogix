@@ -19,7 +19,8 @@ class UniversalEFIEngine:
         risk_aversion_lambda: float = 1.0,
         alpha: float = 0.1,
         discount_rate: float = 0.0,
-        time_t: float = 0.0
+        time_t: float = 0.0,
+        fidelity_score: float = 1.0 # New: Data Integrity Score (0.0 to 1.0)
     ) -> Dict[str, Any]:
         """
         Calculates the hardened EFI score based on N simulated scenarios.
@@ -54,11 +55,17 @@ class UniversalEFIEngine:
         expected_v = float(np.mean(outcomes))
         final_efi = expected_v - (risk_aversion_lambda * abs(min(0, cvar)))
 
-        # 4. Confidence Score (1 - (σ / |EFI|))
+        # 4. Confidence Score (1 - (σ / |EFI|)) - Penalized by Data Fidelity
         std_dev = float(np.std(outcomes))
         abs_efi = abs(final_efi)
-        confidence = 1 - (std_dev / abs_efi) if abs_efi > 0 else 0.5
-        confidence = max(0.1, min(0.99, confidence))
+        
+        # Base confidence from statistical variance
+        raw_confidence = 1 - (std_dev / abs_efi) if abs_efi > 0 else 0.5
+        
+        # Final confidence: Weighted by data integrity (The "Anti-Hallucination" Factor)
+        # We penalize up to 50% of the confidence if fidelity is 0.0
+        fidelity_penalty = (1.0 - fidelity_score) * 0.5
+        confidence = max(0.01, min(0.99, raw_confidence - fidelity_penalty))
 
         # 5. Summarize Granular Breakdown (Vectorized)
         avg_breakdown = {}
@@ -73,6 +80,7 @@ class UniversalEFIEngine:
             "expected_outcome": round(expected_v, 2),
             "cvar_shortfall": round(cvar, 2),
             "confidence_score": round(confidence, 3),
+            "data_fidelity": round(fidelity_score, 2), # New
             "std_dev": round(std_dev, 2),
             "components": {
                 "avg_revenue": round(float(np.mean(rev)), 2),
