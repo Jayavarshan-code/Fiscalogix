@@ -121,7 +121,27 @@ class GNNRiskMapper:
                 "isolated_ml_risk": round(base_risk, 3),
                 "structural_network_risk": round(structural_network_risk, 3),
                 "propagated_risk": round(final_risk, 3),
-                "systemic_contagion_detected": contagion_detected
+                "systemic_contagion_detected": contagion_detected,
+                "causality": self._extract_causality(s_id) if contagion_detected else None
             })
             
         return mapped_results
+
+    def _extract_causality(self, s_id: str) -> Dict[str, Any]:
+        """
+        MAX-STANDARD: Explainable Graph AI (XAI).
+        Identifies the 'Why' behind a risk increase by tracing back the PageRank flow.
+        """
+        causality_query = """
+        MATCH (s:Shipment {id: $s_id})<-[r:FLOWS_TO|CARRIED_BY]-(source)
+        WHERE r.weight > 0.1
+        RETURN source.id AS source_id, labels(source)[0] AS type, r.weight AS weight
+        ORDER BY r.weight DESC LIMIT 3
+        """
+        results = self.db.query(causality_query, {"s_id": s_id})
+        return {
+            "primary_drivers": [
+                {"source": r["source_id"], "type": r["type"], "contribution": r["weight"]} 
+                for r in (results or [])
+            ]
+        }

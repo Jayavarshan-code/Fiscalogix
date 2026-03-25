@@ -68,9 +68,25 @@ class LlmGateway:
         
         response_content = await self.execute_agentic_task(system_prompt, user_prompt)
         
+    async def translate_gnn_risk(self, causality: Dict[str, Any], s_id: str) -> AgentResponse:
+        """
+        MAX-STANDARD: Explainable Graph AI (XAI) Narrative.
+        Turns topological risk propagation into a plain-English story.
+        """
+        drivers = causality.get("primary_drivers", [])
+        system_prompt = (
+            "You are a Graph Intelligence Specialist. Your task is to explain "
+            "Supply Chain Contagion. Instead of using math terms like 'PageRank' "
+            "or 'Weights', describe how risk is flowing from one node to another "
+            "due to shared routes or carriers. Use a 'Story-First' approach."
+        )
+        user_prompt = f"Shipment {s_id} risk increase. Topology Drivers: {drivers}."
+        
+        response_content = await self.execute_agentic_task(system_prompt, user_prompt)
+        
         return AgentResponse(
-            agent_name="Logistics Strategist",
+            agent_name="Graph Interpreter",
             content=response_content,
-            suggested_actions=["Adjust DOI Safety Stock", "Reroute Shipment", "Hedge FX Exposure"],
-            metadata=efi_data
+            suggested_actions=["Quarantine Shared Carrier", "Audit Shared Route Topology"],
+            metadata=causality
         )
