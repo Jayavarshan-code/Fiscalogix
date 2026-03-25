@@ -13,6 +13,8 @@ class UniversalEFIEngine:
         cost_scenarios: List[float],
         delay_penalty_scenarios: List[float],
         loss_factor_scenarios: List[float],
+        holding_cost_scenarios: List[float] = None, # New: Cost of inventory capital
+        opportunity_cost_scenarios: List[float] = None, # New: Lost sales due to stockout
         breakdown: Dict[str, Any] = None,
         risk_aversion_lambda: float = 1.0,
         alpha: float = 0.1,
@@ -21,6 +23,7 @@ class UniversalEFIEngine:
     ) -> Dict[str, Any]:
         """
         Calculates the hardened EFI score based on N simulated scenarios.
+        Supports full-spectrum costs: Transport + Inventory + Opportunity.
         """
         # --- Vectorized Matrix Arithmetic ---
         rev = np.array(revenue_scenarios)
@@ -28,11 +31,15 @@ class UniversalEFIEngine:
         pen = np.array(delay_penalty_scenarios)
         loss = np.array(loss_factor_scenarios)
         
+        # New Feature: Inventory Holding & Opportunity Costs
+        hold = np.array(holding_cost_scenarios) if holding_cost_scenarios is not None else np.zeros_like(rev)
+        opp = np.array(opportunity_cost_scenarios) if opportunity_cost_scenarios is not None else np.zeros_like(rev)
+        
         num_scenarios = len(rev)
         if num_scenarios == 0: return {"efi_total": 0, "confidence": 0}
 
-        # Compute V_i for all scenarios simultaneously
-        outcomes = rev - cost - pen - loss
+        # Compute V_i for all scenarios: Max-Standard Comprehensive Formula
+        outcomes = rev - cost - pen - loss - hold - opp
         if discount_rate > 0 and time_t > 0:
             outcomes = outcomes / ((1 + discount_rate) ** time_t)
 

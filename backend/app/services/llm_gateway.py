@@ -40,8 +40,7 @@ class LlmGateway:
 
     async def draft_negotiation_strategy(self, supplier_id: str, contract_penalties: List[Dict[str, Any]], performance_data: Dict[str, Any]) -> AgentResponse:
         """
-        Advanced 'Negotiator' Agent: Uses Pillar 9 data (Contracts) + Pillar 5 data (Performance) 
-        to draft an optimized strategy.
+        Advanced 'Negotiator' Agent: Uses Pillar 9 data (Contracts) + Pillar 5 data (Performance).
         """
         system_prompt = "You are a Master Negotiator. Use provided contract clauses and performance math to draft a leverage-heavy strategy."
         user_prompt = f"Supplier: {supplier_id}. Contractual Penalties: {contract_penalties}. Performance: {performance_data}."
@@ -53,4 +52,25 @@ class LlmGateway:
             content=response_content,
             suggested_actions=["Send Email to Supplier", "Update Contract Penalties in EFI Engine"],
             metadata={"supplier_id": supplier_id}
+        )
+
+    async def comprehensive_logistics_analysis(self, efi_data: Dict[str, Any], context: str) -> AgentResponse:
+        """
+        MAX-STANDARD Agentic Insight: Full-Spectrum Logistics Intelligence.
+        Analyzes transport, inventory, and opportunity costs for ANY logistics crisis.
+        """
+        system_prompt = (
+            "You are a World-Class Supply Chain Strategist. Analyze the EFI data, "
+            "focusing on the trade-off between Rerouting, Inventory Holding, and "
+            "Opportunity Costs. Provide a 3-sentence executive briefing."
+        )
+        user_prompt = f"Crisis Context: {context}. EFI Data: {efi_data}."
+        
+        response_content = await self.execute_agentic_task(system_prompt, user_prompt)
+        
+        return AgentResponse(
+            agent_name="Logistics Strategist",
+            content=response_content,
+            suggested_actions=["Adjust DOI Safety Stock", "Reroute Shipment", "Hedge FX Exposure"],
+            metadata=efi_data
         )
