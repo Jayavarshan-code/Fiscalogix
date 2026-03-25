@@ -44,3 +44,15 @@ app.include_router(opt_router)
 app.include_router(v1_predict, prefix="/api/v1/predict", tags=["Enterprise Prediction"])
 app.include_router(v1_optimize, prefix="/api/v1/optimize", tags=["Enterprise Optimization"])
 app.include_router(v1_mapping, prefix="/api/v1/mapping", tags=["Enterprise Mapping"])
+
+@app.get("/health")
+def health_check():
+    """Liveness probe for Render/Koyeb deployment."""
+    return {"status": "healthy", "service": "Fiscalogix Brain"}
+
+if __name__ == "__main__":
+    import uvicorn
+    import os
+    # Dynamically bind to the port provided by Render/Koyeb
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
