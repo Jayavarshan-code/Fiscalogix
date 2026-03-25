@@ -6,6 +6,8 @@ from app.models.document_intelligence import (
     PenaltyTier, ComplianceRecord
 )
 
+from app.services.llm_gateway import LlmGateway
+
 class DocumentIntelligenceService:
     """
     Pillar 9: Document Intelligence Platform (DIP).
@@ -14,6 +16,7 @@ class DocumentIntelligenceService:
     
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("LLM_API_KEY")
+        self.llm_gateway = LlmGateway(api_key=self.api_key)
 
     async def process_document(self, file_content: bytes, filename: str) -> ExtractedDocument:
         """
