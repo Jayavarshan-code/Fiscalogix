@@ -11,6 +11,12 @@ class DocumentType(str, Enum):
     INVOICE = "invoice"
     INSURANCE_POLICY = "insurance_policy"
 
+class ValidationStatus(str, Enum):
+    VERIFIED = "verified"
+    PENDING_REVIEW = "pending_human_review"
+    REJECTED = "rejected"
+    CONFLICT = "model_conflict"
+
 class PenaltyTier(BaseModel):
     threshold_hours: int
     penalty_value: float
@@ -22,6 +28,8 @@ class PenaltyClause(BaseModel):
     tiers: List[PenaltyTier]
     currency: str = "USD"
     max_penalty: Optional[float] = None
+    confidence_score: float = 1.0 # New
+    validation_status: ValidationStatus = ValidationStatus.VERIFIED # New
 
 class ComplianceRecord(BaseModel):
     document_id: str

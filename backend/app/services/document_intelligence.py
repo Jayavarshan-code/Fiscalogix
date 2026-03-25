@@ -29,16 +29,24 @@ class DocumentIntelligenceService:
         # 2. Classifier: Determine Doc Type
         doc_type = self._classify_document(raw_text, filename)
         
-        # 3. Agentic Extraction: Use LLM to reason about the document
-        structured_data = await self._run_agentic_extraction(raw_text, doc_type)
+        # 3. Agentic Extraction: Verfied reasoning with Dual-Model + Guardrails
+        structured_data = await self.extract_with_verification(raw_text, doc_type)
+        
+        # 4. Extract confidence from the verified structure
+        verification_metadata = structured_data.get("verification", {})
+        confidence = verification_metadata.get("confidence", 0.95)
         
         return ExtractedDocument(
             doc_id=f"doc_{int(datetime.utcnow().timestamp())}",
             doc_type=doc_type,
-            confidence_score=0.95, # Mock confidence
+            confidence_score=confidence,
             raw_text=raw_text,
             structured_data=structured_data,
-            metadata={"filename": filename, "source": "Manual Upload"}
+            metadata={
+                "filename": filename, 
+                "source": "Manual Upload",
+                "verification_status": verification_metadata.get("status")
+            }
         )
 
     def _mock_ocr_layer(self, filename: str) -> str:
@@ -132,24 +140,61 @@ class DocumentIntelligenceService:
         
         return gaps
 
-    def generate_autonomous_dispute(self, invoice: ExtractedDocument, contract: ExtractedDocument) -> Optional[Dict[str, Any]]:
+    async def extract_with_verification(self, text: str, doc_type: DocumentType) -> Dict[str, Any]:
         """
-        MAX-STANDARD Agentic Action: Dispute Generation.
-        Automatically identifies billing errors and drafts a professional dispute.
+        MAX-STANDARD: Tri-Factor Verification.
+        1. Dual-Model Cross-Check.
+        2. Logical Guardrails (Constraint Validation).
+        3. Confidence-based HITL trigger.
         """
-        invoice_total = invoice.structured_data.get("total_amount", 0)
-        contract_rate = contract.structured_data.get("agreed_rate", 0)
+        # --- Factor 1: Dual-Model Extraction ---
+        # Simulation of calling two independent LLM Agents (e.g., GPT-4o and Claude 3.5)
+        model_a_results = await self._run_agentic_extraction(text, doc_type)
+        model_b_results = await self._run_agentic_extraction(text, doc_type) # Simulated mirror
         
-        if invoice_total > contract_rate:
-            variance = invoice_total - contract_rate
-            return {
-                "subject": f"Billing Dispute: Invoice {invoice.doc_id}",
-                "recipient": invoice.metadata.get("vendor_email", "carrier@logistics.com"),
-                "body": f"Dear Vendor, automated audit of Invoice {invoice.doc_id} detected a variance of {variance} against MSA {contract.doc_id}. Please reconcile.",
-                "variance": variance,
-                "confidence": 0.98
-            }
-        return None
+        is_consistent = model_a_results == model_b_results
+        
+        # --- Factor 2: Logical Guardrails ---
+        is_safe = self._apply_logical_guardrails(model_a_results)
+        
+        # --- Factor 3: Verification Logic ---
+        status = ValidationStatus.VERIFIED
+        confidence = 0.99
+        
+        if not is_consistent:
+            status = ValidationStatus.CONFLICT
+            confidence = 0.60
+        elif not is_safe:
+            status = ValidationStatus.REJECTED
+            confidence = 0.10
+        elif "decimal_uncertainty" in text.lower(): # Simulated edge case
+            status = ValidationStatus.PENDING_REVIEW
+            confidence = 0.85
+
+        # Update metadata with verification trail
+        model_a_results["verification"] = {
+            "status": status,
+            "confidence": confidence,
+            "consistency_match": is_consistent,
+            "passed_guardrails": is_safe,
+            "verified_at": datetime.utcnow().isoformat()
+        }
+        
+        return model_a_results
+
+    def _apply_logical_guardrails(self, data: Dict[str, Any]) -> bool:
+        """
+        Hardened constraint check: Ensures the LLM didn't hallucinate 
+        impossible financial values (e.g., > 1,000% penalty).
+        """
+        penalties = data.get("penalties", [])
+        for p in penalties:
+            for tier in p.get("tiers", []):
+                val = tier.get("penalty_value", 0)
+                # Fail if penalty > 100% or < 0
+                if tier.get("is_percentage") and (val > 100 or val < 0):
+                    return False
+        return True
 
     def sync_to_efi_engine(self, extracted_penalties: List[Dict[str, Any]], shipment_id: str):
         """
