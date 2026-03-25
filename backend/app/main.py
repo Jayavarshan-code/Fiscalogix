@@ -15,6 +15,7 @@ from app.api.v1.endpoints.predict import router as v1_predict
 from app.api.v1.endpoints.optimize import router as v1_optimize
 from app.api.v1.endpoints.mapping import router as v1_mapping
 from app.api.v1.endpoints.documents import router as v1_documents
+from app.api.v1.endpoints.realtime import router as v1_realtime
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -46,6 +47,7 @@ app.include_router(v1_predict, prefix="/api/v1/predict", tags=["Enterprise Predi
 app.include_router(v1_optimize, prefix="/api/v1/optimize", tags=["Enterprise Optimization"])
 app.include_router(v1_mapping, prefix="/api/v1/mapping", tags=["Enterprise Mapping"])
 app.include_router(v1_documents, prefix="/api/v1/documents", tags=["Document Intelligence"])
+app.include_router(v1_realtime, tags=["Enterprise Real-Time"])
 
 @app.get("/health")
 def health_check():
