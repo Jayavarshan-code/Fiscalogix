@@ -10,7 +10,14 @@ from app.routes.ingestion import router as ingestion_router
 from app.routes.data_grid import router as grid_router
 from app.routes.optimization import router as opt_router
 
-app = FastAPI(title="Fiscalogix Financial Engine - Extended API")
+# --- Enterprise v1 Hub (API-First Architecture) ---
+from app.api.v1.endpoints.predict import router as v1_predict
+from app.api.v1.endpoints.optimize import router as v1_optimize
+from app.api.v1.endpoints.mapping import router as v1_mapping
+
+app = FastAPI(title="Fiscalogix Financial Engine - Enterprise Hub")
+
+# UI Routes
 app.include_router(twin_router)
 app.include_router(expansion_router)
 app.include_router(confidence_router)
@@ -21,3 +28,8 @@ app.include_router(admin_router)
 app.include_router(ingestion_router)
 app.include_router(grid_router)
 app.include_router(opt_router)
+
+# Enterprise API Layer (v1)
+app.include_router(v1_predict, prefix="/api/v1/predict", tags=["Enterprise Prediction"])
+app.include_router(v1_optimize, prefix="/api/v1/optimize", tags=["Enterprise Optimization"])
+app.include_router(v1_mapping, prefix="/api/v1/mapping", tags=["Enterprise Mapping"])

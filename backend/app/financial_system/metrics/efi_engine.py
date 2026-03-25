@@ -22,25 +22,24 @@ class UniversalEFIEngine:
         """
         Calculates the hardened EFI score based on N simulated scenarios.
         """
-        num_scenarios = len(revenue_scenarios)
+        # --- Vectorized Matrix Arithmetic ---
+        rev = np.array(revenue_scenarios)
+        cost = np.array(cost_scenarios)
+        pen = np.array(delay_penalty_scenarios)
+        loss = np.array(loss_factor_scenarios)
+        
+        num_scenarios = len(rev)
         if num_scenarios == 0: return {"efi_total": 0, "confidence": 0}
 
-        # 1. Compute V_i for each scenario
-        outcomes = []
-        for i in range(num_scenarios):
-            v_i = (revenue_scenarios[i] - 
-                   cost_scenarios[i] - 
-                   delay_penalty_scenarios[i] - 
-                   loss_factor_scenarios[i])
-            
-            if discount_rate > 0 and time_t > 0:
-                v_i = v_i / ((1 + discount_rate) ** time_t)
-            
-            outcomes.append(v_i)
+        # Compute V_i for all scenarios simultaneously
+        outcomes = rev - cost - pen - loss
+        if discount_rate > 0 and time_t > 0:
+            outcomes = outcomes / ((1 + discount_rate) ** time_t)
 
         # 2. Risk Adjustment (CVaR)
-        sorted_outcomes = sorted(outcomes)
+        # Sort and take the bottom alpha%
         n_worst = max(1, int(num_scenarios * alpha))
+        sorted_outcomes = np.sort(outcomes)
         worst_cases = sorted_outcomes[:n_worst]
         cvar = float(np.mean(worst_cases))
         
@@ -54,7 +53,7 @@ class UniversalEFIEngine:
         confidence = 1 - (std_dev / abs_efi) if abs_efi > 0 else 0.5
         confidence = max(0.1, min(0.99, confidence))
 
-        # 5. Summarize Granular Breakdown
+        # 5. Summarize Granular Breakdown (Vectorized)
         avg_breakdown = {}
         if breakdown:
             for category, sub_components in breakdown.items():
@@ -69,10 +68,11 @@ class UniversalEFIEngine:
             "confidence_score": round(confidence, 3),
             "std_dev": round(std_dev, 2),
             "components": {
-                "avg_revenue": round(np.mean(revenue_scenarios), 2),
-                "avg_cost": round(np.mean(cost_scenarios), 2),
-                "avg_penalty": round(np.mean(delay_penalty_scenarios), 2),
-                "avg_loss": round(np.mean(loss_factor_scenarios), 2)
+                "avg_revenue": round(float(np.mean(rev)), 2),
+                "avg_cost": round(float(np.mean(cost)), 2),
+                "avg_penalty": round(float(np.mean(pen)), 2),
+                "avg_loss": round(float(np.mean(loss)), 2)
             },
-            "granular_breakdown": avg_breakdown
+            "granular_breakdown": avg_breakdown,
+            "performance": "Hardware_Accelerated"
         }

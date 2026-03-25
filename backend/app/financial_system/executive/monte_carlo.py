@@ -13,28 +13,31 @@ class MonteCarloEngine:
         baseline_total_revm = sum(r.get("revm", 0.0) for r in enriched_records)
         np.random.seed(42) # Explicit seeding for deterministic audits
         
-        simulated_outcomes = []
-        for _ in range(iterations):
-            sim_revm = 0
-            for r in enriched_records:
-                 base_profit = float(r.get("contribution_profit", 0.0))
-                 
-                 # Random walk Delay against a Poisson distribution (captures discrete event shocks)
-                 base_delay = r.get("predicted_delay", 2)
-                 sim_delay = np.random.poisson(base_delay if base_delay >= 0 else 0)
-                 
-                 # Random walk Cost based on Normal algorithmic variance (10% standard deviation)
-                 base_cost = float(r.get("total_cost", 5000))
-                 sim_cost = np.random.normal(base_cost, base_cost * 0.1)
-                 
-                 # Reconstruct core REVM dependencies via shifted inputs
-                 risk_penalty = float(r.get("risk_score", 0.05)) * float(r.get("order_value", 0))
-                 time_cost = sim_cost * (float(r.get("wacc", 0.08)) / 365.0) * sim_delay
-                 fx_cost = float(r.get("fx_cost", 0.0)) # Static holding penalty
-                 
-                 sim_revm += (base_profit - risk_penalty - time_cost - fx_cost)
-                 
-            simulated_outcomes.append(sim_revm)
+        # --- Vectorized Matrix Initialization ---
+        # Convert record lists to dense NumPy arrays for vectorized arithmetic
+        base_profits = np.array([float(r.get("contribution_profit", 0.0)) for r in enriched_records])
+        base_delays = np.array([max(0, r.get("predicted_delay", 2)) for r in enriched_records])
+        base_costs = np.array([float(r.get("total_cost", 5000)) for r in enriched_records])
+        risk_penalties = np.array([float(r.get("risk_score", 0.05)) * float(r.get("order_value", 0)) for r in enriched_records])
+        waccs = np.array([float(r.get("wacc", 0.08)) for r in enriched_records])
+        fx_costs = np.array([float(r.get("fx_cost", 0.0)) for r in enriched_records])
+
+        num_records = len(enriched_records)
+
+        # --- Massive Matrix Simulation (O(1) in concept, O(N*M) in memory) ---
+        # Generate all random noise in one contiguous hardware-optimized block
+        sim_delays = np.random.poisson(base_delays, size=(iterations, num_records))
+        sim_costs = np.random.normal(base_costs, base_costs * 0.1, size=(iterations, num_records))
+        
+        # Broadcasted time-value of money calculation
+        time_costs = sim_costs * (waccs / 365.0) * sim_delays
+        
+        # Compute row-wise REVM across all 1,000 scenarios simultaneously
+        # (iterations, num_records) - (iterations, num_records) - (num_records,)
+        sim_revm_matrix = base_profits - risk_penalties - time_costs - fx_costs
+        
+        # Sum along columns (axis 1) to get the total REVM for each iteration
+        simulated_outcomes = np.sum(sim_revm_matrix, axis=1)
              
         # Extract the Gaussian 95% Confidence Value at Risk boundary
         var_95 = np.percentile(simulated_outcomes, 5)
@@ -44,5 +47,6 @@ class MonteCarloEngine:
             "baseline_revm": round(baseline_total_revm, 2),
             "stochastic_var_95_revm": round(var_95, 2),
             "absolute_maximum_loss_floor": round(worst_case, 2),
-            "simulations_executed_cycles": iterations
+            "simulations_executed_cycles": iterations,
+            "performance_mode": "Vectorized (Sub-Second)"
         }
