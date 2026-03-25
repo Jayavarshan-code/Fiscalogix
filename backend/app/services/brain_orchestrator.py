@@ -1,15 +1,13 @@
-from typing import List, Dict, Any, Set
-from app.models.federated import SemanticDelta, HiveNodeStatus
-from app.services.hive_core import HiveCore
-import asyncio
+from app.services.security_mesh import SecurityMeshService
 
 class BrainOrchestrator:
     """
     Pillar 13: Central Brain - Federated Coordinator.
-    The primary control plane for the Global Hive Network.
+    Hardened with Zero-Trust mTLS and Signature Verification.
     """
     
-    def __init__(self):
+    def __init__(self, security_mesh: SecurityMeshService):
+        self.security_mesh = security_mesh
         self.registered_hives: Dict[str, HiveNodeStatus] = {}
         self.hive_instances: Dict[str, HiveCore] = {} # Simulated edge connections
         self.global_risk_score: float = 0.05
@@ -36,16 +34,34 @@ class BrainOrchestrator:
         await asyncio.gather(*tasks)
         return {"broadcast_count": len(tasks), "policy": policy_name}
 
-    async def achieve_consensus(self, deltas: List[SemanticDelta]) -> Dict[str, Any]:
+    async def achieve_consensus(self, deltas: List[SemanticDelta], signatures: Dict[str, str]) -> Dict[str, Any]:
         """
         Synthesizes conflicting local decisions into a Global Strategy.
-        Uses semantic weighting to update the Global EFI and Risk state.
+        Uses Zero-Trust mTLS and Signature Verification for every delta.
         """
-        if not deltas:
-            return {"global_efi_delta": 0, "status": "No activity"}
+        verified_deltas = []
+        
+        for d in deltas:
+            # 1. Zero-Trust Identity Check (mTLS)
+            # In a real system, the hive's cert would be retrieved from the request context
+            hive_cert = self.security_mesh.verified_certificates.get(d.hive_id)
+            if not self.security_mesh.verify_mtls_handshake(d.hive_id, hive_cert):
+                print(f"[Brain] SECURITY ALERT: Rejecting delta from unverified Hive {d.hive_id}")
+                continue
+                
+            # 2. Payload Integrity Check
+            sig = signatures.get(d.hive_id)
+            if not self.security_mesh.verify_signature(d.json(), sig, hive_cert):
+                print(f"[Brain] SECURITY ALERT: Rejecting tampered delta from Hive {d.hive_id}")
+                continue
+                
+            verified_deltas.append(d)
 
-        # 1. Aggregate EFI Deltas
-        total_efi_shift = sum(d.efi_delta for d in deltas)
+        if not verified_deltas:
+            return {"global_efi_delta": 0, "status": "No verified activity"}
+
+        # 3. Aggregate EFI Deltas (from verified data only)
+        total_efi_shift = sum(d.efi_delta for d in verified_deltas)
         
         # 2. Extract Global Risk Signal
         # (In prod: updates the central Neo4j risk weights based on Hive insights)

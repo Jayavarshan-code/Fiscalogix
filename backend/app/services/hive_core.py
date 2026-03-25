@@ -4,16 +4,20 @@ from datetime import datetime
 from app.models.federated import SemanticDelta
 from app.financial_system.metrics.efi_engine import UniversalEFIEngine
 
+from app.services.security_mesh import SecurityMeshService
+
 class HiveCore:
     """
     Pillar 13: Local Edge Reasoning Engine.
-    Deployed on-premise at Ports, Warehouses, or Fleet-side.
-    Acts as the 'Autonomous Cell' of the Fiscalogix Nervous System.
+    Hardened with Zero-Trust Global Identity Mesh.
     """
     
-    def __init__(self, hive_id: str, region: str):
+    def __init__(self, hive_id: str, region: str, security_mesh: SecurityMeshService):
         self.hive_id = hive_id
         self.region = region
+        self.security_mesh = security_mesh
+        self.cert = self.security_mesh.generate_hive_certificate(self.hive_id)
+        
         self.local_efi_engine = UniversalEFIEngine()
         self.global_policies: List[str] = []
         self.local_state: Dict[str, Any] = {"active_shipments": []}
