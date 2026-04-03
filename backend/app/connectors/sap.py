@@ -25,17 +25,48 @@ class SAPS4HanaConnector(BaseERPConnector):
         
     async def execute_action(self, tenant_id: str, action_type: str, payload: dict) -> dict:
         self.authenticate()
+        import httpx
         import asyncio
-        await asyncio.sleep(0.7) # simulate network latency
         
-        doc_number = f"SAP-DOC-{hash(str(payload)) % 100000}"
-        print(f"[SAP S/4Hana] Executing {action_type} for {tenant_id}. Payload: {payload}")
-        print(f"[SAP S/4Hana] Writeback successful. Document Number: {doc_number}")
+        url = f"http://localhost:8000/sandbox/sap/v1/sales_orders/{action_type}"
+        print(f"[SAP S/4Hana] Firing HTTP POST to: {url}")
         
-        return {
-            "status": "success",
-            "erp_system": "SAP S/4Hana",
-            "document_number": doc_number,
-            "action_type": action_type,
-            "timestamp": "2026-03-24T00:00:00Z"
-        }
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    url,
+                    json={
+                        "tenant_id": tenant_id,
+                        "auth_token": "MOCK_OAUTH_TOKEN_FISCALOGIX",
+                        "parameters": payload
+                    },
+                    timeout=5.0
+                )
+                
+                if response.status_code != 200:
+                    raise Exception(f"SAP Error {response.status_code}: {response.json().get('detail', 'Unknown')}")
+                    
+                data = response.json()
+                doc_number = data.get("d", {}).get("document_number", "UNKNOWN")
+                
+                print(f"[SAP S/4Hana] Writeback successful via live network. SAP Document: {doc_number}")
+                
+                return {
+                    "status": "success",
+                    "erp_system": "SAP S/4Hana (Network Validated)",
+                    "document_number": doc_number,
+                    "action_type": action_type,
+                    "timestamp": "2026-03-24T00:00:00Z"
+                }
+        except httpx.RequestError as e:
+            print(f"[SAP S/4Hana] Network Connectivity Failure: {str(e)}")
+            return {
+                "status": "failed",
+                "error": f"Network Connectivity Failure: Could not reach SAP at {url}"
+            }
+        except Exception as e:
+            print(f"[SAP S/4Hana] Adapter Error: {str(e)}")
+            return {
+                "status": "failed",
+                "error": str(e)
+            }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Shield, Plus, Key } from 'lucide-react';
+import { Users, Shield, Plus } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 import './AdminDashboard.css';
 
@@ -79,15 +79,26 @@ export const AdminDashboard: React.FC = () => {
     <div className="admin-dashboard p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2"><Shield size={24} className="text-brand-primary" /> Admin Control Panel</h1>
-          <p className="text-secondary text-sm mt-1">Manage tenant users, assign roles, and handle global security policies.</p>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Shield size={24} className="text-brand-primary" /> Admin & Global Settings</h1>
+          <p className="text-[var(--text-secondary)] text-sm mt-1">Manage global preferences, tenant users, and security policies.</p>
         </div>
-        <button 
-          className="btn-primary flex items-center gap-2"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus size={16} /> Provision User
-        </button>
+        <div className="flex gap-3">
+          <button 
+            className="btn-outline flex items-center gap-2"
+            onClick={() => {
+              const root = document.documentElement;
+              root.classList.toggle('dark');
+            }}
+          >
+            🌓 Toggle Interface Theme
+          </button>
+          <button 
+            className="btn-primary flex items-center gap-2"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus size={16} /> Provision User
+          </button>
+        </div>
       </div>
 
       <div className="dashboard-card">

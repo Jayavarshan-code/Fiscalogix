@@ -1,45 +1,82 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Surface Colors - Light/Slate Motif */
-  --bg-canvas: #f4f7fb;       /* Soft slate-gray background */
-  --bg-surface: #ffffff;      /* Pure white for cards */
-  --bg-surface-elevated: #f8fafc;
-  --bg-surface-hover: #f1f5f9;
+  /* Surface Colors - Light Mode (Default) */
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f1f5f9;
+  --bg-surface-hover: #e2e8f0;
 
-  /* Typography */
-  --text-primary: #0f172a;    /* Deep slate */
-  --text-secondary: #475569;  /* Muted slate */
-  --text-tertiary: #94a3b8;   /* Very muted */
+  /* Typography - Light Mode */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
 
   /* Brand Colors */
-  --brand-primary: #2563eb;   /* Deep Blue */
-  --brand-primary-light: #eff6ff; 
-  --brand-secondary: #4f46e5; /* Indigo */
+  --brand-primary: #2563eb;
+  --brand-secondary: #4f46e5;
+  --brand-accent: #d97706;
+
+  /* Semantic / Action Colors */
+  --semantic-safe: #059669;
+  --semantic-warning: #d97706;
+  --semantic-critical: #dc2626;
+  
+  /* Borders & Dividers */
+  --border-subtle: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.2);
+  --border-radius-sm: 6px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 20px;
+
+  /* Glassmorphism Effect */
+  --glass-blur: blur(12px);
+  --glass-border: 1px solid rgba(0, 0, 0, 0.05);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+  
+  --sidebar-width: 280px;
+  --topbar-height: 72px;
+}
+
+.dark {
+  /* Surface Colors - Deep Premium Motif */
+  --bg-canvas: #0b0f19;       /* Deep space blue */
+  --bg-surface: rgba(23, 28, 41, 0.8);      /* Semi-transparent slate */
+  --bg-surface-elevated: rgba(30, 37, 54, 0.9);
+  --bg-surface-hover: rgba(45, 55, 80, 1);
+
+  /* Typography */
+  --text-primary: #f8fafc;    /* Off-white */
+  --text-secondary: #94a3b8;  /* Muted slate */
+  --text-tertiary: #64748b;   /* Darker slate */
+
+  /* Brand Colors - High Contrast */
+  --brand-primary: #3b82f6;   /* Vibrant Blue */
+  --brand-secondary: #6366f1; /* Indigo */
+  --brand-accent: #f59e0b;    /* Amber (Decision Wealth) */
 
   /* Semantic / Action Colors */
   --semantic-safe: #10b981;    /* Emerald Green */
-  --semantic-safe-bg: #ecfdf5; 
   --semantic-warning: #f59e0b; /* Amber */
-  --semantic-warning-bg: #fffbeb;
   --semantic-critical: #ef4444; /* Red */
-  --semantic-critical-bg: #fef2f2;
   
   /* Borders & Dividers */
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --border-radius-sm: 4px;
-  --border-radius-md: 8px;
-  --border-radius-lg: 12px;
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.2);
 
-  /* Shadows (Glassmorphism / Premium Depth) */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.04), 0 4px 6px -4px rgb(0 0 0 / 0.04);
-  
-  /* Layout constraints */
-  --sidebar-width: 260px;
-  --topbar-height: 64px;
+  /* Glassmorphism Effect */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+
+  /* Shadows (Premium Depth) */
+  --shadow-sm: 0 2px 4px 0 rgba(0,0,0,0.1);
+  --shadow-md: 0 8px 16px -4px rgba(0,0,0,0.2);
+  --shadow-lg: 0 24px 48px -12px rgba(0,0,0,0.3);
 }
 
 * {
@@ -49,64 +86,37 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-canvas);
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(217,100%,15%,0.15) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, hsla(250,100%,15%,0.15) 0, transparent 50%);
   color: var(--text-primary);
-  line-height: 1.5;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: var(--text-primary);
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
-}
-
-button {
-  background: none;
-  border: none;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-/* Base layouts */
-.app-container {
-  display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow-y: auto;
-  padding-top: var(--topbar-height);
-  padding: 24px;
-  max-width: 1600px;
-  margin: 0 auto;
-}
-
-/* Glass Surface utility for standardizing cards */
-.premium-card {
+/* Glass Surface utility */
+.glass-panel {
   background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--border-radius-lg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-sm);
-  padding: 24px;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid var(--border-subtle);
 }
 
 .premium-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-4px);
+  border-color: var(--brand-primary);
 }
 
 /* Animated interactive states */
@@ -116,4 +126,27 @@ button {
 .interactive-hover:hover {
   background-color: var(--bg-surface-hover);
   cursor: pointer;
+  transform: scale(1.02);
+}
+
+/* KPI Card Specific Polish */
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0) 100%);
+  transform: skewX(-25deg);
+  transition: all 0.7s ease;
+}
+
+.kpi-card:hover::after {
+  left: 200%;
 }

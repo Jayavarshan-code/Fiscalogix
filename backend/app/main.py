@@ -9,6 +9,7 @@ from app.routes.admin import router as admin_router
 from app.routes.ingestion import router as ingestion_router
 from app.routes.data_grid import router as grid_router
 from app.routes.optimization import router as opt_router
+from app.connectors.sandbox_router import router as sandbox_router
 
 # --- Enterprise v1 Hub (API-First Architecture) ---
 from app.api.v1.endpoints.predict import router as v1_predict
@@ -41,6 +42,7 @@ app.include_router(admin_router)
 app.include_router(ingestion_router)
 app.include_router(grid_router)
 app.include_router(opt_router)
+app.include_router(sandbox_router)
 
 # Enterprise API Layer (v1)
 app.include_router(v1_predict, prefix="/api/v1/predict", tags=["Enterprise Prediction"])

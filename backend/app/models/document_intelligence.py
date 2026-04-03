@@ -10,6 +10,8 @@ class DocumentType(str, Enum):
     BILL_OF_LADING = "bill_of_lading"
     INVOICE = "invoice"
     INSURANCE_POLICY = "insurance_policy"
+    PORT_FEE_SCHEDULE = "port_fee_schedule"
+    CUSTOMS_CHALLAN = "customs_challan"
 
 class ValidationStatus(str, Enum):
     VERIFIED = "verified"
@@ -37,6 +39,20 @@ class ComplianceRecord(BaseModel):
     expiry_date: datetime
     is_valid: bool = True
     scope: Optional[List[str]] = None # e.g., ["Hazmat", "International"]
+
+class PortFeeRecord(BaseModel):
+    port_id: str
+    standard_thc: float
+    security_surcharge: float
+    congestion_fee: float = 0.0
+    effective_date: datetime
+
+class CustomsDutyRecord(BaseModel):
+    hs_code: str
+    basic_duty_rate: float
+    igst_rate: float
+    cess_rate: float = 0.0
+    total_effective_duty: float
 
 class ExtractedDocument(BaseModel):
     doc_id: str

@@ -13,39 +13,44 @@ class UniversalEFIEngine:
         cost_scenarios: List[float],
         delay_penalty_scenarios: List[float],
         loss_factor_scenarios: List[float],
-        holding_cost_scenarios: List[float] = None, # New: Cost of inventory capital
-        opportunity_cost_scenarios: List[float] = None, # New: Lost sales due to stockout
+        duty_scenarios: List[float] = None, # New: Export/Import Duties
+        tariff_risk_scenarios: List[float] = None, # New: Tariff volatility
+        hidden_fee_scenarios: List[float] = None, # New: Demurrage/Detention/Surcharges
+        holding_cost_scenarios: List[float] = None,
+        opportunity_cost_scenarios: List[float] = None,
         breakdown: Dict[str, Any] = None,
         risk_aversion_lambda: float = 1.0,
         alpha: float = 0.1,
         discount_rate: float = 0.0,
         time_t: float = 0.0,
-        fidelity_score: float = 1.0 # New: Data Integrity Score (0.0 to 1.0)
+        fidelity_score: float = 1.0
     ) -> Dict[str, Any]:
         """
-        Calculates the hardened EFI score based on N simulated scenarios.
-        Supports full-spectrum costs: Transport + Inventory + Opportunity.
+        Calculates the hardened EFI score including Total Landed Cost (TLC) factors.
         """
-        # --- Vectorized Matrix Arithmetic ---
         rev = np.array(revenue_scenarios)
         cost = np.array(cost_scenarios)
         pen = np.array(delay_penalty_scenarios)
         loss = np.array(loss_factor_scenarios)
         
-        # New Feature: Inventory Holding & Opportunity Costs
+        # New: Duty and Tax factors
+        duty = np.array(duty_scenarios) if duty_scenarios is not None else np.zeros_like(rev)
+        tariff = np.array(tariff_risk_scenarios) if tariff_risk_scenarios is not None else np.zeros_like(rev)
+        hidden = np.array(hidden_fee_scenarios) if hidden_fee_scenarios is not None else np.zeros_like(rev)
+        
         hold = np.array(holding_cost_scenarios) if holding_cost_scenarios is not None else np.zeros_like(rev)
         opp = np.array(opportunity_cost_scenarios) if opportunity_cost_scenarios is not None else np.zeros_like(rev)
         
         num_scenarios = len(rev)
         if num_scenarios == 0: return {"efi_total": 0, "confidence": 0}
 
-        # Compute V_i for all scenarios: Max-Standard Comprehensive Formula
-        outcomes = rev - cost - pen - loss - hold - opp
+        # Comprehensive Formula: V = R - (C + P + L + D + T + H + H_old + O)
+        outcomes = rev - (cost + pen + loss + duty + tariff + hidden + hold + opp)
+        
         if discount_rate > 0 and time_t > 0:
             outcomes = outcomes / ((1 + discount_rate) ** time_t)
 
         # 2. Risk Adjustment (CVaR)
-        # Sort and take the bottom alpha%
         n_worst = max(1, int(num_scenarios * alpha))
         sorted_outcomes = np.sort(outcomes)
         worst_cases = sorted_outcomes[:n_worst]
@@ -55,19 +60,14 @@ class UniversalEFIEngine:
         expected_v = float(np.mean(outcomes))
         final_efi = expected_v - (risk_aversion_lambda * abs(min(0, cvar)))
 
-        # 4. Confidence Score (1 - (σ / |EFI|)) - Penalized by Data Fidelity
+        # 4. Confidence Score & Data Fidelity
         std_dev = float(np.std(outcomes))
         abs_efi = abs(final_efi)
-        
-        # Base confidence from statistical variance
         raw_confidence = 1 - (std_dev / abs_efi) if abs_efi > 0 else 0.5
-        
-        # Final confidence: Weighted by data integrity (The "Anti-Hallucination" Factor)
-        # We penalize up to 50% of the confidence if fidelity is 0.0
         fidelity_penalty = (1.0 - fidelity_score) * 0.5
         confidence = max(0.01, min(0.99, raw_confidence - fidelity_penalty))
 
-        # 5. Summarize Granular Breakdown (Vectorized)
+        # 5. Summarize Granular Breakdown
         avg_breakdown = {}
         if breakdown:
             for category, sub_components in breakdown.items():
@@ -76,18 +76,14 @@ class UniversalEFIEngine:
                 }
 
         return {
-            "efi_total": round(final_efi, 2),
-            "expected_outcome": round(expected_v, 2),
-            "cvar_shortfall": round(cvar, 2),
-            "confidence_score": round(confidence, 3),
-            "data_fidelity": round(fidelity_score, 2), # New
-            "std_dev": round(std_dev, 2),
-            "components": {
-                "avg_revenue": round(float(np.mean(rev)), 2),
-                "avg_cost": round(float(np.mean(cost)), 2),
-                "avg_penalty": round(float(np.mean(pen)), 2),
-                "avg_loss": round(float(np.mean(loss)), 2)
+            "efi_headline": round(final_efi, 2),
+            "breakdown": {
+                "delay_cost": round(float(np.mean(cost + duty + tariff)), 2), # Capital decay in transit
+                "penalty_cost": round(float(np.mean(pen + hidden)), 2),     # Contractual/Physical Fines
+                "inventory_holding": round(float(np.mean(hold)), 2),         # Stock on hand burn
+                "opportunity_cost": round(float(np.mean(opp)), 2)            # Stockout/Lost Sales
             },
-            "granular_breakdown": avg_breakdown,
-            "performance": "Hardware_Accelerated"
+            "expected_outcome": round(expected_v, 2),
+            "confidence_score": round(confidence, 3),
+            "data_fidelity": round(fidelity_score, 2)
         }

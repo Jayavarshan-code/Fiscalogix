@@ -1,0 +1,114 @@
+.spatial-grid-container {
+  padding: 24px;
+  width: 100%;
+  margin-top: 24px;
+}
+
+.grid-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.res-tag {
+  background: var(--brand-primary);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.hexagon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+
+.hexagon-cell {
+  width: 120px;
+  height: 69px;
+  background-color: var(--bg-surface-elevated);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.2s;
+  cursor: pointer;
+}
+
+.hexagon-cell:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.hex-top, .hex-bottom {
+  width: 0;
+  border-left: 60px solid transparent;
+  border-right: 60px solid transparent;
+  position: absolute;
+  left: 0;
+}
+
+.hex-top {
+  bottom: 100%;
+  border-bottom: 34px solid var(--bg-surface-elevated);
+}
+
+.hex-bottom {
+  top: 100%;
+  width: 0;
+  border-top: 34px solid var(--bg-surface-elevated);
+}
+
+/* Risk Variants */
+.hexagon-cell.high { background-color: rgba(239, 68, 68, 0.4); border-color: var(--semantic-critical); }
+.hexagon-cell.high .hex-top { border-bottom-color: rgba(239, 68, 68, 0.4); }
+.hexagon-cell.high .hex-bottom { border-top-color: rgba(239, 68, 68, 0.4); }
+
+.hexagon-cell.medium { background-color: rgba(245, 158, 11, 0.4); border-color: var(--semantic-warning); }
+.hexagon-cell.medium .hex-top { border-bottom-color: rgba(245, 158, 11, 0.4); }
+.hexagon-cell.medium .hex-bottom { border-top-color: rgba(245, 158, 11, 0.4); }
+
+.hexagon-cell.low { background-color: rgba(16, 185, 129, 0.2); border-color: var(--semantic-safe); }
+.hexagon-cell.low .hex-top { border-bottom-color: rgba(16, 185, 129, 0.2); }
+.hexagon-cell.low .hex-bottom { border-top-color: rgba(16, 185, 129, 0.2); }
+
+.hex-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  z-index: 5;
+}
+
+.hex-id {
+  font-size: 0.7rem;
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.hex-status {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.grid-footer {
+  margin-top: 40px;
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.red { background: var(--semantic-critical); }
+.dot.amber { background: var(--semantic-warning); }
+.dot.green { background: var(--semantic-safe); }

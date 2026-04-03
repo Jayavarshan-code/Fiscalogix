@@ -23,7 +23,7 @@ export const KPICard: React.FC<KPICardProps> = ({
   const isPositive = trend && trend > 0;
   
   return (
-    <div className={`premium-card kpi-card status-${status}`}>
+    <div className={`premium-card kpi-card interactive-hover status-${status}`}>
       <div className="kpi-header">
         <span className="kpi-title">{title}</span>
         {icon && <div className="kpi-icon-wrapper">{icon}</div>}

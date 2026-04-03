@@ -16,15 +16,15 @@ export const apiService = {
   },
 
   /**
-   * Fetch confidence studio explainability for a specific shipment
+   * Fetch live SHAP insights and Monte Carlo data for the Executive Cockpit
    */
-  async getConfidenceExplainability(shipmentId: string) {
+  async getShipmentInsights(shipmentId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/confidence-studio/explain/${shipmentId}`);
+      const response = await fetch(`${API_BASE_URL}/predict/shipment/${shipmentId}/insights`);
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();
     } catch (error) {
-      console.error(`Failed to fetch explainability for ${shipmentId}:`, error);
+      console.error(`Failed to fetch insights for ${shipmentId}:`, error);
       throw error;
     }
   },
@@ -51,6 +51,21 @@ export const apiService = {
       return await response.json();
     } catch (error) {
       console.error(`Failed to execute action on ${payload.shipment_id}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch predictive cashflow trajectories from AR survival model
+   */
+  async getPredictiveCashflow(tenantId: string = "default_tenant") {
+    try {
+      // The router in main.py mounts v1_predict at /api/v1/predict
+      const response = await fetch(`${API_BASE_URL}/api/v1/predict/cashflow/trajectory?tenant_id=${tenantId}`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      return await response.json();
+    } catch (error) {
+      console.error(`Failed to fetch cashflow trajectory:`, error);
       throw error;
     }
   }

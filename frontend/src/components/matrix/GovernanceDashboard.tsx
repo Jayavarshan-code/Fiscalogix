@@ -87,7 +87,7 @@ export const GovernanceDashboardMatrix: React.FC = () => {
           {deploymentLogs.map((log, i) => (
             <div key={i} className={`flex justify-between items-center p-3 rounded-xl border border-subtle ${log.status === 'ACTIVE' ? 'bg-brand-primary/10 border-brand-primary/30' : 'bg-surface'}`}>
               <div className="flex items-center gap-3">
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded ${log.status === 'ACTIVE' ? 'bg-brand-primary text-white' : 'bg-subtle text-muted'}`}>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded ${log.status === 'ACTIVE' ? 'bg-brand-primary' : 'bg-subtle text-muted'}`} style={{ color: log.status === 'ACTIVE' ? '#ffffff' : undefined }}>
                   {log.status}
                 </span>
                 <span className="text-xs font-bold text-primary">{log.version}</span>

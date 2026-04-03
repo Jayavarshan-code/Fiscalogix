@@ -1,0 +1,87 @@
+.top-ribbon-container {
+    background: var(--bg-surface);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    z-index: 50;
+    box-shadow: var(--shadow-sm);
+}
+
+.ribbon-utility-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--brand-primary);
+    color: white;
+    height: 36px;
+}
+
+.brand-logo {
+    display: flex;
+    align-items: center;
+}
+
+.brand-icon {
+    width: 16px;
+    height: 16px;
+    background: white;
+    mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>') center/contain no-repeat;
+    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>') center/contain no-repeat;
+}
+
+.brand-name {
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+}
+
+.ribbon-nav {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px;
+    background: var(--bg-surface-elevated);
+    border-bottom: 2px solid var(--border-subtle);
+}
+
+.ribbon-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    min-width: 80px;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.ribbon-tab span {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+.ribbon-tab:hover {
+    background: var(--bg-surface-hover);
+    color: var(--text-primary);
+    border-color: var(--border-subtle);
+}
+
+.ribbon-tab.active {
+    background: var(--brand-primary-light, rgba(37, 99, 235, 0.1));
+    color: var(--brand-primary);
+    border-color: var(--brand-primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Dark mode adjustments applied globally via index.css natively adapt here */

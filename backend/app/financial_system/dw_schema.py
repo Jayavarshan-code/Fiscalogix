@@ -123,3 +123,18 @@ class DWProductDimension(Base):
     unit_cost_usd = Column(Float)
     holding_cost_daily = Column(Float)
     stockout_penalty_daily = Column(Float) # Critical for the Optimization engine
+
+class DWCustomerDimension(Base):
+    """
+    AR parameters. Used by Cashflow Engine for probabilistic liquidity modeling.
+    """
+    __tablename__ = 'dw_customer_dimensions'
+    
+    id = Column(Integer, primary_key=True)
+    tenant_id = Column(String(50), nullable=False)
+    customer_id = Column(String(100), unique=True)
+    customer_name = Column(String(200))
+    
+    credit_days = Column(Integer, default=30)
+    payment_delay_days = Column(Float, default=0.0) # E.g., average 14 days late
+    industry_risk_score = Column(Float, default=0.0)

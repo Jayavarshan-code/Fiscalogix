@@ -278,13 +278,31 @@ def initialize_db():
             # Seed Mock RBAC Data for Testing
             conn.execute(text('''
                 INSERT INTO profiles (name, permissions)
-                VALUES ('System Admin', '{"can_view": true, "can_execute": true}')
+                VALUES ('System Admin', '{"is_admin": true, "can_view_all": true}')
                 ON CONFLICT (name) DO NOTHING;
             '''))
             
             conn.execute(text('''
                 INSERT INTO profiles (name, permissions)
-                VALUES ('Supply Chain Analyst', '{"can_view": true, "can_execute": false}')
+                VALUES ('Executive', '{"can_view_liquidity": true, "can_view_dashboard": true}')
+                ON CONFLICT (name) DO NOTHING;
+            '''))
+
+            conn.execute(text('''
+                INSERT INTO profiles (name, permissions)
+                VALUES ('Financial Analyst', '{"can_view_revm": true, "can_view_recovery": true}')
+                ON CONFLICT (name) DO NOTHING;
+            '''))
+
+            conn.execute(text('''
+                INSERT INTO profiles (name, permissions)
+                VALUES ('Supply Chain Ops', '{"can_view_matrix": true}')
+                ON CONFLICT (name) DO NOTHING;
+            '''))
+
+            conn.execute(text('''
+                INSERT INTO profiles (name, permissions)
+                VALUES ('Auditor', '{"can_view_governance": true, "can_view_warehouse": true}')
                 ON CONFLICT (name) DO NOTHING;
             '''))
             

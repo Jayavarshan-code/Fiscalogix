@@ -1,7 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
-import { Sidebar } from './Sidebar';
-import { TopBar } from './TopBar';
+import { TopMenuRibbon } from './TopMenuRibbon';
 
 interface ShellProps {
   children: ReactNode;
@@ -10,11 +9,15 @@ interface ShellProps {
 }
 
 export const Shell: React.FC<ShellProps> = ({ children, activeView, onNavigate }) => {
+
   return (
-    <div className="app-container">
-      <Sidebar activeView={activeView} onNavigate={onNavigate} />
-      <TopBar />
-      <main className="main-content">
+    <div className="flex flex-col min-h-screen" style={{ width: '100vw', margin: 0, padding: 0, overflowX: 'hidden' }}>
+      <TopMenuRibbon 
+        activeView={activeView} 
+        onNavigate={onNavigate} 
+      />
+      
+      <main className="flex-grow w-full p-8" style={{ width: '100vw', margin: 0, boxSizing: 'border-box' }}>
         {children}
       </main>
     </div>

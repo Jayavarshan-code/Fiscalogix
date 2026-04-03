@@ -48,5 +48,6 @@ class MonteCarloEngine:
             "stochastic_var_95_revm": round(var_95, 2),
             "absolute_maximum_loss_floor": round(worst_case, 2),
             "simulations_executed_cycles": iterations,
-            "performance_mode": "Vectorized (Sub-Second)"
+            "performance_mode": "Vectorized (Sub-Second)",
+            "scenarios": [round(float(x), 2) for x in simulated_outcomes[:20]]
         }

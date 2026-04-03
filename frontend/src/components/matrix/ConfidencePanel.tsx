@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, ShieldAlert, Loader2, Lock, RefreshCw } from 'lucide-react';
 import { apiService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -26,25 +26,35 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
 
   if (!shipmentId) return null;
 
-  // Tech Giant Upgrade: Local state for executive summary (populated from backend)
-  const [decisionData, setDecisionData] = useState<any>({
-    recommended_action: "Reroute via Intermodal Rail",
-    profit_impact_delta: "1420000",
-    risk_reduction_pct: "37%",
-    confidence_score: 0.92,
-    operational_alert: "Critical disruption detected",
-    executive_narrative: "This route avoids high-loss scenarios in 78% of cases.",
-    components: {
-        avg_revenue: 5000000,
-        avg_cost: 800000,
-        avg_penalty: 150000,
-        avg_loss: 50000
-    },
-    granular_breakdown: {
-        costs: { transport: 600000, fuel: 120000, handling: 40000, storage: 30000, customs: 10000 },
-        losses: { damage: 5000, spoilage: 15000, lost_sales: 20000, inventory: 10000 }
-    }
-  });
+  const [decisionData, setDecisionData] = useState<any>(null);
+  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
+
+  useEffect(() => {
+    const fetchInsights = async () => {
+      if (!shipmentId) return;
+      setIsLoadingInsights(true);
+      try {
+        const data = await apiService.getShipmentInsights(shipmentId);
+        setDecisionData(data);
+      } catch (err) {
+        console.error("Failed to load insights:", err);
+      } finally {
+        setIsLoadingInsights(false);
+      }
+    };
+    fetchInsights();
+  }, [shipmentId]);
+
+  if (isLoadingInsights || !decisionData) {
+    return (
+      <div className="confidence-panel active flex justify-center items-center h-full bg-surface-elevated">
+        <div className="flex flex-col items-center gap-4 text-brand-primary">
+          <Loader2 size={48} className="animate-spin" />
+          <div className="text-sm font-bold uppercase tracking-widest text-muted mt-4">Running SHAP Explainers...</div>
+        </div>
+      </div>
+    );
+  }
 
   const handleExecute = async () => {
     setIsExecuting(true);
@@ -194,10 +204,7 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
             {/* Tech Giant Upgrade: Stochastic Robustness Visualization */}
             <StochasticScenarioChart 
               cvarFloor={riskAppetite === 'CONSERVATIVE' ? 14200 : riskAppetite === 'AGGRESSIVE' ? 11000 : 12500} 
-              scenarios={[
-                14000, 15500, 12000, 8000, 15000, 16000, 13000, 14500, 12500, 11000,
-                15200, 14800, 13900, 12100, 11500, 16200, 15800, 14200, 12600, 13100
-              ]} 
+              scenarios={decisionData.monte_carlo_scenarios || []} 
               narratives={[
                 "Extreme Scenario: Port Strike triggers 5-day demurrage; yielding heavy losses on Sea branch.",
                 "Optimal Scenario: Customs congestion bypass; yielding maximum profit.",

@@ -92,7 +92,7 @@ export const TemporalRiskTimeline: React.FC<TemporalRiskTimelineProps> = ({ mark
                 </div>
 
                 {/* Technical Tooltip */}
-                <div className="absolute -top-20 opacity-0 group-hover:opacity-100 transition-all transform group-hover:-translate-y-2 bg-slate-900 text-white p-3 rounded-xl shadow-2xl border border-white/10 z-30 w-48 pointer-events-none">
+                <div className="absolute -top-20 opacity-0 group-hover:opacity-100 transition-all transform group-hover:-translate-y-2 p-3 rounded-xl shadow-2xl z-30 w-48 pointer-events-none" style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-strong)', color: 'var(--text-primary)' }}>
                     <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-1">
                         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Risk Advisor</span>
                         <span className="text-[12px] font-mono font-bold text-brand-primary">{(m.score * 100).toFixed(0)}%</span>

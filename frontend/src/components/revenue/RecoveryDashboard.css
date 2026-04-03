@@ -1,0 +1,154 @@
+.recovery-dashboard {
+    padding: 24px;
+    margin-top: 24px;
+    background: rgba(16, 20, 24, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recovery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 16px;
+}
+
+.recovery-header h2 {
+    color: #f0f0f0;
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.roi-stat {
+    text-align: right;
+}
+
+.roi-stat .label {
+    display: block;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.roi-stat .value {
+    color: #4ade80;
+    font-size: 1.75rem;
+    font-weight: 700;
+    text-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+}
+
+.recovery-table table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.recovery-table th {
+    text-align: left;
+    padding: 12px;
+    color: rgba(255, 255, 255, 0.4);
+    font-weight: 500;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+}
+
+.recovery-table td {
+    padding: 16px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.loss-val {
+    color: #f87171;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.detected {
+    background: rgba(248, 113, 113, 0.2);
+    color: #f87171;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.status-badge.drafted {
+    background: rgba(250, 204, 21, 0.2);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.status-badge.filed {
+    background: rgba(96, 165, 250, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.btn-action {
+    background: #4ade80;
+    color: #101418;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+    background: #22c55e;
+    transform: scale(1.05);
+}
+
+.btn-file {
+    background: transparent;
+    color: #60a5fa;
+    border: 1px solid #60a5fa;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-file:hover {
+    background: rgba(96, 165, 250, 0.1);
+}
+
+.done-icon {
+    color: #4ade80;
+    font-size: 0.85rem;
+}
+
+.hitl-note {
+    margin-top: 24px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 3px solid #facc15;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.pulse {
+    animation: pulse-green 2s infinite;
+}
+
+@keyframes pulse-green {
+    0% {
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+    }
+}
