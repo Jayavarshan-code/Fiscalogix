@@ -1,23 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-
-const data = [
-  { date: 'Mar 1', cash: 54000 },
-  { date: 'Mar 5', cash: 48000 },
-  { date: 'Mar 10', cash: 32000 },
-  { date: 'Mar 15', cash: 15000 },
-  { date: 'Mar 18', cash: -2000 }, // Deficit
-  { date: 'Mar 22', cash: 12000 },
-  { date: 'Mar 28', cash: 45000 },
-  { date: 'Apr 2', cash: 62000 },
-];
+import { apiService } from '../../services/api';
 
 export const CashflowChart: React.FC = () => {
+  const [chartData, setChartData] = useState<any[]>([
+    { date: 'Day 0', cash: 0 },
+    { date: 'Day 30', cash: 0 },
+    { date: 'Day 60', cash: 0 },
+    { date: 'Day 90', cash: 0 }
+  ]);
+
+  useEffect(() => {
+    const fetchCashflow = async () => {
+      try {
+        const result = await apiService.getPredictiveCashflow();
+        if (result && result.trajectory) {
+          const newData = [
+            { date: 'Current', cash: result.trajectory[0] },
+            { date: 'Day 30', cash: result.trajectory[1] },
+            { date: 'Day 60', cash: result.trajectory[2] },
+            { date: 'Day 90', cash: result.trajectory[3] }
+          ];
+          setChartData(newData);
+        }
+      } catch (e) {
+        console.error("Failed loading AR predictions", e);
+      }
+    };
+    fetchCashflow();
+  }, []);
+
   return (
     <div style={{ width: '100%', height: '300px' }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart
-          data={data}
+          data={chartData}
           margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
         >
           <defs>
