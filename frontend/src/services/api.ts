@@ -1,4 +1,12 @@
-export const API_BASE_URL = 'http://localhost:8000'; // Assuming standard FastAPI local port
+export const API_BASE_URL = 'http://localhost:8000';
+
+/**
+ * Get the Authorization header using the stored JWT token.
+ */
+const getAuthHeader = (): Record<string, string> => {
+  const token = localStorage.getItem('access_token');
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+};
 
 export const apiService = {
   /**
@@ -6,7 +14,9 @@ export const apiService = {
    */
   async getExecutiveOverview(tenantId: string = 'default_tenant') {
     try {
-      const response = await fetch(`${API_BASE_URL}/financial-intelligence?tenant_id=${tenantId}`);
+      const response = await fetch(`${API_BASE_URL}/financial-intelligence?tenant_id=${tenantId}`, {
+        headers: getAuthHeader()
+      });
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();
     } catch (error) {
@@ -20,7 +30,9 @@ export const apiService = {
    */
   async getShipmentInsights(shipmentId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/predict/shipment/${shipmentId}/insights`);
+      const response = await fetch(`${API_BASE_URL}/predict/shipment/${shipmentId}/insights`, {
+        headers: getAuthHeader()
+      });
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();
     } catch (error) {
@@ -33,21 +45,22 @@ export const apiService = {
    * Push a structural decision (e.g., REROUTE) back to the backend + ERP
    */
   async executeAction(payload: {
-    tenant_id: string;
     action_type: string;
     shipment_id: string;
     erp_target: string;
     confidence_score: number;
-    mock_user_id: number;
     parameters?: any;
   }) {
     try {
       const response = await fetch(`${API_BASE_URL}/execution/action`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify(payload) // No mock_user_id — the JWT carries identity now
       });
-      if (!response.ok) throw new Error('Network response was not ok');
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail || 'Execution failed');
+      }
       return await response.json();
     } catch (error) {
       console.error(`Failed to execute action on ${payload.shipment_id}:`, error);
@@ -60,8 +73,9 @@ export const apiService = {
    */
   async getPredictiveCashflow(tenantId: string = "default_tenant") {
     try {
-      // The router in main.py mounts v1_predict at /api/v1/predict
-      const response = await fetch(`${API_BASE_URL}/api/v1/predict/cashflow/trajectory?tenant_id=${tenantId}`);
+      const response = await fetch(`${API_BASE_URL}/api/v1/predict/cashflow/trajectory?tenant_id=${tenantId}`, {
+        headers: getAuthHeader()
+      });
       if (!response.ok) throw new Error('Network response was not ok');
       return await response.json();
     } catch (error) {

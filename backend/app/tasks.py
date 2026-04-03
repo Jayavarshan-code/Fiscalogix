@@ -77,25 +77,43 @@ def task_process_bulk_csv(filepath: str):
 def task_process_etl_pipeline(csv_filepath: str, pdf_filepath: str, tenant_id: str):
     """
     High-Performance Asynchronous ETL Pipeline.
-    Loads NLP constraint rules from the SLA PDF, applies them as mathematical constants,
-    and then streams the CSV file into PostgreSQL in memory-safe chunks.
+    Extracts real SLA penalties from PDFs using regex NLP rules,
+    then streams the CSV into PostgreSQL in memory-safe chunks.
     """
+    from app.ml.sla_extractor import SLAContractExtractor
+    
     try:
-        # Step 1: Heavy NLP Parsing
-        penalty_text = "Standard Corporate Logistics Master Service Agreement"
-        penalty_rate = 0.05  # Default 5% per day baseline if NLP fails
+        # Step 1: Real PDF Text Extraction + NLP Parsing
+        penalty_rate = 0.05  # Safe default (5% per day) if no contract is uploaded
+        penalty_summary = "No contract uploaded; using baseline 5% per day."
         
         if pdf_filepath and os.path.exists(pdf_filepath):
-            # In a real environment, you'd use unstructured/pdfplumber to extract text.
-            # We mock the parsed text and feed it to the Fine-Tuner logic.
-            mock_extracted_text = "Carrier is liable for 2.5% of freight value per day of delay. Exceptions apply for Force Majeure events."
-            
-            # Use our 150K NLP finetuner logic to process the text.
-            from app.ml.nlp_contract_finetuner import RobustTTFVFinetuner
-            # Here we'd normally call the model inferencing endpoint
-            # Since this is the pipeline step, we simulate the XAI model output:
-            penalty_text = mock_extracted_text
-            penalty_rate = 0.025 # Extracted 2.5%
+            try:
+                import pdfplumber
+                with pdfplumber.open(pdf_filepath) as pdf:
+                    raw_text = " ".join(
+                        page.extract_text() or "" for page in pdf.pages
+                    )
+                
+                if raw_text.strip():
+                    nlp_result = SLAContractExtractor.extract(raw_text)
+                    
+                    if nlp_result["force_majeure_applies"]:
+                        penalty_summary = "FORCE MAJEURE applies — penalty waived per contract terms."
+                        penalty_rate = 0.0
+                    elif nlp_result["penalty_rate"] is not None:
+                        penalty_rate = nlp_result["penalty_rate"]
+                        penalty_summary = f"Extracted percentage penalty: {penalty_rate * 100:.2f}% per day."
+                    elif nlp_result["flat_fee_per_day"] is not None:
+                        penalty_summary = f"Flat fee penalty: ${nlp_result['flat_fee_per_day']:,.0f} per day."
+                    else:
+                        penalty_summary = "No structured penalty clause found; using 5% default."
+                else:
+                    penalty_summary = "PDF text was empty or unreadable; using 5% default."
+            except ImportError:
+                penalty_summary = "pdfplumber not installed. Install with: pip install pdfplumber"
+            except Exception as pdf_err:
+                penalty_summary = f"PDF parsing error: {str(pdf_err)}"
 
         # Step 2: High-Performance Database Push
         total_rows = 0

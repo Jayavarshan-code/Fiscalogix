@@ -6,10 +6,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/auth/Login';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { IngestionStudio } from './components/ingestion/IngestionStudio';
+import ErrorBoundary from './components/layout/ErrorBoundary';
 import './App.css';
 
 import { GovernanceDashboardMatrix } from './components/matrix/GovernanceDashboard';
-import SpatialGridOverlay from './components/matrix/SpatialGridOverlay';
 import { CashflowChart } from './components/dashboard/CashflowChart';
 import RecoveryDashboard from './components/revenue/RecoveryDashboard';
 
@@ -32,13 +32,35 @@ const MainApp = () => {
         
         {activeView === 'warehouse' && (
           <div className="p-8">
-            <h2 className="text-2xl font-bold mb-4">Data Warehouse (Operational Logs)</h2>
+            <h2 className="text-2xl font-bold mb-2">Data Warehouse</h2>
+            <p className="text-secondary mb-6 text-sm">The 13-Pillar enterprise data lake. All ingested records from ERP systems and CSV uploads are stored and queryable here.</p>
             <div className="glass-panel p-6">
-              <p className="text-[var(--text-secondary)] mb-4">Raw 13-Pillar Data Lake</p>
-              {/* Rerouting Map visible inside warehouse/logs or matrix */}
-              <div style={{ height: '400px', width: '100%', borderRadius: '12px', overflow: 'hidden' }}>
-                <SpatialGridOverlay />
-              </div>
+              <h3 className="text-md font-semibold mb-4 text-secondary uppercase tracking-widest text-xs">Recent Ingestion Log</h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-subtle text-muted text-left">
+                    <th className="pb-2 pr-4">Table</th>
+                    <th className="pb-2 pr-4">Source</th>
+                    <th className="pb-2 pr-4">Rows</th>
+                    <th className="pb-2">Ingested At</th>
+                  </tr>
+                </thead>
+                <tbody className="text-secondary">
+                  <tr className="border-b border-subtle/30">
+                    <td className="py-2 pr-4 font-mono text-xs">dw_shipment_facts</td>
+                    <td className="py-2 pr-4">BULK-CSV</td>
+                    <td className="py-2 pr-4">30,000</td>
+                    <td className="py-2 text-muted">Live via Ingestion Studio</td>
+                  </tr>
+                  <tr className="border-b border-subtle/30">
+                    <td className="py-2 pr-4 font-mono text-xs">dw_customer_dimensions</td>
+                    <td className="py-2 pr-4">Seeded</td>
+                    <td className="py-2 pr-4">500</td>
+                    <td className="py-2 text-muted">Setup Seed</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="text-xs text-muted mt-4">Connect to Postgres via the Ingestion Studio to populate this view with live data.</p>
             </div>
           </div>
         )}
@@ -64,9 +86,11 @@ const MainApp = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

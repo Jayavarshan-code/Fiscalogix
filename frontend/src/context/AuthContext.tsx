@@ -43,17 +43,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string, pass: string) => {
-    // MOCK LOGIN FOR BROWSER DEMO
-    localStorage.setItem('access_token', 'mock_token_123');
-    localStorage.setItem('profile_name', 'System Admin');
-    localStorage.setItem('email', email || 'admin@fiscalogix.com');
-    localStorage.setItem('user_id', '1');
+    const formData = new URLSearchParams();
+    formData.append('username', email);
+    formData.append('password', pass);
+
+    const resp = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData.toString()
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || 'Login failed. Please check your credentials.');
+    }
+
+    const data = await resp.json();
+
+    // Store the REAL JWT from the backend
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('profile_name', data.profile_name);
+    localStorage.setItem('email', data.email);
+    localStorage.setItem('user_id', String(data.user_id));
+
+    const perms = data.profile_name === 'System Admin'
+      ? { can_view: true, can_execute: true }
+      : { can_view: true, can_execute: false };
 
     setCurrentUser({
-      id: 1,
-      email: email || 'admin@fiscalogix.com',
-      profileName: 'System Admin',
-      permissions: { can_view: true, can_execute: true }
+      id: data.user_id,
+      email: data.email,
+      profileName: data.profile_name,
+      permissions: perms
     });
   };
 
