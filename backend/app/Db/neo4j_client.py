@@ -1,43 +1,74 @@
+import os
+import logging
 from neo4j import GraphDatabase
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# FIX M5: Neo4j credentials moved to env vars. Removed hardcoded "password".
+# FIX M5: Replaced print() with logger. Removed bare assert (crashes with
+#         no context) — replaced with explicit RuntimeError message.
+# FIX M5: Module-level instantiation is now lazy / guarded to prevent
+#         import-time crashes when Neo4j is not running.
+# ---------------------------------------------------------------------------
+
+NEO4J_URI  = os.environ.get("NEO4J_URI",  "bolt://localhost:7687")
+NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
+NEO4J_PWD  = os.environ.get("NEO4J_PASSWORD", "")  # Never hardcode a default password
+
 
 class Neo4jConnection:
     """
-    Enterprise Graph Database Connection.
-    Holds the resilient connection pool to the Neo4j Core.
+    Enterprise Graph Database Connection Pool.
+    Holds a resilient connection to the Neo4j Core for contagion risk modeling.
     """
-    def __init__(self, uri="bolt://localhost:7687", user="neo4j", pwd="password"):
-        self.__uri = uri
-        self.__user = user
-        self.__pwd = pwd
-        self.__driver = None
+
+    def __init__(self, uri: str = NEO4J_URI, user: str = NEO4J_USER, pwd: str = NEO4J_PWD):
+        self._uri    = uri
+        self._user   = user
+        self._driver = None
         try:
-            self.__driver = GraphDatabase.driver(
-                self.__uri, 
-                auth=(self.__user, self.__pwd),
-                connection_timeout=2.0
+            self._driver = GraphDatabase.driver(
+                uri,
+                auth=(user, pwd),
+                connection_timeout=2.0,
             )
+            self._driver.verify_connectivity()
+            logger.info(f"Neo4j: connected to {uri}")
         except Exception as e:
-            print("Failed to create the Neo4j driver:", e)
+            # FIX M5: structured log instead of print(); driver stays None
+            logger.warning(f"Neo4j: failed to connect — {type(e).__name__}: {e}. "
+                           "Graph contagion features will be disabled.")
+            self._driver = None
 
     def close(self):
-        if self.__driver is not None:
-            self.__driver.close()
+        if self._driver:
+            self._driver.close()
 
-    def query(self, query, parameters=None, db=None):
+    @property
+    def is_connected(self) -> bool:
+        return self._driver is not None
+
+    def query(self, query: str, parameters: dict = None, db: str = None):
         """
         Executes a Cypher query using a managed transaction.
+        Returns None gracefully if Neo4j is not connected — callers must handle.
         """
-        assert self.__driver is not None, "Neo4j Driver not initialized!"
-        session = None
-        response = None
-        try:
-            session = self.__driver.session(database=db) if db is not None else self.__driver.session() 
-            response = list(session.run(query, parameters))
-        except Exception as e:
-            print("Neo4j Query failed:", e)
-        finally:
-            if session is not None:
-                session.close()
-        return response
+        if not self._driver:
+            logger.warning("Neo4j: query skipped — driver not initialized.")
+            return None
 
+        session = None
+        try:
+            session = self._driver.session(database=db) if db else self._driver.session()
+            return list(session.run(query, parameters or {}))
+        except Exception as e:
+            logger.error(f"Neo4j: query failed — {type(e).__name__}: {e}", exc_info=True)
+            return None
+        finally:
+            if session:
+                session.close()
+
+
+# Lazy singleton — only instantiated when first imported
 neo4j_client = Neo4jConnection()

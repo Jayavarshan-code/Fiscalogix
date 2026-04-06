@@ -8,6 +8,22 @@ from app.Db.connections import engine
 import pandas as pd
 import os
 
+# ─────────────────────────────────────────────────────────────────────────────
+# FX CACHE WARMING TASK (Fix A — FX API Bottleneck)
+# Runs on a periodic schedule (every 55 minutes via Celery Beat).
+# This is the ONLY place a live HTTP call to open.er-api.com is made.
+# The inference path (FXRiskModel.compute_batch) reads ONLY from Redis.
+# ─────────────────────────────────────────────────────────────────────────────
+@celery_app.task(name="warm_fx_cache")
+def task_warm_fx_cache():
+    """
+    Periodic FX cache warmer. Pre-populates Redis with live volatility rates
+    for all known trade routes so the inference path never makes network calls.
+    Schedule: every 55 minutes via celery_app beat_schedule.
+    """
+    from app.financial_system.fx_model import fetch_and_warm_fx_cache
+    return fetch_and_warm_fx_cache()
+
 @celery_app.task(name="optimize_network_routing")
 def task_optimize_network_routing(kwargs):
     """
@@ -35,6 +51,54 @@ def task_optimize_step_cost(kwargs):
     Background task to run Complex Tariff Big-M MILP Equations
     """
     return StepCostRoutingEngine.optimize(**kwargs)
+
+@celery_app.task(name="retrain_ml_models")
+def task_retrain_ml_models():
+    """
+    Weekly ML model retraining.
+    Loads real data from dw_shipment_facts when >= 500 rows exist;
+    falls back to synthetic otherwise. Scheduled every Sunday 02:00 UTC.
+    Persists a MLModelVersion row after every run for governance tracking.
+    """
+    from app.financial_system.ml_pipeline.train_models import train_all
+    import datetime
+
+    result = train_all()
+
+    # Persist governance record — deactivate previous active version first
+    try:
+        from setup_db import MLModelVersion
+        from app.Db.connections import SessionLocal
+        db = SessionLocal()
+        try:
+            version_tag = f"v-{datetime.datetime.utcnow().strftime('%Y-%m-%d')}"
+            # Deactivate all previous active versions
+            db.query(MLModelVersion).filter_by(is_active=True).update({"is_active": False})
+            db.add(MLModelVersion(
+                tenant_id="global",
+                model_name="all",
+                version=version_tag,
+                is_active=True,
+                training_rows=result.get("training_rows", 0),
+                data_source=result.get("data_source", "synthetic"),
+                delay_rmse=result.get("delay_rmse"),
+                risk_accuracy=result.get("risk_accuracy"),
+                demand_rmse=result.get("demand_rmse"),
+            ))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            import logging
+            logging.getLogger(__name__).error(
+                f"task_retrain_ml_models: failed to persist MLModelVersion — {e}", exc_info=True
+            )
+        finally:
+            db.close()
+    except ImportError:
+        pass
+
+    return result
+
 
 @celery_app.task(name="process_bulk_csv")
 def task_process_bulk_csv(filepath: str):
@@ -142,9 +206,9 @@ def task_process_etl_pipeline(csv_filepath: str, pdf_filepath: str, tenant_id: s
                     total_rows += len(chunk_final)
 
         return {
-            "status": "success", 
-            "rows_ingested": total_rows, 
-            "nlp_extracted_penalty": penalty_text,
+            "status": "success",
+            "rows_ingested": total_rows,
+            "nlp_extracted_penalty": penalty_summary,
             "calculated_rate": penalty_rate
         }
     except Exception as e:
@@ -154,3 +218,24 @@ def task_process_etl_pipeline(csv_filepath: str, pdf_filepath: str, tenant_id: s
             os.remove(csv_filepath)
         if pdf_filepath and os.path.exists(pdf_filepath):
             os.remove(pdf_filepath)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RAG KNOWLEDGE BASE REFRESH TASK
+# Runs nightly at 01:00 UTC via Celery Beat.
+# Re-embeds operational data (carrier performance, shipment history, decisions)
+# so LLM narratives are grounded in the most recent 90 days of real data.
+# ─────────────────────────────────────────────────────────────────────────────
+@celery_app.task(name="refresh_rag_knowledge_base")
+def task_refresh_rag_knowledge_base(tenant_id: str = "default_tenant"):
+    """
+    Nightly RAG knowledge base refresh.
+    Re-ingests operational tables into embedded knowledge chunks.
+    """
+    try:
+        from app.services.rag.ingestion import RAGIngestionPipeline
+        pipeline = RAGIngestionPipeline()
+        result = pipeline.run_full(tenant_id=tenant_id)
+        return {"status": "success", "chunks_by_source": result}
+    except Exception as e:
+        return {"status": "failed", "error": str(e)}

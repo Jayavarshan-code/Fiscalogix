@@ -25,13 +25,18 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     profile_name = profile.name if profile else "Standard User"
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    # Build a powerful JWT payload mirroring the SaaS design
+
+    # Load Role permissions so every protected route can gate without a DB call
+    from setup_db import Role
+    role = db.query(Role).filter(Role.id == user.role_id).first()
+    role_permissions = role.permissions if role else {}
+
     payload = {
         "sub": user.username,
         "user_id": user.id,
         "tenant_id": user.tenant_id,
-        "profile_name": profile_name
+        "profile_name": profile_name,
+        "permissions": role_permissions,   # embedded so require_permission() is DB-free
     }
     
     access_token = create_access_token(

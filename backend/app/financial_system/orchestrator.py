@@ -1,3 +1,4 @@
+import logging
 from typing import List, Dict, Any
 from app.financial_system.engine import FinancialCoreEngine
 from app.financial_system.delay_model import DelayPredictionModel
@@ -20,10 +21,12 @@ from app.financial_system.executive.liquidity_engine import LiquidityScoreEngine
 from app.financial_system.executive.impact_engine import ImpactEngine
 from app.financial_system.optimization.orchestrator import ProfitOptimizationOrchestrator
 from app.financial_system.optimization.route_optimizer import GeopoliticalRouteOptimizer
+from app.financial_system.ai_mapper import AIFieldMapper
 
 class FinancialIntelligenceOrchestrator:
 
     def __init__(self):
+        self.logger = logging.getLogger(__name__)
         self.core = FinancialCoreEngine()
         self.delay_model = DelayPredictionModel()
         self.demand_model = DemandPredictionModel()
@@ -36,6 +39,10 @@ class FinancialIntelligenceOrchestrator:
         self.audit = AuditLogger()
         self.decision = DecisionEngine()
         self.cashflow = CashflowPredictorOrchestrator()
+
+        # NEW: ReVM Snapshot persistence for historical trend analytics
+        from app.financial_system.revm_snapshot_logger import RevmSnapshotLogger
+        self.revm_snapshot = RevmSnapshotLogger()
         
         self.confidence = ConfidenceTrustEngine()
         self.scenario = ScenarioSimulationEngine(self.risk, self.time, self.future, self.cashflow)
@@ -100,9 +107,14 @@ class FinancialIntelligenceOrchestrator:
         self.risk.set_contagion_context(self.route_optimizer.graph)
 
     def run(self, tenant_id: str = "default_tenant"):
-        data = self.core.compute(tenant_id=tenant_id)
-        if not data:
+        raw_data = self.core.compute(tenant_id=tenant_id)
+        if not raw_data:
             return {}
+
+        # --- Fix C Integration: Taxonomical Normalization ---
+        # Cleans raw ERP strings (e.g., "Pharma-Cold" -> "pharmaceutical") 
+        # before any financial engine or ML model touches the data.
+        data = [AIFieldMapper.normalize_row_taxonomy(row) for row in raw_data]
 
         # --- Phase 1: Massive C++ Pandas Vectorization for ML inference ---
         predicted_delays_array = self.delay_model.compute_batch(data)
@@ -120,12 +132,12 @@ class FinancialIntelligenceOrchestrator:
             if route_id:
                 gnn_mapping[route_id] = risk_outputs_array[i]["score"]
         
-        print("[Phase 1.5] Syncing GNN Risks...")
+        self.logger.info("[Phase 1.5] Syncing GNN Risks...")
         self.route_optimizer.sync_gnn_risk(gnn_mapping)
 
         enriched = []
         # --- Phase 2: Chronological Synthesis Iteration ---
-        print(f"[Phase 2] Synthesizing {len(data)} records...")
+        self.logger.info(f"[Phase 2] Synthesizing {len(data)} records...")
         for i, row in enumerate(data):
             contribution_profit = row.get("contribution_profit", 0.0)
             order_value = row.get("order_value", 0.0)
@@ -168,8 +180,25 @@ class FinancialIntelligenceOrchestrator:
 
         try:
             self.audit.log_batch(enriched)
-        except Exception:
-            pass 
+        except Exception as e:
+            # Audit log failures must NEVER be swallowed silently.
+            # If this fails, it means DecisionLog writes are broken — a critical
+            # compliance gap. Log at ERROR so it surfaces in production observability.
+            import logging
+            logging.getLogger(__name__).error(
+                f"Orchestrator: AuditLogger.log_batch failed — {type(e).__name__}: {e}",
+                exc_info=True
+            )
+
+        # Persist ReVM snapshots for historical trend charting and investor demo analytics.
+        # Must run after Phase 2 synthesis so all cost components are populated on each row.
+        try:
+            self.revm_snapshot.save_batch(enriched, tenant_id)
+        except Exception as e:
+            self.logger.error(
+                f"Orchestrator: RevmSnapshotLogger.save_batch failed — {type(e).__name__}: {e}",
+                exc_info=True
+            )
 
         # --- Phase 3: Aggregation ---
         summary = self.aggregator.summarize(enriched)
@@ -187,12 +216,12 @@ class FinancialIntelligenceOrchestrator:
         scenarios = [scen_1, scen_2]
         
         # Sequentially map Probabilistic VaR limits (1,000 algorithmic cycles)
-        print("[Phase 4.1] Running Monte Carlo...")
+        self.logger.info("[Phase 4.1] Running Monte Carlo...")
         monte_carlo_var = self.monte_carlo.simulate_var(enriched, 1000)
         
-        print("[Phase 4.2] Running Liquidity Optimization...")
+        self.logger.info("[Phase 4.2] Running Liquidity Optimization...")
         liquidity_score = self.liquidity.compute(ending_cash, timeline, shocks, enriched)
-        print("[Phase 4.3] Running POE Optimization...")
+        self.logger.info("[Phase 4.3] Running POE Optimization...")
         optimization_payload = self.poe.optimize(enriched, ending_cash)
         
         buffer_rec = self.buffer.compute(cash_metrics["peak_deficit"], shocks, global_confidence)
@@ -200,7 +229,7 @@ class FinancialIntelligenceOrchestrator:
         impact_metrics = self.impact.compute(enriched, optimization_payload, monte_carlo_var)
 
         # Step 1: Capture Every Decision (Evolving Intelligence)
-        self._log_decisions(optimization_payload)
+        self._log_decisions(optimization_payload, tenant_id)
 
         return {
             "summary": summary,
@@ -216,23 +245,34 @@ class FinancialIntelligenceOrchestrator:
             "financial_impact": impact_metrics
         }
 
-    def _log_decisions(self, optimized_payload: List[Dict[str, Any]]):
+    def _log_decisions(self, optimized_payload: List[Dict[str, Any]], tenant_id: str = "default_tenant"):
         """
         Persists predicted decisions to the DecisionLog table.
-        In a production system, this would use a database session.
+        tenant_id is now passed through so no row gets a null tenant.
         """
-        from app.models.feedback import DecisionLog
+        from setup_db import DecisionLog
         import uuid
-        
-        print(f"[Feedback Loop] Logging {len(optimized_payload)} decisions...")
-        for decision in optimized_payload:
-            log_entry = {
-                "decision_id": str(uuid.uuid4()),
-                "shipment_id": decision.get("shipment_id"),
-                "route_selected": decision.get("action"),
-                "predicted_efi": decision.get("expected_efi"),
-                "confidence_score": decision.get("confidence_score"),
-                "risk_posture": decision.get("risk_posture")
-            }
-            # Logic for database commit would go here
-            pass
+
+        from app.Db.connections import SessionLocal
+        self.logger.info(f"[Feedback Loop] Logging {len(optimized_payload)} decisions...")
+        db = SessionLocal()
+        try:
+            entries = [
+                DecisionLog(
+                    decision_id=str(uuid.uuid4()),
+                    tenant_id=tenant_id,
+                    shipment_id=decision.get("shipment_id"),
+                    route_selected=decision.get("action"),
+                    predicted_efi=decision.get("expected_efi"),
+                    confidence_score=decision.get("confidence_score"),
+                    risk_posture=decision.get("risk_posture"),
+                )
+                for decision in optimized_payload
+            ]
+            db.bulk_save_objects(entries)
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            self.logger.error(f"_log_decisions failed — {type(e).__name__}: {e}", exc_info=True)
+        finally:
+            db.close()

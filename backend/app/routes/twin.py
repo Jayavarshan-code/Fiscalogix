@@ -1,16 +1,19 @@
-import asyncio
 from fastapi import APIRouter
-from app.financial_system.orchestrator import FinancialIntelligenceOrchestrator
+from app.financial_system.adaptive_orchestrator import AdaptiveOrchestrator
 
 router = APIRouter(prefix="/financial-intelligence", tags=["Intelligence"])
 
-engine = FinancialIntelligenceOrchestrator()
+# Layer 4: AdaptiveOrchestrator — LLM-dispatched MAS replacing the static pipeline.
+# run() is a native coroutine — no asyncio.to_thread needed.
+engine = AdaptiveOrchestrator()
 
 @router.get("/")
 async def get_intelligence(tenant_id: str = "default_tenant"):
     """
-    Executes the entire enterprise intelligence matrix processing massive concurrent inputs efficiently.
-    Uses asyncio multi-threading to natively detach the CPU-heavy calculations from the synchronous server runtime! 
+    Executes the adaptive intelligence matrix.
+    Layer 4: An LLM dispatcher (temperature=0) decides which MAS agents to run
+    based on live portfolio signals. All financial numbers are fully deterministic.
+    The LLM is involved only in dispatch planning and CFO narrative synthesis.
     """
-    response_data = await asyncio.to_thread(engine.run, tenant_id)
+    response_data = await engine.run(tenant_id=tenant_id)
     return response_data

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import setup_db; print\\('setup_db import OK'\\)\")"
+    ]
+  }
+}

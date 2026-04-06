@@ -5,7 +5,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 from app.Db.connections import get_db
-from app.financial_system.dw_schema import DWShipmentFact
+from app.financial_system.auth import get_current_user
+from setup_db import DWShipmentFact
 
 router = APIRouter(prefix="/datagrid", tags=["High Performance Data Grid"])
 
@@ -32,10 +33,11 @@ class PaginatedResponse(BaseModel):
 @router.get("/shipments", response_model=PaginatedResponse)
 def get_paginated_shipments(
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=500), # Cap at 500 to prevent DOS
+    limit: int = Query(50, ge=1, le=500),  # Cap at 500 to prevent DOS
     sort_by: str = Query("total_value_usd"),
     sort_dir: str = Query("desc"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     High-performance endpoint that queries the Analytics Warehouse.
@@ -43,7 +45,8 @@ def get_paginated_shipments(
     it returns paginated "chunks" just like Salesforce/SAP.
     """
     # 1. Base Query
-    query = db.query(DWShipmentFact).filter(DWShipmentFact.tenant_id == "default_tenant")
+    tenant_id = current_user.get("tenant_id", "default_tenant")
+    query = db.query(DWShipmentFact).filter(DWShipmentFact.tenant_id == tenant_id)
     
     # 2. Get Total Count (for the UI pagination math)
     total_records = query.count()

@@ -22,13 +22,21 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Fiscalogix Financial Engine - Enterprise Hub")
 
-# --- CORS Configuration (Essential for Vercel <-> Koyeb Bridge) ---
+# --- CORS Configuration ---
+# FIX N: Replaced allow_origins=["*"] with an env-var-controlled allowlist.
+# WHAT WAS WRONG: Wildcard CORS allows ANY website to make credentialed requests
+# to this API from a user's browser — a significant security vulnerability.
+# HOW IT WAS FIXED: ALLOWED_ORIGINS env var controls the list. Defaults to
+# localhost for dev. Set it to your Vercel URL on production.
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Replace with your specific Vercel URL in production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Tenant-ID"],
 )
 
 # UI Routes
