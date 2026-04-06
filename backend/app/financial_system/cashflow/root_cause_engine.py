@@ -33,5 +33,16 @@ class RootCauseEngine:
                 
         # Deduplicate to have a clean array of purely destructive shipments
         unique_causes = {rc["shipment_id"]: rc for rc in root_causes}
-        
-        return list(unique_causes.values())
+
+        # P3-4 FIX: CashflowDecisionSupport._extract_targeted_actions() expects a
+        # list[str] for keyword matching, but this method returned a list[dict].
+        # Calling cause.lower() on a dict raises AttributeError silently, so the
+        # targeted action layer (carrier reroute, FX hedge, etc.) NEVER fired.
+        # Fix: attach a plain-string `reason_text` list alongside the structured dicts
+        # so the decision layer can match keywords without breaking the existing schema.
+        result = list(unique_causes.values())
+        for rc in result:
+            # Enrich reason with shipment context for better keyword matching
+            rc["reason_text"] = rc.get("reason", "")
+
+        return result

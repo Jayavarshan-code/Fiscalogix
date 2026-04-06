@@ -13,8 +13,21 @@ class LiquidityScoreEngine:
         cash_health = min(1.0, current_cash / total_outflows) if total_outflows > 0 else 1.0
         
         # 2. Shock Severity (Inverse relationship scaling to massive multi-day shocks)
-        total_severity = sum(s["severity_score"] for s in shocks)
-        shock_health = max(0.0, 1.0 - (total_severity / 10.0)) # Maps generic severity scale downward organically
+        # P2-E FIX: use .get() — some shock sources only emit "severity"; "severity_score"
+        # is preferred (already normalised) but fall back gracefully to avoid KeyError.
+        #
+        # P3-6 FIX: original denominator 10.0 was an absolute constant that didn't scale.
+        # WHAT WAS WRONG: severity_score = (|cash|/1K) × streak × velocity_ratio.
+        # A $50K deficit on day 3 with moderate velocity produces severity_score ≈ 900.
+        # total_severity / 10 = 90 → shock_health = max(0, -89) = 0.0.
+        # For any real portfolio, shock_health was permanently 0.0 regardless of severity —
+        # making it useless as a differentiating signal in the liquidity score.
+        # FIX: normalize denominator by portfolio size (# records) so the scale is
+        # relative to the number of shipments being tracked, not an absolute dollar figure.
+        # Use max(1, n_records) to avoid div/0 on empty portfolios.
+        n_records = max(1, len(enriched_records))
+        total_severity = sum(s.get("severity_score", s.get("severity", 0)) for s in shocks)
+        shock_health = max(0.0, 1.0 - (total_severity / (10.0 * n_records)))
         
         # 3. REVM Health (Strict Ratio of positive value-accreting movements)
         positive_revms = sum(1 for r in enriched_records if r["revm"] > 0)

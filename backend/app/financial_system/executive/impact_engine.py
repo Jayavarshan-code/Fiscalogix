@@ -15,9 +15,15 @@ class ImpactEngine:
         
         # New Metric: Prevented SLA Fines (Contractual Protection)
         preventable_sla_fines = sum(r.get("sla_penalty", 0.0) for r in enriched_records)
-        
-        # Unlocked capital is savings + reduction in risk exposure
-        current_risk_exposure = abs(stochastic_var.get("stochastic_var_95_revm", 0.0))
+
+        # P2-F FIX: wrong key + guard against list being passed instead of dict.
+        # monte_carlo returns "var_95" (alias "stochastic_var_floor_95pct"), not
+        # "stochastic_var_95_revm". Also, some callers pass the raw list of scenarios
+        # rather than the full dict — guard with isinstance to avoid AttributeError.
+        _var_dict = stochastic_var if isinstance(stochastic_var, dict) else {}
+        current_risk_exposure = abs(
+            _var_dict.get("var_95", _var_dict.get("stochastic_var_floor_95pct", 0.0))
+        )
         # Assuming the system mitigates 40% of the 95% Confidence VaR exposure
         risk_savings = current_risk_exposure * 0.40
         

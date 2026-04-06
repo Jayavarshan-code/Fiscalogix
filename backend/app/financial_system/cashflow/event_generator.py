@@ -22,8 +22,15 @@ class CashEventGenerator:
             inflow_days = int(predicted_delay + credit_days + payment_delay)
             inflow_date = today + timedelta(days=inflow_days)
             
-            # Cash outflow (Logistics, Warehouse, Inventory costs) mostly paid early
-            outflow_date = today + timedelta(days=5) # Example standard Accounts Payable logic
+            # P3-3 FIX: Derive AP outflow date from actual supplier payment terms.
+            # WHAT WAS WRONG: hardcoded day-5 clustered ALL supplier cost payments
+            # on the same near-future date regardless of contract terms. This created
+            # a phantom cash deficit spike 5 days out even when real terms are Net-30
+            # or Net-60, making the timeline misleading for cashflow planning.
+            # FIX: read supplier_payment_terms from the row (populated from ERP/contract
+            # data). Default to 30 days (Net-30) — industry standard for B2B logistics.
+            supplier_terms = int(row.get("supplier_payment_terms", 30))
+            outflow_date = today + timedelta(days=max(1, supplier_terms))
             
             events.append({
                 "shipment_id": shipment_id,

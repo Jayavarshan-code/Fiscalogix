@@ -85,6 +85,16 @@ class DelayPredictionModel:
         # Falls back to the static registry if the table is empty or DB unavailable.
         self._live_otp: dict = self._load_live_carrier_otp()
 
+        # Real-time port congestion signal provider (Redis-only on inference path).
+        # Celery task calls fetch_and_warm_port_signals() every 4 hours.
+        # Multiplier applied AFTER the base heuristic/ML prediction.
+        try:
+            from app.financial_system.external_signals.port_intelligence import PortIntelligenceProvider
+            self._port_intel = PortIntelligenceProvider()
+        except Exception as e:
+            logger.warning(f"DelayPredictionModel: PortIntelligenceProvider unavailable — {e}")
+            self._port_intel = None
+
     def _load_live_carrier_otp(self) -> dict:
         """
         Reads the most recent measured OTP rate per carrier from CarrierPerformance.
@@ -145,7 +155,12 @@ class DelayPredictionModel:
             }])
             df_encoded = pd.get_dummies(df)
             df_aligned = df_encoded.reindex(columns=self.columns, fill_value=0)
-            res = max(0.0, float(self.model.predict(df_aligned)[0]))
+            ml_delay = max(0.0, float(self.model.predict(df_aligned)[0]))
+            # Apply real-time port congestion to ML output as well
+            if self._port_intel is not None:
+                origin_key = str(row.get("route", "LOCAL")).split("-")[0].split("_")[0].upper()
+                ml_delay  *= self._port_intel.get_congestion_multiplier(origin_key)
+            res = round(ml_delay, 1)
             cache.setex(row_key, 3600, res)
             return res
 
@@ -169,6 +184,15 @@ class DelayPredictionModel:
                 route_complexity = ROUTE_COMPLEXITY_MAP["domestic"]
 
         predicted_delay = base_delay * math.exp(route_complexity * (1.0 - carrier_reliability))
+
+        # Apply real-time port congestion multiplier (Redis-backed, Celery-warmed).
+        # Extracted from route origin: "CN-EU" → "CN", "APAC" → "APAC"
+        if self._port_intel is not None:
+            route_str  = str(row.get("route", "LOCAL"))
+            origin_key = route_str.split("-")[0].split("_")[0].upper()
+            congestion_factor = self._port_intel.get_congestion_multiplier(origin_key)
+            predicted_delay *= congestion_factor
+
         res = round(predicted_delay, 1)
         cache.setex(row_key, 3600, res)
         return res

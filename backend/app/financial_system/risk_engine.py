@@ -233,7 +233,12 @@ class RiskEngine:
         feature_names = list(num_cols) + list(cat_cols)
 
         drivers = []
-        instance_shaps = shap_values[0]
+        # shap_values is a list of 2 arrays: [class-0, class-1].
+        # class-0 = non-default (benign); class-1 = default/risk.
+        # We must index [1] to get the risk-class contributions, then [0] for
+        # the single sample. Using [0] (the old bug) returned inverted signs —
+        # a feature that genuinely increases default risk appeared to DECREASE it.
+        instance_shaps = shap_values[1][0]
         impacts = [(name, val) for name, val in zip(feature_names, instance_shaps)]
         impacts.sort(key=lambda x: abs(x[1]), reverse=True)
 

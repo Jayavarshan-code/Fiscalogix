@@ -8,6 +8,7 @@ from app.financial_system.time_model import TimeValueModel
 from app.financial_system.future_model import FutureImpactModel
 from app.financial_system.fx_model import FXRiskModel
 from app.financial_system.sla_model import SLAPenaltyModel
+from app.financial_system.tariff_model import TariffDutyModel
 from app.financial_system.aggregator import FinancialAggregator
 from app.financial_system.audit_logger import AuditLogger
 from app.financial_system.decision_engine import DecisionEngine
@@ -35,6 +36,7 @@ class FinancialIntelligenceOrchestrator:
         self.future = FutureImpactModel()
         self.fx = FXRiskModel()
         self.sla = SLAPenaltyModel()
+        self.tariff = TariffDutyModel()
         self.aggregator = FinancialAggregator()
         self.audit = AuditLogger()
         self.decision = DecisionEngine()
@@ -120,8 +122,9 @@ class FinancialIntelligenceOrchestrator:
         predicted_delays_array = self.delay_model.compute_batch(data)
         predicted_demands_array = self.demand_model.compute_batch(data)
         risk_outputs_array = self.risk.compute_batch(data, predicted_delays_array)
-        fx_outputs_array = self.fx.compute_batch(data, predicted_delays_array)
-        sla_outputs_array = self.sla.compute_batch(data, predicted_delays_array)
+        fx_outputs_array     = self.fx.compute_batch(data, predicted_delays_array)
+        sla_outputs_array    = self.sla.compute_batch(data, predicted_delays_array)
+        tariff_outputs_array = self.tariff.compute_batch(data)
         
         # --- Phase 1.5: Sync GNN Contagion Signals into Route Optimizer ---
         # Map the batch risk outputs into the topological graph
@@ -152,26 +155,42 @@ class FinancialIntelligenceOrchestrator:
 
             time_cost = self.time.compute(row, predicted_delay)
             future_cost = self.future.compute(row, predicted_delay, predicted_demand)
-            fx_cost = fx_outputs_array[i]
+            fx_cost     = fx_outputs_array[i]
             sla_penalty = sla_outputs_array[i]
+            tariff_cost = tariff_outputs_array[i]
 
-            # The Ultimate Algebraic Financial Yield (ReVM)
-            # True Enterprise accounting: Accounts for Opportunity Cost, Physical Pipeline, FX Erosion, and Strict Contract SLA fines.
-            revm = contribution_profit - risk_penalty - time_cost - future_cost - fx_cost - sla_penalty
+            # ReVM — full 6-component algebraic financial yield per shipment:
+            #   contribution_profit   gross margin from ERP
+            #   - risk_penalty        capital reserve against default probability
+            #   - time_cost           WACC opportunity cost + pipeline holding cost
+            #   - future_cost         CLV-at-risk × churn probability
+            #   - fx_cost             FX erosion on logistics spend + AR exposure
+            #   - sla_penalty         OTIF contractual fines (grace-adjusted)
+            #   - tariff_cost         import duties on cross-border routes  ← NEW
+            revm = (
+                contribution_profit
+                - risk_penalty
+                - time_cost
+                - future_cost
+                - fx_cost
+                - sla_penalty
+                - tariff_cost
+            )
 
             final_row = {
                 **row,
-                "predicted_delay": predicted_delay,
+                "predicted_delay":  predicted_delay,
                 "predicted_demand": predicted_demand,
-                "risk_score": risk_score,
-                "risk_confidence": risk_confidence,
-                "risk_drivers": risk_drivers,
-                "risk_penalty": risk_penalty,
-                "time_cost": time_cost,
-                "future_cost": future_cost,
-                "fx_cost": fx_cost,
-                "sla_penalty": sla_penalty,
-                "revm": revm
+                "risk_score":       risk_score,
+                "risk_confidence":  risk_confidence,
+                "risk_drivers":     risk_drivers,
+                "risk_penalty":     risk_penalty,
+                "time_cost":        time_cost,
+                "future_cost":      future_cost,
+                "fx_cost":          fx_cost,
+                "sla_penalty":      sla_penalty,
+                "tariff_cost":      tariff_cost,
+                "revm":             revm,
             }
             
             decision = self.decision.compute(final_row)
@@ -211,13 +230,35 @@ class FinancialIntelligenceOrchestrator:
         
         # --- Phase 4: Sequential Executive Logic (No Thread Thrashing) ---
         global_confidence = self.confidence.compute(enriched, shocks)
-        scen_1 = self.scenario.simulate(enriched, "delay +2 days", delay_shift=2)
-        scen_2 = self.scenario.simulate(enriched, "demand drop -5%", demand_shift_pct=-0.05)
-        scenarios = [scen_1, scen_2]
+
+        # 8-scenario stress test battery.
+        # Each scenario isolates a distinct risk dimension so the CFO can see
+        # exactly which shock type drives the most portfolio damage.
+        # international_only=True mirrors real canal/port closures (domestic unaffected).
+        SCENARIO_CONFIGS = [
+            # (name,                    delay, demand,  fx,    cost,  intl_only)
+            ("Minor Op. Disruption",       2,  0.00,  0.00,  0.00,  False),  # routine ops variance
+            ("Demand Softness -10%",       0, -0.10,  0.00,  0.00,  False),  # mild demand contraction
+            ("Carrier Failure +14d",      14,  0.00,  0.00,  0.15,  False),  # primary carrier goes offline + spot rate
+            ("Red Sea Closure +21d",      21,  0.00,  0.00,  0.40,  True),   # canal closure: intl routes only, freight +40%
+            ("FX Crash +30%",              0, -0.15,  0.30,  0.00,  False),  # currency devaluation: fx cost +30%, demand -15%
+            ("Demand Spike +20%",          0,  0.20,  0.00,  0.10,  False),  # capacity crunch: freight +10% under high demand
+            ("Credit Freeze",              7, -0.30,  0.00,  0.00,  False),  # liquidity crunch: buyers pause orders
+            ("Black Swan: Pandemic",      45, -0.40,  0.20,  0.50,  False),  # systemic collapse scenario
+        ]
+        scenarios = [
+            self.scenario.simulate(
+                enriched, name,
+                delay_shift=d, demand_shift_pct=dem,
+                fx_shock_pct=fx, cost_shock_pct=cost,
+                international_only=intl,
+            )
+            for name, d, dem, fx, cost, intl in SCENARIO_CONFIGS
+        ]
         
         # Sequentially map Probabilistic VaR limits (1,000 algorithmic cycles)
         self.logger.info("[Phase 4.1] Running Monte Carlo...")
-        monte_carlo_var = self.monte_carlo.simulate_var(enriched, 1000)
+        monte_carlo_var = self.monte_carlo.simulate_var(enriched)  # 10,000 cycles default
         
         self.logger.info("[Phase 4.2] Running Liquidity Optimization...")
         liquidity_score = self.liquidity.compute(ending_cash, timeline, shocks, enriched)

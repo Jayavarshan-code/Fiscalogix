@@ -24,6 +24,27 @@ def task_warm_fx_cache():
     from app.financial_system.fx_model import fetch_and_warm_fx_cache
     return fetch_and_warm_fx_cache()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WACC CACHE WARMING TASK (Gap 6 — Dynamic WACC Engine)
+# Runs every 6 hours via Celery Beat.
+# Fetches 10-year US Treasury yield from FRED and adjusts all Damodaran
+# industry WACC benchmarks by the delta from the 4.0% calibration baseline.
+# The inference path (TimeValueModel) reads ONLY from Redis (or falls back
+# to raw Damodaran if Redis is unavailable).
+# ─────────────────────────────────────────────────────────────────────────────
+@celery_app.task(name="warm_wacc_cache")
+def task_warm_wacc_cache():
+    """
+    Periodic WACC cache warmer.
+    Fetches current 10-year US Treasury yield from FRED and uses it to
+    compute a market adjustment over the Damodaran 4.0% RFR baseline.
+    Pre-populates Redis with adjusted WACCs for all tracked industry verticals.
+    Schedule: every 6 hours via celery_app beat_schedule.
+    """
+    from app.financial_system.wacc_engine import fetch_and_warm_wacc_cache
+    return fetch_and_warm_wacc_cache()
+
 @celery_app.task(name="optimize_network_routing")
 def task_optimize_network_routing(kwargs):
     """

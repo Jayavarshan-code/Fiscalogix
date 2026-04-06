@@ -154,3 +154,107 @@ def get_model_health():
         "overall_status": overall,
         "models": MODEL_HEALTH_REGISTRY
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WACC MANAGEMENT ENDPOINTS (Gap 6 — Dynamic WACC Engine)
+#
+# These endpoints allow finance admins to:
+#   GET    /admin/wacc             → inspect current market rates + overrides
+#   POST   /admin/wacc             → set a per-tenant WACC override
+#   DELETE /admin/wacc/{tenant_id} → clear an override (revert to Damodaran)
+#
+# All writes are protected by is_admin permission (same as /admin/users).
+# The override is written to Redis with a 6-hour TTL (refreshed by Celery Beat).
+# ─────────────────────────────────────────────────────────────────────────────
+
+class WACCOverrideRequest(BaseModel):
+    tenant_id: str
+    wacc_percent: float   # Input as percentage (e.g. 11.5 for 11.5%), not decimal
+
+@router.get("/wacc")
+def get_wacc_rates(
+    tenant_id: str = "default_tenant",
+    _current_user: dict = Depends(require_permission("is_admin"))
+):
+    """
+    Returns a diagnostic snapshot of all WACC rates currently in effect:
+      - Per-tenant Redis override (if any)
+      - Current market adjustment (10yr UST delta from 4.0% Damodaran baseline)
+      - Effective rate per industry vertical (Damodaran + adjustment)
+
+    Useful for the Admin UI to surface current cost-of-capital assumptions
+    before a major portfolio analysis run.
+    """
+    from app.financial_system.wacc_engine import WACCEngine
+    engine = WACCEngine()
+    return engine.get_current_rates(tenant_id=tenant_id)
+
+
+@router.post("/wacc")
+def set_wacc_override(
+    payload: WACCOverrideRequest,
+    _current_user: dict = Depends(require_permission("is_admin"))
+):
+    """
+    Sets a per-tenant WACC override in Redis.
+
+    The override bypasses the Damodaran benchmark for this tenant and uses
+    the explicitly provided rate for ALL shipments in that tenant's portfolio.
+
+    Use case: A CFO knows their firm's actual WACC is 13.2% (from their latest
+    CAPM calculation) and wants Fiscalogix to use that instead of the pharma
+    industry average of 9%.
+
+    wacc_percent: provide as a percentage (e.g., 13.2 for 13.2%).
+    Valid range: 1.0% to 50.0%.
+    """
+    if not (1.0 <= payload.wacc_percent <= 50.0):
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=422,
+            detail=f"wacc_percent must be between 1.0 and 50.0. Got: {payload.wacc_percent}"
+        )
+
+    from app.financial_system.wacc_engine import WACCEngine
+    engine = WACCEngine()
+    success = engine.set_tenant_override(
+        tenant_id=payload.tenant_id,
+        wacc=payload.wacc_percent / 100.0
+    )
+
+    if not success:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=503,
+            detail="Redis unavailable. WACC override could not be persisted. Ensure Redis is running."
+        )
+
+    return {
+        "status":      "ok",
+        "tenant_id":   payload.tenant_id,
+        "wacc_set":    round(payload.wacc_percent / 100.0, 5),
+        "wacc_pct":    payload.wacc_percent,
+        "message":     f"WACC override of {payload.wacc_percent}% applied to tenant '{payload.tenant_id}'. "
+                       f"All time_cost and future_cost calculations for this tenant now use this rate."
+    }
+
+
+@router.delete("/wacc/{tenant_id}")
+def clear_wacc_override(
+    tenant_id: str,
+    _current_user: dict = Depends(require_permission("is_admin"))
+):
+    """
+    Clears a per-tenant WACC override. The system reverts to the
+    industry-vertical Damodaran benchmark (adjusted for current market rates).
+    """
+    from app.financial_system.wacc_engine import WACCEngine
+    engine = WACCEngine()
+    engine.clear_tenant_override(tenant_id=tenant_id)
+
+    return {
+        "status":    "ok",
+        "tenant_id": tenant_id,
+        "message":   f"WACC override cleared for '{tenant_id}'. Reverting to Damodaran industry benchmark."
+    }

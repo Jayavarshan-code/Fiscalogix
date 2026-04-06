@@ -18,6 +18,8 @@ class CashBufferEngine:
         if required_buffer == 0:
             required_buffer = 10000.0 # Standard defensive fallback
             
+        # P2-G FIX: every caller reads "recommended_buffer"; "required_buffer" silently
+        # returned $0 from every .get("recommended_buffer", 0) lookup.
         return {
-            "required_buffer": round(required_buffer, 2)
+            "recommended_buffer": round(required_buffer, 2)
         }

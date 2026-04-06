@@ -87,8 +87,12 @@ class DemandPredictionModel:
         season_multiplier = profile.get(month, 1.0)
 
         # Customer payment behaviour penalty
+        # credit_days is a contracted payment term (Net-30, Net-60, etc.) — it is NOT
+        # a behavioural signal. Enterprise buyers on standard Net-60 terms pay on time
+        # and should not incur a 15% CLV haircut. Use days_overdue (actual late days
+        # beyond the agreed due date) as the true proxy for chronic slow-pay behaviour.
         customer_tier_multiplier = 1.0
-        if row.get("credit_days", 0) > 45:
+        if row.get("days_overdue", 0) > 0:
             customer_tier_multiplier = SLOW_PAYMENT_PENALTY
 
         predicted_future_value = base_value * season_multiplier * customer_tier_multiplier

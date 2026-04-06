@@ -77,5 +77,13 @@ celery_app.conf.update(
             "task":     "refresh_rag_knowledge_base",
             "schedule": crontab(hour=1, minute=0),
         },
+        # Warm WACC cache every 6 hours (Gap 6 — Dynamic WACC Engine).
+        # Fetches 10-year US Treasury yield from FRED and adjusts all industry
+        # WACC benchmarks by the delta from the 4.0% Damodaran baseline.
+        # Ensures time_cost calculations track real market cost of capital.
+        "warm-wacc-cache-every-6-hours": {
+            "task":     "warm_wacc_cache",
+            "schedule": crontab(minute=0, hour="*/6"),
+        },
     },
 )
