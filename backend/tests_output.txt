@@ -1,0 +1,142 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.12.10, pytest-9.0.2, pluggy-1.6.0 -- C:\Users\varshan\AppData\Local\Programs\Python\Python312\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\varshan\fiscalogix\backend
+configfile: pytest.ini
+plugins: anyio-4.12.0, langsmith-0.7.6
+collecting ... collected 113 items
+
+tests/test_aggregator.py::TestAggregator::test_correct_totals PASSED     [  0%]
+tests/test_aggregator.py::TestAggregator::test_no_losses PASSED          [  1%]
+tests/test_aggregator.py::TestAggregator::test_all_losses PASSED         [  2%]
+tests/test_clv_calibrator.py::TestCLVCalibrationMath::test_no_history_returns_none PASSED [  3%]
+tests/test_clv_calibrator.py::TestCLVCalibrationMath::test_full_confidence_with_enough_history PASSED [  4%]
+tests/test_clv_calibrator.py::TestCLVCalibrationMath::test_blended_with_few_orders PASSED [  5%]
+tests/test_clv_calibrator.py::TestCLVCalibrationMath::test_single_order_thin_blend PASSED [  6%]
+tests/test_clv_calibrator.py::TestCLVCalibrationMath::test_growth_signal_above_1_when_recent_higher PASSED [  7%]
+tests/test_clv_calibrator.py::TestCLVCalibrationMath::test_multiplier_clamped PASSED [  7%]
+tests/test_confidence_engine.py::TestConfidenceBasic::test_empty_records_returns_zero PASSED [  8%]
+tests/test_confidence_engine.py::TestConfidenceBasic::test_returns_float_between_0_and_1 PASSED [  9%]
+tests/test_confidence_engine.py::TestConfidenceBasic::test_high_confidence_data_produces_high_score PASSED [ 10%]
+tests/test_confidence_engine.py::TestConfidenceBasic::test_missing_data_reduces_score PASSED [ 11%]
+tests/test_confidence_engine.py::TestConfidenceVolatility::test_volatility_alert_set_on_shocks PASSED [ 12%]
+tests/test_confidence_engine.py::TestConfidenceVolatility::test_high_volatility_does_not_reduce_confidence PASSED [ 13%]
+tests/test_decision_engine.py::TestDecisionTiers::test_approve_execution PASSED [ 14%]
+tests/test_decision_engine.py::TestDecisionTiers::test_monitor_closely FAILED [ 15%]
+tests/test_decision_engine.py::TestDecisionTiers::test_escalate_to_management PASSED [ 15%]
+tests/test_decision_engine.py::TestDecisionTiers::test_intervene_immediately PASSED [ 16%]
+tests/test_decision_engine.py::TestDecisionTiers::test_cancel_do_not_ship PASSED [ 17%]
+tests/test_decision_engine.py::TestDecisionReturnStructure::test_return_keys PASSED [ 18%]
+tests/test_decision_engine.py::TestDecisionReturnStructure::test_drivers_is_list PASSED [ 19%]
+tests/test_decision_engine.py::TestDecisionReturnStructure::test_tier_is_1_to_5 PASSED [ 20%]
+tests/test_decision_engine.py::TestDecisionConfidence::test_positive_revm_preserves_confidence PASSED [ 21%]
+tests/test_decision_engine.py::TestDecisionConfidence::test_negative_revm_reduces_confidence PASSED [ 22%]
+tests/test_decision_engine.py::TestDecisionDynamicThreshold::test_large_exposure_lower_threshold PASSED [ 23%]
+tests/test_decision_engine.py::TestDecisionDynamicThreshold::test_small_exposure_higher_threshold PASSED [ 23%]
+tests/test_future_model.py::TestFutureBasic::test_zero_delay_returns_zero FAILED [ 24%]
+tests/test_future_model.py::TestFutureBasic::test_negative_delay_returns_zero FAILED [ 25%]
+tests/test_future_model.py::TestFutureBasic::test_positive_delay_returns_positive PASSED [ 26%]
+tests/test_future_model.py::TestFutureBasic::test_returns_dict_with_all_fields PASSED [ 27%]
+tests/test_future_model.py::TestFutureTierMultipliers::test_enterprise_higher_clv_than_spot PASSED [ 28%]
+tests/test_future_model.py::TestFutureTierMultipliers::test_unknown_tier_defaults_to_standard PASSED [ 29%]
+tests/test_future_model.py::TestFutureToleranceThresholds::test_below_tolerance_produces_mild_churn PASSED [ 30%]
+tests/test_future_model.py::TestFutureToleranceThresholds::test_above_tolerance_produces_high_churn PASSED [ 30%]
+tests/test_future_model.py::TestFutureIndustryAmplifiers::test_pharma_amplifies_churn PASSED [ 31%]
+tests/test_future_model.py::TestFutureIndustryAmplifiers::test_fmcg_q4_seasonal_boost PASSED [ 32%]
+tests/test_future_model.py::TestFutureCLVCalibration::test_calibration_overrides_tier PASSED [ 33%]
+tests/test_future_model.py::TestFutureCLVCalibration::test_no_calibration_uses_tier PASSED [ 34%]
+tests/test_future_model.py::TestFutureCLVCalibration::test_churn_probability_capped_at_1 PASSED [ 35%]
+tests/test_fx_model.py::TestFXBasic::test_zero_delay_with_no_credit PASSED [ 36%]
+tests/test_fx_model.py::TestFXBasic::test_local_route_low_volatility PASSED [ 37%]
+tests/test_fx_model.py::TestFXBasic::test_international_route_higher_fx PASSED [ 38%]
+tests/test_fx_model.py::TestFXBasic::test_output_is_positive PASSED      [ 38%]
+tests/test_fx_model.py::TestFXARExposure::test_long_credit_amplifies_fx PASSED [ 39%]
+tests/test_fx_model.py::TestFXARExposure::test_compound_factor_for_long_credit PASSED [ 40%]
+tests/test_fx_model.py::TestFXBatch::test_batch_returns_correct_length PASSED [ 41%]
+tests/test_fx_model.py::TestFXBatch::test_batch_zero_delays_minimal PASSED [ 42%]
+tests/test_liquidity_engine.py::TestLiquidityBasic::test_empty_returns_zero PASSED [ 43%]
+tests/test_liquidity_engine.py::TestLiquidityBasic::test_returns_integer PASSED [ 44%]
+tests/test_liquidity_engine.py::TestLiquidityBasic::test_score_0_to_100 PASSED [ 45%]
+tests/test_liquidity_engine.py::TestLiquidityBasic::test_high_cash_improves_score PASSED [ 46%]
+tests/test_liquidity_engine.py::TestLiquidityBasic::test_shocks_reduce_score PASSED [ 46%]
+tests/test_monte_carlo.py::TestMonteCarloBasic::test_empty_records_returns_empty PASSED [ 47%]
+tests/test_monte_carlo.py::TestMonteCarloBasic::test_returns_expected_keys PASSED [ 48%]
+tests/test_monte_carlo.py::TestMonteCarloBasic::test_var_95_less_than_mean PASSED [ 49%]
+tests/test_monte_carlo.py::TestMonteCarloBasic::test_worst_case_worse_than_var PASSED [ 50%]
+tests/test_monte_carlo.py::TestMonteCarloBasic::test_scenarios_list_has_20_elements PASSED [ 51%]
+tests/test_monte_carlo.py::TestMonteCarloBasic::test_iterations_reported PASSED [ 52%]
+tests/test_monte_carlo.py::TestMonteCarloCorrelation::test_correlation_matrix_shape PASSED [ 53%]
+tests/test_monte_carlo.py::TestMonteCarloCorrelation::test_correlation_matrix_diagonal_is_one PASSED [ 53%]
+tests/test_monte_carlo.py::TestMonteCarloCorrelation::test_same_route_has_high_correlation PASSED [ 54%]
+tests/test_monte_carlo.py::TestMonteCarloCorrelation::test_different_routes_low_correlation PASSED [ 55%]
+tests/test_monte_carlo.py::TestMonteCarloCorrelation::test_positive_definite PASSED [ 56%]
+tests/test_monte_carlo.py::TestMonteCarloSLAStress::test_baseline_sla_in_output PASSED [ 57%]
+tests/test_sla_model.py::TestSLABasic::test_zero_delay_returns_zero PASSED [ 58%]
+tests/test_sla_model.py::TestSLABasic::test_negative_delay_returns_zero PASSED [ 59%]
+tests/test_sla_model.py::TestSLABasic::test_positive_delay_returns_positive PASSED [ 60%]
+tests/test_sla_model.py::TestSLABasic::test_output_is_rounded PASSED     [ 61%]
+tests/test_sla_model.py::TestSLAGracePeriod::test_strict_contract_1day_grace PASSED [ 61%]
+tests/test_sla_model.py::TestSLAGracePeriod::test_strict_contract_2day_triggers PASSED [ 62%]
+tests/test_sla_model.py::TestSLAGracePeriod::test_standard_contract_2day_grace PASSED [ 63%]
+tests/test_sla_model.py::TestSLAGracePeriod::test_lenient_contract_3day_grace PASSED [ 64%]
+tests/test_sla_model.py::TestSLAGracePeriod::test_full_rejection_no_grace PASSED [ 65%]
+tests/test_sla_model.py::TestSLATierRates::test_enterprise_higher_than_spot PASSED [ 66%]
+tests/test_sla_model.py::TestSLAContractCaps::test_lenient_cap_at_5pct PASSED [ 67%]
+tests/test_sla_model.py::TestSLAContractCaps::test_full_rejection_cap_at_100pct PASSED [ 68%]
+tests/test_sla_model.py::TestSLANLPOverride::test_nlp_rate_overrides_tier PASSED [ 69%]
+tests/test_sla_model.py::TestSLABatch::test_batch_length PASSED          [ 69%]
+tests/test_sla_model.py::TestSLABatch::test_batch_zero_delay_is_zero PASSED [ 70%]
+tests/test_tariff_model.py::TestTariffBasic::test_domestic_is_zero PASSED [ 71%]
+tests/test_tariff_model.py::TestTariffBasic::test_hub_route_is_zero PASSED [ 72%]
+tests/test_tariff_model.py::TestTariffBasic::test_zero_order_value_is_zero PASSED [ 73%]
+tests/test_tariff_model.py::TestTariffBasic::test_cross_border_produces_tariff PASSED [ 74%]
+tests/test_tariff_model.py::TestTariffBasic::test_output_is_rounded PASSED [ 75%]
+tests/test_tariff_model.py::TestTariffRates::test_us_cn_rate_is_22pct PASSED [ 76%]
+tests/test_tariff_model.py::TestTariffRates::test_eu_us_rate_is_3_5pct PASSED [ 76%]
+tests/test_tariff_model.py::TestTariffRates::test_hs_code_overrides_route PASSED [ 77%]
+tests/test_tariff_model.py::TestTariffRates::test_pharma_zero_rated PASSED [ 78%]
+tests/test_tariff_model.py::TestTariffDrawback::test_drawback_reduces_tariff PASSED [ 79%]
+tests/test_tariff_model.py::TestTariffDrawback::test_drawback_capped_at_99pct PASSED [ 80%]
+tests/test_tariff_model.py::TestTariffBatch::test_batch_returns_correct_length PASSED [ 81%]
+tests/test_time_model.py::TestTimeValueModelBasic::test_zero_delay_returns_zero PASSED [ 82%]
+tests/test_time_model.py::TestTimeValueModelBasic::test_negative_delay_returns_zero PASSED [ 83%]
+tests/test_time_model.py::TestTimeValueModelBasic::test_positive_delay_returns_positive PASSED [ 84%]
+tests/test_time_model.py::TestTimeValueModelBasic::test_output_is_float PASSED [ 84%]
+tests/test_time_model.py::TestTimeValueModelBasic::test_output_is_rounded_to_2dp PASSED [ 85%]
+tests/test_time_model.py::TestTimeValueModelFormula::test_capital_cost_component PASSED [ 86%]
+tests/test_time_model.py::TestTimeValueModelFormula::test_holding_rate_varies_by_cargo_type PASSED [ 87%]
+tests/test_time_model.py::TestTimeValueModelFormula::test_missing_shipment_cost_uses_fallback PASSED [ 88%]
+tests/test_time_model.py::TestTimeValueModelScaling::test_cost_increases_with_delay PASSED [ 89%]
+tests/test_time_model.py::TestTimeValueModelScaling::test_cost_scales_with_order_value PASSED [ 90%]
+tests/test_wacc_engine.py::TestWACCResolve::test_per_row_wacc_takes_priority PASSED [ 91%]
+tests/test_wacc_engine.py::TestWACCResolve::test_per_row_wacc_converts_percentage PASSED [ 92%]
+tests/test_wacc_engine.py::TestWACCResolve::test_damodaran_fallback_for_electronics PASSED [ 92%]
+tests/test_wacc_engine.py::TestWACCResolve::test_unknown_vertical_uses_default PASSED [ 93%]
+tests/test_wacc_engine.py::TestWACCResolve::test_wacc_clamped_to_range PASSED [ 94%]
+tests/test_wacc_engine.py::TestWACCResolve::test_negative_wacc_clamped PASSED [ 95%]
+tests/test_wacc_engine.py::TestWACCResolveBatch::test_batch_stamps_wacc PASSED [ 96%]
+tests/test_wacc_engine.py::TestWACCResolveBatch::test_batch_returns_list PASSED [ 97%]
+tests/test_wacc_engine.py::TestWACCTenantOverride::test_set_and_get_override PASSED [ 98%]
+tests/test_wacc_engine.py::TestWACCTenantOverride::test_clear_override_reverts_to_damodaran PASSED [ 99%]
+tests/test_wacc_engine.py::TestWACCDiagnostics::test_get_current_rates_returns_all_verticals PASSED [100%]
+
+================================== FAILURES ===================================
+___________________ TestDecisionTiers.test_monitor_closely ____________________
+tests\test_decision_engine.py:36: in test_monitor_closely
+    assert result["tier"] == 2
+E   assert 1 == 2
+________________ TestFutureBasic.test_zero_delay_returns_zero _________________
+tests\test_future_model.py:23: in test_zero_delay_returns_zero
+    assert result["value"] == 0.0
+           ^^^^^^^^^^^^^^^
+E   TypeError: 'float' object is not subscriptable
+______________ TestFutureBasic.test_negative_delay_returns_zero _______________
+tests\test_future_model.py:28: in test_negative_delay_returns_zero
+    assert result["value"] == 0.0
+           ^^^^^^^^^^^^^^^
+E   TypeError: 'float' object is not subscriptable
+=========================== short test summary info ===========================
+FAILED tests/test_decision_engine.py::TestDecisionTiers::test_monitor_closely - assert 1 == 2
+FAILED tests/test_future_model.py::TestFutureBasic::test_zero_delay_returns_zero - TypeError: 'float' object is not subscriptable
+FAILED tests/test_future_model.py::TestFutureBasic::test_negative_delay_returns_zero - TypeError: 'float' object is not subscriptable
+======================== 3 failed, 110 passed in 8.31s ========================
