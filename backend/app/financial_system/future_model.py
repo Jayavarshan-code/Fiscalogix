@@ -19,6 +19,18 @@ WHAT WAS WRONG:
   The model treated pharmaceutical same as bulk_grain for churn purposes.
 
 FIX: Industry vertical multiplier on churn probability, applied before CLV calculation.
+
+Gap-7 FIX: Per-account CLV calibration from actual shipment history.
+WHAT WAS WRONG:
+  Static tier multipliers (enterprise=12x, spot=1.5x) ignore actual purchase behavior.
+  A "spot" customer who reorders weekly is worth far more than 1.5x order_value.
+  An "enterprise" label on a customer with 0 repeat orders in 18 months overstates CLV.
+
+FIX: compute() now accepts an optional clv_calibration dict from CLVCalibrator.
+  When calibration confidence is 'full' or 'blended', the calibrated_multiplier
+  (derived from frequency_signal × growth_signal × base_tier_mult) replaces the
+  static tier multiplier. Thin history ('blended_thin') is given 25% weight.
+  The calibration source is included in the return dict for SHAP-style transparency.
 """
 
 import math
@@ -66,11 +78,27 @@ class FutureImpactModel:
         "default":         1.0,   # No amplification — general cargo baseline
     }
 
-    def compute(self, row, predicted_delay, predicted_demand):
+    def compute(self, row, predicted_delay, predicted_demand, clv_calibration: dict = None):
+        """
+        Compute future revenue at risk from a delayed shipment.
+
+        Gap-7: clv_calibration is a dict from CLVCalibrator.calibrate_batch().
+        If provided, its calibrated_multiplier overrides the static tier benchmark.
+        If None, the original tier multiplier is used (safe fallback).
+        """
         customer_tier = str(row.get("customer_tier", "standard")).lower().strip()
-        clv_multiplier = self.CLV_MULTIPLIER_BY_TIER.get(
+
+        # ── Gap-7: use calibrated multiplier if available ─────────────────────
+        static_multiplier = self.CLV_MULTIPLIER_BY_TIER.get(
             customer_tier, self.CLV_MULTIPLIER_BY_TIER["standard"]
         )
+        if clv_calibration and "calibrated_multiplier" in clv_calibration:
+            clv_multiplier = clv_calibration["calibrated_multiplier"]
+            clv_source = clv_calibration.get("confidence", "calibrated")
+        else:
+            clv_multiplier = static_multiplier
+            clv_source = "tier_static"
+
         clv_at_risk = predicted_demand * clv_multiplier
 
         # ── P1-A: Tier-aware tolerance threshold ─────────────────────────────
@@ -126,4 +154,10 @@ class FutureImpactModel:
         churn_prob = min(churn_prob * industry_amp, 1.0)
 
         future_loss_value = clv_at_risk * churn_prob
-        return round(future_loss_value, 2)
+        return {
+            "value":            round(future_loss_value, 2),
+            "clv_multiplier":   round(clv_multiplier, 3),
+            "clv_source":       clv_source,
+            "churn_probability": round(churn_prob, 4),
+            "clv_at_risk":      round(clv_at_risk, 2),
+        }

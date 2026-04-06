@@ -49,6 +49,7 @@ from app.financial_system.executive.impact_engine import ImpactEngine
 from app.financial_system.optimization.orchestrator import ProfitOptimizationOrchestrator
 from app.financial_system.optimization.route_optimizer import GeopoliticalRouteOptimizer
 from app.financial_system.ai_mapper import AIFieldMapper
+from app.financial_system.clv_calibrator import CLVCalibrator
 
 from app.financial_system.agents.base_agent import AgentResult
 from app.financial_system.agents.risk_agent import RiskAgent
@@ -164,6 +165,20 @@ class AdaptiveOrchestrator:
         for i, row in enumerate(data):
             row["predicted_delay"]  = predicted_delays[i]
             row["predicted_demand"] = predicted_demands[i]
+
+        # Gap-7: Run per-account CLV calibration from history (single DB round-trip,
+        # then Redis-cached per customer for 24h). Stamps 'clv_calibration' on each
+        # row so FinancialAgent can pass it to FutureImpactModel without change.
+        try:
+            calibrator = CLVCalibrator()
+            calibrations = calibrator.calibrate_batch(data, tenant_id=tenant_id)
+            for row in data:
+                cid = str(row.get("customer_id", "")).strip()
+                row["clv_calibration"] = calibrations.get(cid)  # None if no history
+        except Exception as e:
+            logger.warning(f"[Adaptive] CLV calibration failed ({e}) — using tier multipliers.")
+            for row in data:
+                row["clv_calibration"] = None
 
         # Step 3: Decision engine per row (deterministic)
         for row in data:

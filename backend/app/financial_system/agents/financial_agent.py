@@ -42,8 +42,25 @@ class FinancialAgent(BaseAgent):
             risk_score          = row.get("risk_score", 0.05)
 
             risk_penalty = risk_score * order_value
-            time_cost    = self._time.compute(row, predicted_delays[i])
-            future_cost  = self._future.compute(row, predicted_delays[i], row.get("predicted_demand", 0))
+            time_cost    = self._time.compute(row, predicted_delays[i], tenant_id=tenant_id)
+
+            # Gap-7: pass per-account CLV calibration from orchestrator Step 2
+            clv_calibration = row.get("clv_calibration")  # None if no history
+            future_result   = self._future.compute(
+                row, predicted_delays[i], row.get("predicted_demand", 0),
+                clv_calibration=clv_calibration,
+            )
+            # future_model now returns a dict; extract scalar for ReVM formula
+            if isinstance(future_result, dict):
+                future_cost = future_result["value"]
+                # Stamp enriched CLV fields onto row for CFO brief + anomaly detection
+                row["clv_multiplier"]    = future_result.get("clv_multiplier")
+                row["clv_source"]        = future_result.get("clv_source")
+                row["churn_probability"] = future_result.get("churn_probability")
+                row["clv_at_risk"]       = future_result.get("clv_at_risk")
+            else:
+                future_cost = float(future_result)  # backwards compat if called directly
+
             fx_cost      = fx_outputs[i]
             sla_penalty  = sla_outputs[i]
 
