@@ -31,6 +31,20 @@ import numpy as np
 # Russia-Ukraine Black Sea closure (~120 days). 180-day cap = extreme upper bound.
 MAX_BLACK_SWAN_DELAY_DAYS = 180
 
+# Default daily SLA penalty rate used when no contract data is available.
+# Industry standard OTIF: 1.5% per day for standard contracts.
+_DEFAULT_DAILY_PENALTY_RATE = 0.015
+
+# SLA contract-type caps — mirrors SLAPenaltyModel.CONTRACT_TYPE_CAPS exactly.
+# Kept here so the Monte Carlo can apply the same caps under stressed delays
+# without importing the SLA model (avoids circular dependency).
+_SLA_CONTRACT_CAPS = {
+    "full_rejection": 1.00,
+    "strict":         0.30,
+    "standard":       0.15,
+    "lenient":        0.05,
+}
+
 
 class MonteCarloEngine:
     """
@@ -41,6 +55,13 @@ class MonteCarloEngine:
     Distribution model:
     - Costs:  Log-Normal (fat-tailed, always positive, right-skewed)
     - Delays: Poisson base + Pareto Black Swan (CAPPED at 180 days)
+
+    GAP 12 FIX:
+    SLA penalties are now re-computed per simulation cycle using the
+    stressed sim_delays, not the baseline predicted_delay values.
+    Before this fix, a 45-day black-swan draw still used the 2-day
+    baseline SLA penalty — understating downside risk by up to 15x
+    on strict/full-rejection contracts.
     """
 
     def simulate_var(self, enriched_records, iterations=1000):
@@ -57,7 +78,24 @@ class MonteCarloEngine:
         risk_penalties = np.array([float(r.get("risk_score", 0.05)) * float(r.get("order_value", 0)) for r in enriched_records])
         waccs          = np.array([float(r.get("wacc", 0.08))                for r in enriched_records])
         fx_costs       = np.array([float(r.get("fx_cost", 0.0))              for r in enriched_records])
-        sla_penalties  = np.array([float(r.get("sla_penalty", 0.0))          for r in enriched_records])
+
+        # ── GAP 12 FIX: SLA inputs for re-computation under stressed delays ────
+        # Extract per-row inputs from enriched records so the simulation can
+        # recompute sla_penalty = min(sim_delay × daily_rate × order_value, cap)
+        # for every iteration, just as SLAPenaltyModel.compute() would.
+        order_values  = np.array([float(r.get("order_value", 0.0))  for r in enriched_records])
+        daily_rates   = np.array([
+            float(r.get("nlp_extracted_penalty_rate", None) or
+                  (0.03 if r.get("credit_days", 30) <= 30 else _DEFAULT_DAILY_PENALTY_RATE))
+            for r in enriched_records
+        ])
+        sla_caps = np.array([
+            _SLA_CONTRACT_CAPS.get(
+                str(r.get("contract_type", "standard")).lower().strip(),
+                _SLA_CONTRACT_CAPS["standard"]
+            ) * float(r.get("order_value", 0.0))   # cap in absolute $ terms
+            for r in enriched_records
+        ])
 
         n = len(enriched_records)
 
@@ -84,18 +122,46 @@ class MonteCarloEngine:
         # --- Time-Value of Money ---
         time_costs = sim_costs * (waccs / 365.0) * sim_delays
 
+        # --- GAP 12 FIX: SLA penalties re-computed under stressed sim_delays ──
+        #
+        # OLD (broken):
+        #   sim_revm_matrix = ... - sla_penalties   ← static 2-day baseline value
+        #   If sim_delays draws 45 days, SLA stays at the 2-day amount.
+        #   A strict contract's 30% cap was never tested under black-swan stress.
+        #
+        # NEW (correct):
+        #   sim_sla_raw[i, j] = sim_delays[i, j] × daily_rate[j] × order_value[j]
+        #   sim_sla[i, j]     = min(sim_sla_raw[i, j], sla_cap[j])   ← cap in $
+        #   This mirrors exactly what SLAPenaltyModel.compute() does, but
+        #   vectorised across all iterations × shipments in one NumPy op.
+        #
+        # Shape broadcast: sim_delays (I×N) × daily_rates (N,) × order_values (N,)
+        sim_sla_raw = sim_delays * daily_rates[np.newaxis, :] * order_values[np.newaxis, :]
+        sim_sla     = np.minimum(sim_sla_raw, sla_caps[np.newaxis, :])
+
         # --- Full ReVM simulation: all 5 cost components ---
-        sim_revm_matrix  = base_profits - risk_penalties - time_costs - fx_costs - sla_penalties
+        sim_revm_matrix    = base_profits - risk_penalties - time_costs - fx_costs - sim_sla
         simulated_outcomes = np.sum(sim_revm_matrix, axis=1)
 
         var_95     = np.percentile(simulated_outcomes, 5)
         worst_case = np.min(simulated_outcomes)
 
+        # Compute baseline SLA total for transparency (what the static model showed)
+        baseline_sla_total = float(np.sum(
+            np.minimum(base_delays * daily_rates * order_values, sla_caps)
+        ))
+
         return {
             "baseline_revm":               round(baseline_total_revm, 2),
-            "stochastic_var_floor_95pct":  round(var_95, 2),
+            "var_95":                      round(var_95, 2),           # shorthand alias
+            "stochastic_var_floor_95pct":  round(var_95, 2),           # backward compat
             "absolute_maximum_loss_floor": round(worst_case, 2),
             "simulations_executed_cycles": iterations,
-            "distribution_model":          f"Log-Normal costs + Poisson delays + Pareto Black Swan (5%, capped {MAX_BLACK_SWAN_DELAY_DAYS}d)",
-            "scenarios": [round(float(x), 2) for x in simulated_outcomes[:20]]
+            "distribution_model":          (
+                f"Log-Normal costs + Poisson delays + Pareto Black Swan "
+                f"(5%, capped {MAX_BLACK_SWAN_DELAY_DAYS}d) | "
+                f"SLA re-computed under stress (Gap-12 fix)"
+            ),
+            "baseline_sla_total":          round(baseline_sla_total, 2),
+            "scenarios": [round(float(x), 2) for x in simulated_outcomes[:20]],
         }

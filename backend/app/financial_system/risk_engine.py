@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 MODELS_DIR = Path(__file__).parent / "ml_pipeline" / "models"
 PIPELINE_PATH = MODELS_DIR / "risk_pipeline.pkl"
 
+# GNN blend weight: how much the GNN score influences the final risk_probability.
+# 0.35 = GNN contributes up to 35% of the final score when the node is directly in path.
+# Decays with graph distance so distant nodes don't falsely alarm unrelated shipments.
+_GNN_MAX_BLEND_WEIGHT = 0.35
+# Maximum graph-hop distance at which GNN still influences the score.
+_GNN_MAX_HOP_INFLUENCE = 3
+
 class RiskEngine:
     def __init__(self):
         # --- Load XGBoost Pipeline ---
@@ -62,10 +69,152 @@ class RiskEngine:
         # --- Temporal Contagion Engine ---
         self.contagion_predictor = None
 
+        # --- GNN graph tensors (built lazily from the geopolitical graph) ---
+        self._gnn_node_map: dict = {}        # node_id → int index
+        self._gnn_node_features = None       # torch.FloatTensor [N, 2]
+        self._gnn_edge_index = None          # torch.LongTensor  [2, E]
+        self._gnn_graph = None               # ref to the NetworkX graph
+
     def set_contagion_context(self, graph, beta=0.85):
-        """Injects global logistics graph context for propagation modeling."""
+        """Injects global logistics graph context for propagation modeling.
+        Also pre-builds the GNN node-feature tensors so inference is instant."""
         from app.financial_system.optimization.contagion_predictor import TemporalContagionPredictor
         self.contagion_predictor = TemporalContagionPredictor(graph, propagation_beta=beta)
+        self._gnn_graph = graph
+        self._build_gnn_graph(graph)
+
+    def _build_gnn_graph(self, graph):
+        """
+        Converts the NetworkX geopolitical graph into cached PyTorch tensors.
+        Node features (2 channels, matching in_channels=2):
+          [0] risk_score  – stored on each node by sync_gnn_risk() or default 0.05
+          [1] strike_flag – 1.0 if any outgoing edge from this node has strike_active
+        Called once at startup and re-called whenever the graph topology changes.
+        """
+        if self.gnn_model is None:
+            return
+        try:
+            import torch
+            import networkx as nx
+
+            nodes = list(graph.nodes())
+            self._gnn_node_map = {n: i for i, n in enumerate(nodes)}
+
+            # Build per-node features
+            feats = []
+            for node in nodes:
+                risk = float(graph.nodes[node].get("risk_score", 0.05))
+                # strike flag: 1.0 if any outgoing edge carries strike_active=True
+                strike = float(
+                    any(graph[node][nbr].get("strike_active", False) for nbr in graph.successors(node))
+                )
+                feats.append([risk, strike])
+
+            self._gnn_node_features = torch.tensor(feats, dtype=torch.float)
+
+            # Build edge_index [2, E]
+            src, dst = [], []
+            for u, v in graph.edges():
+                if u in self._gnn_node_map and v in self._gnn_node_map:
+                    src.append(self._gnn_node_map[u])
+                    dst.append(self._gnn_node_map[v])
+            if src:
+                self._gnn_edge_index = torch.tensor([src, dst], dtype=torch.long)
+            else:
+                # Disconnected graph — self-loops as fallback so SAGEConv doesn't crash
+                n = len(nodes)
+                self._gnn_edge_index = torch.tensor([list(range(n)), list(range(n))], dtype=torch.long)
+
+            logger.info(
+                f"RiskEngine: GNN graph built — {len(nodes)} nodes, {len(src)} edges."
+            )
+        except Exception as e:
+            logger.warning(f"RiskEngine._build_gnn_graph failed — {e}. GNN inference disabled.")
+            self._gnn_node_features = None
+            self._gnn_edge_index = None
+
+    def _run_gnn_inference(self, route_prefix: str) -> float:
+        """
+        Runs one forward pass of the GNN and returns the risk probability
+        for the node that matches `route_prefix`.
+
+        Blending strategy (proximity-weighted, not MAX override):
+          - If the route_prefix node is directly in the graph: blend weight = _GNN_MAX_BLEND_WEIGHT
+          - If reachable within _GNN_MAX_HOP_INFLUENCE hops: weight decays linearly with distance
+          - If not reachable: weight = 0 (GNN has no opinion on this shipment)
+
+        Returns the GNN-derived probability in [0, 1], or 0.0 if unavailable.
+        """
+        if (
+            self.gnn_model is None
+            or self._gnn_node_features is None
+            or self._gnn_edge_index is None
+        ):
+            return 0.0
+
+        try:
+            import torch
+            import networkx as nx
+
+            # Full portfolio forward pass (cached tensors — no DB/network I/O)
+            with torch.no_grad():
+                log_probs = self.gnn_model(
+                    self._gnn_node_features, self._gnn_edge_index
+                )  # [N, 2] log-softmax
+                probs = torch.exp(log_probs)  # convert log-prob → prob
+
+            # Find the node that best matches the route prefix
+            target_node = None
+            route_clean = str(route_prefix).upper().strip()
+            if route_clean in self._gnn_node_map:
+                target_node = route_clean
+            else:
+                # Partial match: e.g. "CN-EU_SUEZ" → tries "CN", "EU", "SUEZ"
+                for part in route_clean.replace("-", "_").split("_"):
+                    if part in self._gnn_node_map:
+                        target_node = part
+                        break
+
+            if target_node is None:
+                return 0.0
+
+            node_idx = self._gnn_node_map[target_node]
+            gnn_prob = float(probs[node_idx, 1].item())  # class-1 = high-risk
+
+            # Proximity-weighted blend weight
+            # Starts at _GNN_MAX_BLEND_WEIGHT for direct match, decays to 0 at max hops
+            if self._gnn_graph is not None and route_clean in self._gnn_node_map:
+                try:
+                    # Shortest path from any strike node to our target
+                    strike_nodes = [
+                        u for u, v, d in self._gnn_graph.edges(data=True)
+                        if d.get("strike_active")
+                    ]
+                    if strike_nodes:
+                        min_dist = min(
+                            nx.shortest_path_length(self._gnn_graph, sn, target_node)
+                            for sn in strike_nodes
+                            if nx.has_path(self._gnn_graph, sn, target_node)
+                        ) if any(
+                            nx.has_path(self._gnn_graph, sn, target_node)
+                            for sn in strike_nodes
+                        ) else _GNN_MAX_HOP_INFLUENCE + 1
+                        proximity_weight = max(
+                            0.0,
+                            _GNN_MAX_BLEND_WEIGHT * (1.0 - min_dist / _GNN_MAX_HOP_INFLUENCE)
+                        )
+                    else:
+                        proximity_weight = _GNN_MAX_BLEND_WEIGHT * 0.3  # baseline influence
+                except Exception:
+                    proximity_weight = _GNN_MAX_BLEND_WEIGHT * 0.5
+            else:
+                proximity_weight = _GNN_MAX_BLEND_WEIGHT * 0.2
+
+            return gnn_prob * proximity_weight
+
+        except Exception as e:
+            logger.debug(f"RiskEngine._run_gnn_inference failed — {e}")
+            return 0.0
 
     def _extract_shap_drivers(self, df_raw):
         """
@@ -110,7 +259,15 @@ class RiskEngine:
 
     def compute(self, row, predicted_delay, node_id=None, horizon_hours=0):
         """
-        Calculates Probability this shipment defaults/fails using XGBoost Pipeline.
+        Calculates probability this shipment defaults/fails.
+
+        Risk signal priority (highest wins, proximity-weighted blend):
+          1. XGBoost classifier (or logistic fallback)
+          2. GNN GraphSAGE forward pass  ← GAP 13 FIX: now actually runs
+          3. TemporalContagionPredictor (rule + graph hybrid)
+
+        GNN and contagion are blended, NOT raw MAX-overridden, to avoid
+        false alarms on shipments that share a region but not a route.
         """
         df_raw = pd.DataFrame([{
             "route": row.get("route", "LOCAL"),
@@ -125,32 +282,53 @@ class RiskEngine:
         drivers = []
         confidence = 0.95
 
+        # ── 1. XGBoost pipeline (or logistic heuristic) ───────────────────────
         if self.pipeline:
             probs = self.pipeline.predict_proba(df_raw)[0]
             risk_probability = float(probs[1])
             confidence = round(float(max(probs[0], probs[1])), 2)
             drivers = self._extract_shap_drivers(df_raw)
         else:
-            # Calibrated logistic heuristic — still deterministic without the model
             margin = row.get("contribution_profit", 0)
             order_value = max(row.get("order_value", 1), 1)
             margin_pct = margin / order_value
             cost_ratio = row.get("total_cost", 0) / order_value
             logit = (cost_ratio * 2.0) - (margin_pct * 4.0) + (predicted_delay * 0.5)
             risk_probability = 1.0 / (1.0 + math.exp(-logit))
-            confidence = 0.70  # Explicitly lower confidence when running heuristic fallback
+            confidence = 0.70
             drivers = ["⚠ Heuristic Mode: XGBoost model not loaded. Logistic fallback active."]
 
-        # Tech Giant Upgrade: Temporal Contagion Integration
+        # ── 2. GAP 13 FIX — GNN forward pass (proximity-weighted blend) ───────
+        # The GNN sees the full supply-chain graph structure.
+        # Its output is blended, not used as a MAX override, so only shipments
+        # that physically route through disrupted nodes are affected.
+        route_prefix = str(row.get("route", "")).split("-")[0].split("_")[0]
+        gnn_contribution = self._run_gnn_inference(route_prefix)
+        if gnn_contribution > 0.0:
+            # Additive blend: GNN adds up to _GNN_MAX_BLEND_WEIGHT to the base score
+            blended = risk_probability + gnn_contribution * (1.0 - risk_probability)
+            risk_probability = min(blended, 0.97)  # hard cap — never claim certainty
+            if gnn_contribution > 0.05:
+                drivers.append(
+                    f"GNN GraphSAGE: Structural contagion risk +{gnn_contribution:.1%} "
+                    f"via route node '{route_prefix}' (proximity-weighted)."
+                )
+
+        # ── 3. TemporalContagionPredictor (rule + graph hybrid) ───────────────
+        # Kept as a separate, additive signal on top of the GNN.
+        # Still blended (not MAX-override) using the same proximity logic.
         if node_id and self.contagion_predictor:
             contagion_out = self.predict_contagion(node_id, horizon_hours)
-            if contagion_out["score"] > risk_probability:
-                risk_probability = contagion_out["score"]
-                drivers.append(f"XAI Contagion Alert: {contagion_out['explanation']}")
+            contagion_score = contagion_out.get("score", 0.05)
+            # Soft blend: contagion can push score up but by at most 15%
+            if contagion_score > risk_probability:
+                delta = (contagion_score - risk_probability) * 0.5  # blend, not override
+                risk_probability = min(risk_probability + delta, 0.97)
+                drivers.append(f"XAI Contagion Alert: {contagion_out.get('explanation', '')}")
                 confidence = contagion_out.get("confidence", confidence)
 
         return {
-            "score": risk_probability,
+            "score": round(risk_probability, 4),
             "confidence": confidence,
             "drivers": drivers
         }

@@ -51,27 +51,62 @@ class MIPOptimizer:
             s_id = str(s.get("shipment_id"))
             solver.Add(sum(x[(s_id, t)] for t in TIME_HORIZON_WEEKS) <= 1)
 
-        # 3. Objective Function: Maximize aggregate REVM Value, heavily penalizing execution in later blocks (Time Value of Money logic)
+        # 3. Objective Function: Maximize aggregate REVM Value
+        # GAP 17 FIX: Temporal decay now uses WACC-based discounting instead of
+        # hardcoded 2%/week. Reads the average WACC from the shipment matrix;
+        # falls back to 8% annual (≈0.154% per week) if not provided.
+        avg_wacc = (
+            sum(s.get("wacc", 0.08) for s in shipments) / max(len(shipments), 1)
+        )
+        # Clamp to sane bounds in case ERP exports WACC as a percentage (e.g., 8.0 not 0.08)
+        if avg_wacc > 1.0:
+            avg_wacc /= 100.0
+        avg_wacc = min(max(avg_wacc, 0.01), 0.50)
+        wacc_weekly = avg_wacc / 52.0  # annualized → weekly
+
         objective = solver.Objective()
         for s in shipments:
             s_id = str(s.get("shipment_id"))
             base_revm = s.get("simulated_revm", s.get("revm", 0.0))
             for t in TIME_HORIZON_WEEKS:
-                # WACC Temporal decay heuristic (delaying execution strictly destroys value)
-                temporal_decay_multiplier = 1.0 - (t * 0.02)
+                # WACC-based time-value discount: 1/(1+r_weekly)^t
+                # At 8% annual → weekly rate 0.154%; delay by 3 weeks = 0.9954 multiplier
+                temporal_decay_multiplier = 1.0 / ((1.0 + wacc_weekly) ** t)
                 objective.SetCoefficient(x[(s_id, t)], float(base_revm * temporal_decay_multiplier))
-        
+
         objective.SetMaximization()
 
-        # 4. Multi-Horizon Constraints
-        # Calculate isolated limits specifically tracking Week 0 (T=0)
-        cash_constraint_t0 = solver.Constraint(0, available_cash, "CashLimit_T0")
-        cap_constraint_t0 = solver.Constraint(0, max_capacity_tons, "CapLimit_T0")
-        
+        # 4. GAP 18 FIX — Multi-Horizon Cash Constraints (one per time period)
+        #
+        # OLD: Only T=0 had a cash constraint. Weeks 1-3 were completely unconstrained.
+        # This allowed the solver to schedule arbitrarily many shipments in future weeks,
+        # producing plans that are mathematically optimal but physically infeasible.
+        #
+        # NEW: Rolling per-week constraints with declining budget fractions.
+        # Rationale for fractional budgets:
+        #   T=0 (this week):   100% — full cash available now
+        #   T=1 (next week):    70% — some cash committed, uncertainty increases
+        #   T=2 (2 weeks out):  50% — less certainty about available liquidity
+        #   T=3 (3 weeks out):  35% — furthest horizon, most uncertain
+        # Global constraint: sum across ALL weeks cannot exceed available_cash
+        # (prevents double-counting cash across periods).
+        WEEK_BUDGET_FRACTIONS = {0: 1.00, 1: 0.70, 2: 0.50, 3: 0.35}
+
+        for t in TIME_HORIZON_WEEKS:
+            budget_t = available_cash * WEEK_BUDGET_FRACTIONS[t]
+            cash_constraint_t = solver.Constraint(0, budget_t, f"CashLimit_T{t}")
+            cap_constraint_t  = solver.Constraint(0, max_capacity_tons, f"CapLimit_T{t}")
+            for s in shipments:
+                s_id = str(s.get("shipment_id"))
+                cash_constraint_t.SetCoefficient(x[(s_id, t)], float(s.get("total_cost", 0.0)))
+                cap_constraint_t.SetCoefficient(x[(s_id, t)], float(s.get("weight_tons", 15.0)))
+
+        # Global constraint: total cash deployed across all weeks ≤ available_cash
+        global_cash_constraint = solver.Constraint(0, available_cash, "GlobalCashLimit_AllWeeks")
         for s in shipments:
             s_id = str(s.get("shipment_id"))
-            cash_constraint_t0.SetCoefficient(x[(s_id, 0)], float(s.get("total_cost", 0.0)))
-            cap_constraint_t0.SetCoefficient(x[(s_id, 0)], float(s.get("weight_tons", 15.0)))
+            for t in TIME_HORIZON_WEEKS:
+                global_cash_constraint.SetCoefficient(x[(s_id, t)], float(s.get("total_cost", 0.0)))
 
         # 5. Optimal Enterprise Tuning: Prevent NP-Hard combinations from freezing the thread!
         # Set absolute timeout to 2000 milliseconds (2 seconds)
