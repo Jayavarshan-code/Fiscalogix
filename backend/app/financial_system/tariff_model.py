@@ -49,6 +49,7 @@ logger = logging.getLogger(__name__)
 #   APAC:  RCEP preferential (intra-Asia) → ~4%
 #   LOCAL: Domestic movement → 0%
 ROUTE_TARIFF_RATES = {
+    # ── US / China / EU corridors ────────────────────────────────────────────
     "US-CN":  0.22,   # USTR Section 301 blended effective rate
     "CN-US":  0.18,   # China retaliatory blended rate
     "EU-US":  0.035,  # EU MFN average
@@ -56,7 +57,28 @@ ROUTE_TARIFF_RATES = {
     "APAC":   0.04,   # RCEP / intra-Asia preferential average
     "CN-EU":  0.04,   # EU GSP / standard rate on Chinese goods
     "EU-CN":  0.06,   # China standard MFN for EU exports
+    # ── India export corridors (BCD at destination) ──────────────────────────
+    # Note: GST (IGST) on Indian exports is handled separately by GSTComplianceModel.
+    # These rates represent import duty at the DESTINATION country.
+    "IN-US":  0.03,   # US MFN rate on Indian goods (GSP partially suspended)
+    "IN-EU":  0.038,  # EU MFN average on Indian goods (EU-India FTA in negotiation)
+    "IN-CN":  0.08,   # China MFN on Indian goods (elevated post-border tensions)
+    "IN-AE":  0.05,   # UAE — CEPA (India-UAE Comprehensive Economic Partnership)
+    "IN-SG":  0.00,   # Singapore — CECA (Comprehensive Economic Cooperation Agreement)
+    "IN-UK":  0.04,   # UK — interim preferential rate (UK-India FTA in progress)
+    "IN-JP":  0.025,  # Japan — India-Japan CEPA (low tariffs on most goods)
+    "IN-AU":  0.05,   # Australia — ECTA (India-Australia Economic Cooperation)
+    # ── India import corridors (BCD at Indian customs) ───────────────────────
+    # These represent Basic Customs Duty only. IGST is computed by GSTComplianceModel.
+    "US-IN":  0.075,  # India BCD on US goods (average)
+    "EU-IN":  0.075,  # India BCD on EU goods (average)
+    "CN-IN":  0.10,   # India BCD on Chinese goods (elevated, anti-dumping duties common)
+    "AE-IN":  0.05,   # UAE — CEPA preferential
+    "SG-IN":  0.00,   # Singapore — CECA zero duty
+    "UK-IN":  0.075,  # UK — interim rate
+    # ── Domestic ─────────────────────────────────────────────────────────────
     "LOCAL":  0.00,   # Domestic — no tariff
+    "IN-IN":  0.00,   # Intra-India — no customs
 }
 
 # ---------------------------------------------------------------------------
