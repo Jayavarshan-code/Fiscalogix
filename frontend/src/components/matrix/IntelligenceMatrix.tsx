@@ -15,7 +15,7 @@ interface ShipmentRow {
   ml_confidence_score: number;
   ml_risk_detected: boolean;
   // Tech Giant Fields
-  robust_efi_floor: number;
+  robust_revm_floor: number;
   contagion_score_t48: number;
 }
 
@@ -139,7 +139,7 @@ export const IntelligenceMatrix: React.FC = () => {
                     <th>Route Line</th>
                     <th className="sortable-header" onClick={() => toggleSort('total_value_usd')} style={{cursor: 'pointer'}}>Order Value {getSortIcon('total_value_usd')}</th>
                     <th className="sortable-header" onClick={() => toggleSort('expected_efi')} style={{cursor: 'pointer'}}>Expected EFI {getSortIcon('expected_efi')}</th>
-                    <th className="sortable-header" onClick={() => toggleSort('robust_efi_floor')} style={{cursor: 'pointer'}}>Resilience Floor {getSortIcon('robust_efi_floor')}</th>
+                    <th className="sortable-header" onClick={() => toggleSort('robust_revm_floor')} style={{cursor: 'pointer'}}>Resilience Floor {getSortIcon('robust_revm_floor')}</th>
                     <th className="sortable-header" onClick={() => toggleSort('ml_confidence_score')} style={{cursor: 'pointer'}}>Risk Score {getSortIcon('ml_confidence_score')}</th>
                     <th className="sortable-header" onClick={() => toggleSort('contagion_score_t48')} style={{cursor: 'pointer'}}>Predictive (48h) {getSortIcon('contagion_score_t48')}</th>
                     <th>Recommended Action</th>
@@ -174,7 +174,7 @@ export const IntelligenceMatrix: React.FC = () => {
                           ${row.expected_efi.toLocaleString()}
                         </td>
                         <td className="text-brand-secondary font-semibold">
-                          ${row.robust_efi_floor.toLocaleString()}
+                          ${row.robust_revm_floor.toLocaleString()}
                         </td>
                         <td>
                           <div className="risk-badge" data-level={row.ml_confidence_score > 0.8 ? 'high' : row.ml_confidence_score > 0.4 ? 'medium' : 'low'}>

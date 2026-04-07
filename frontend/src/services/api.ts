@@ -82,5 +82,87 @@ export const apiService = {
       console.error(`Failed to fetch cashflow trajectory:`, error);
       throw error;
     }
+  },
+
+  /**
+   * Fetch live ML model health status for Governance Shield
+   */
+  async getModelHealth() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/model-health`, {
+        headers: getAuthHeader()
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to fetch model health:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Fetch explainability details for a shipment from the Confidence Studio
+   * Returns: risk_probability, model_confidence, key_drivers, narrative, cfo_brief
+   */
+  async getConfidenceExplain(shipmentId: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/confidence-studio/explain/${shipmentId}`, {
+        headers: getAuthHeader()
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
+      return await response.json();
+    } catch (error) {
+      console.error(`Failed to fetch confidence explain for ${shipmentId}:`, error);
+      throw error;
+    }
+  },
+
+  /**
+   * POST to freight hedging engine — predicts 6-month spot rate and optimal contract decision
+   * routes: array of { route_id, current_spot_rate, current_contract_rate, market_volatility_index? }
+   */
+  async getFreightHedging(routes: {
+    route_id: string;
+    current_spot_rate: number;
+    current_contract_rate: number;
+    market_volatility_index?: number;
+  }[]) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/enterprise/freight-hedging`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify(routes)
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to fetch freight hedging:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * POST to AR default predictor — returns probability of default + expected credit loss
+   * customers: array of { customer_id, order_value, credit_days, historical_defaults?, macro_economic_index? }
+   */
+  async getARDefault(customers: {
+    customer_id: string;
+    order_value: number;
+    credit_days: number;
+    historical_defaults?: number;
+    macro_economic_index?: number;
+  }[]) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/enterprise/ar-default`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify(customers)
+      });
+      if (!response.ok) throw new Error('Network response was not ok');
+      return await response.json();
+    } catch (error) {
+      console.error("Failed to fetch AR default risk:", error);
+      throw error;
+    }
   }
 };

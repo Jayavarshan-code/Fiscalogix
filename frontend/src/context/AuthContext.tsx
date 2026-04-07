@@ -5,7 +5,7 @@ interface UserPayload {
   id: number;
   email: string;
   profileName: string;
-  permissions: any;
+  permissions: Record<string, boolean>;
 }
 
 interface AuthContextType {
@@ -25,19 +25,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const profileName = localStorage.getItem('profile_name');
     const email = localStorage.getItem('email');
     const userId = localStorage.getItem('user_id');
-    
+    const permissionsRaw = localStorage.getItem('permissions');
+
     if (token && email) {
-      // Mocking profile permissions in frontend since they aren't fully returned yet from API
-      // In production, the backend /auth/me route would return the full permissions block
-      const perms = profileName === 'System Admin' 
-        ? { can_view: true, can_execute: true } 
-        : { can_view: true, can_execute: false };
+      // Use persisted permissions from login response; never hardcode by profile name
+      const perms: Record<string, boolean> = permissionsRaw
+        ? JSON.parse(permissionsRaw)
+        : {};
 
       setCurrentUser({
         id: Number(userId) || 1,
         email,
-        profileName: profileName || 'System Admin',
-        permissions: perms
+        profileName: profileName || '',
+        permissions: perms,
       });
     }
   }, []);
@@ -60,21 +60,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const data = await resp.json();
 
-    // Store the REAL JWT from the backend
+    // Persist everything from the login response — permissions come from the Role table via the JWT
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('profile_name', data.profile_name);
     localStorage.setItem('email', data.email);
     localStorage.setItem('user_id', String(data.user_id));
-
-    const perms = data.profile_name === 'System Admin'
-      ? { can_view: true, can_execute: true }
-      : { can_view: true, can_execute: false };
+    localStorage.setItem('permissions', JSON.stringify(data.permissions || {}));
 
     setCurrentUser({
       id: data.user_id,
       email: data.email,
       profileName: data.profile_name,
-      permissions: perms
+      permissions: data.permissions || {},
     });
   };
 
@@ -83,12 +80,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('profile_name');
     localStorage.removeItem('email');
     localStorage.removeItem('user_id');
+    localStorage.removeItem('permissions');
     setCurrentUser(null);
   };
 
   const hasPermission = (perm: string) => {
     if (!currentUser || !currentUser.permissions) return false;
-    return currentUser.permissions[perm as keyof UserPayload['permissions']] === true;
+    return currentUser.permissions[perm] === true;
   };
 
   return (
@@ -105,4 +103,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

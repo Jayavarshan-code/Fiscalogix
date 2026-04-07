@@ -27,22 +27,25 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
   if (!shipmentId) return null;
 
   const [decisionData, setDecisionData] = useState<any>(null);
+  const [explainData, setExplainData] = useState<any>(null);
   const [isLoadingInsights, setIsLoadingInsights] = useState(false);
 
   useEffect(() => {
-    const fetchInsights = async () => {
-      if (!shipmentId) return;
-      setIsLoadingInsights(true);
-      try {
-        const data = await apiService.getShipmentInsights(shipmentId);
-        setDecisionData(data);
-      } catch (err) {
-        console.error("Failed to load insights:", err);
-      } finally {
-        setIsLoadingInsights(false);
-      }
-    };
-    fetchInsights();
+    if (!shipmentId) return;
+    setIsLoadingInsights(true);
+
+    // Run both calls in parallel: financial insights + explainability layer
+    Promise.all([
+      apiService.getShipmentInsights(shipmentId),
+      apiService.getConfidenceExplain(shipmentId).catch(() => null),  // non-blocking
+    ]).then(([insights, explain]) => {
+      setDecisionData(insights);
+      setExplainData(explain);
+    }).catch(err => {
+      console.error("Failed to load insights:", err);
+    }).finally(() => {
+      setIsLoadingInsights(false);
+    });
   }, [shipmentId]);
 
   if (isLoadingInsights || !decisionData) {
@@ -59,14 +62,13 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
   const handleExecute = async () => {
     setIsExecuting(true);
     try {
+      // Identity comes from the JWT — no mock_user_id or tenant_id needed in the body
       const result = await apiService.executeAction({
-        tenant_id: 'default_tenant',
         action_type: 'REROUTE_AIR_FREIGHT',
         shipment_id: shipmentId,
         erp_target: 'SAP',
-        confidence_score: 0.942,
+        confidence_score: decisionData?.confidence_score ?? 0.942,
         parameters: { risk_posture: riskAppetite },
-        mock_user_id: currentUser?.id || 1
       });
       setExecutionResult(result.erp_receipt);
       // In a real system, we'd update executiveSummary from the backend response here:
@@ -114,30 +116,26 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         {/* Tech Giant Upgrade: Interactive Risk Appetite Control */}
         <RiskAppetiteSlider value={riskAppetite} onChange={setRiskAppetite} />
 
-        {/* Tech Giant Upgrade: Temporal Risk Radar with Hybrid Signals */}
-        <TemporalRiskTimeline markers={[
-            { 
-              time_hours: 0, 
-              score: 0.15, 
-              label: 'START',
-              bands: [0.10, 0.15, 0.25],
-              signals: [{ type: 'AIS', message: 'Vessel Queue: 12 ships' }]
-            },
-            { 
-              time_hours: 24, 
-              score: 0.87, 
-              label: 'HUB_B',
-              bands: [0.65, 0.87, 0.95],
-              signals: [{ type: 'NEWS', message: 'Strike Alert: industrial terminal' }]
-            },
-            { 
-              time_hours: 48, 
-              score: 0.92, 
-              label: 'DEST_C',
-              bands: [0.70, 0.92, 0.99],
-              signals: [{ type: 'WEATHER', message: 'Heavy Squall Warning' }]
-            }
-        ]} />
+        {/* Tech Giant Upgrade: Temporal Risk Radar — markers derived from confidence-studio key_drivers */}
+        <TemporalRiskTimeline markers={
+          explainData?.key_drivers?.length > 0
+            ? explainData.key_drivers.slice(0, 5).map((driver: string, i: number) => ({
+                time_hours: i * 18,
+                score: explainData.risk_probability ?? 0.5,
+                label: driver.split('_')[0].toUpperCase(),
+                bands: [
+                  Math.max(0, (explainData.risk_probability ?? 0.5) - 0.2),
+                  explainData.risk_probability ?? 0.5,
+                  Math.min(1, (explainData.risk_probability ?? 0.5) + 0.15),
+                ] as [number, number, number],
+                signals: [{ type: 'NEWS', message: driver }],
+              }))
+            : [
+                { time_hours: 0,  score: 0.15, label: 'START',  bands: [0.10, 0.15, 0.25] as [number, number, number], signals: [{ type: 'AIS',  message: 'Vessel Queue: 12 ships' }] },
+                { time_hours: 24, score: 0.87, label: 'HUB_B',  bands: [0.65, 0.87, 0.95] as [number, number, number], signals: [{ type: 'NEWS', message: 'Strike Alert: industrial terminal' }] },
+                { time_hours: 48, score: 0.92, label: 'DEST_C', bands: [0.70, 0.92, 0.99] as [number, number, number], signals: [{ type: 'WEATHER', message: 'Heavy Squall Warning' }] },
+              ]
+        } />
 
         <div className="drivers-section">
           <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Hardened EFI Breakdown (Formula 2.0)</h3>
@@ -212,8 +210,8 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
               ]}
             />
 
-            {/* Pillar 5 Upgrade: Side-by-Side Scenario Comparison Table */}
-            <ScenarioComparisonMatrix />
+            {/* Pillar 5 Upgrade: Side-by-Side Scenario Comparison Table — live stress-test data */}
+            <ScenarioComparisonMatrix scenarios={decisionData.scenario_analysis} />
 
             {/* Tech Giant Upgrade: Constraint Visibility Panel */}
             <ConstraintVisibilityPanel 
