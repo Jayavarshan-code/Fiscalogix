@@ -62,6 +62,7 @@ from app.financial_system.optimization.route_optimizer import GeopoliticalRouteO
 from app.financial_system.ai_mapper import AIFieldMapper
 from app.financial_system.clv_calibrator import CLVCalibrator
 from app.financial_system.revm_snapshot_logger import RevmSnapshotLogger
+from app.financial_system.india.gst_compliance import GSTComplianceModel
 
 from app.financial_system.agents.risk_agent import RiskAgent
 from app.financial_system.agents.financial_agent import FinancialAgent
@@ -77,6 +78,7 @@ from app.financial_system.pipeline.stages import (
     DataIngestionStage,
     MLInferenceStage,
     CLVCalibrationStage,
+    GSTComplianceStage,
     DecisionStage,
     SituationAssessmentStage,
     DispatchPlanningStage,
@@ -108,6 +110,7 @@ class AdaptiveOrchestrator:
         self.decision     = DecisionEngine()
         self.cashflow     = CashflowPredictorOrchestrator()
         self.revm_snapshot = RevmSnapshotLogger()
+        self.gst_model    = GSTComplianceModel()
 
         self.confidence  = ConfidenceTrustEngine()
         self.scenario    = ScenarioSimulationEngine(
@@ -148,6 +151,7 @@ class AdaptiveOrchestrator:
             DataIngestionStage(self.core, AIFieldMapper),
             MLInferenceStage(self.delay_model, self.demand_model),
             CLVCalibrationStage(CLVCalibrator),
+            GSTComplianceStage(self.gst_model),
             DecisionStage(self.decision),
             SituationAssessmentStage(self.route_optimizer),
             DispatchPlanningStage(self.llm),

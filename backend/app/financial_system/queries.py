@@ -48,6 +48,7 @@ def get_financial_twin_query():
 
         -- FIX: SELECT industry_vertical from shipments (set during ingestion)
         COALESCE(s.industry_vertical, 'default') AS industry_vertical,
+        COALESCE(s.hs_code, sku.hs_code) AS hs_code,
 
         -- Derived financial columns
         (COALESCE(sku.holding_cost_per_day, 0) * s.delay_days)   AS holding_cost,

@@ -63,8 +63,9 @@ class FinancialAgent(BaseAgent):
 
             fx_cost      = fx_outputs[i]
             sla_penalty  = sla_outputs[i]
+            gst_cost     = row.get("gst_cost", 0.0)
 
-            revm = contribution_profit - risk_penalty - time_cost - future_cost - fx_cost - sla_penalty
+            revm = contribution_profit - risk_penalty - time_cost - future_cost - fx_cost - sla_penalty - gst_cost
 
             row.update({
                 "risk_penalty": risk_penalty,
@@ -72,6 +73,7 @@ class FinancialAgent(BaseAgent):
                 "future_cost":  future_cost,
                 "fx_cost":      fx_cost,
                 "sla_penalty":  sla_penalty,
+                "gst_cost":     gst_cost,
                 "revm":         revm,
             })
             total_revm += revm

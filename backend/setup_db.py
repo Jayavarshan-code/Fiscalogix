@@ -123,6 +123,7 @@ class SKU(Base):
     holding_cost_per_day = Column(Float)
     cargo_type           = Column(String(50), default='general_cargo')   # FIX M1: time_model.py
     industry_vertical    = Column(String(50), default='default')          # demand_model.py seasonality
+    hs_code              = Column(String(10), nullable=True)              # GST / Customs routing
     is_critical          = Column(Boolean, default=False)
     created_at           = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
     updated_at           = Column(DateTime(timezone=True), default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -277,6 +278,7 @@ class Shipment(Base):
     origin_node               = Column(String(100))                     # route optimizer
     destination_node          = Column(String(100))                     # route optimizer
     industry_vertical         = Column(String(50), default='default')   # demand_model.py seasonality
+    hs_code                   = Column(String(10), nullable=True)       # GST / Customs routing
     contract_type             = Column(String(30), default='standard')  # sla_model.py penalty cap
     expected_arrival_utc      = Column(DateTime(timezone=True))
     actual_arrival_utc        = Column(DateTime(timezone=True))
@@ -380,6 +382,7 @@ class RevmSnapshot(Base):
     future_cost      = Column(Float)
     fx_cost          = Column(Float)
     sla_penalty      = Column(Float)
+    gst_cost         = Column(Float, default=0.0)
     # Intelligence outputs
     risk_score       = Column(Float)
     confidence_score = Column(Float)

@@ -156,7 +156,34 @@ class CLVCalibrationStage(PipelineStage):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STAGE 4 — Per-Row Decision Engine
+# STAGE 4 — GST Compliance
+# ─────────────────────────────────────────────────────────────────────────────
+
+class GSTComplianceStage(PipelineStage):
+    """
+    Responsibility: Calculate GST impact per row (Imports/Exports) for Indian routes.
+    Stamps 'gst_cost', 'gst_breakdown' on rows.
+    """
+    name = "gst_compliance"
+
+    def __init__(self, gst_model):
+        self._gst_model = gst_model
+
+    def execute(self, ctx: PipelineContext) -> Dict[str, Any]:
+        total_gst_cost = 0.0
+        for row in ctx.data:
+            cost = self._gst_model.compute(row)
+            row["gst_cost"] = cost
+            total_gst_cost += cost
+
+        return {
+            "total_gst_cost_computed": round(total_gst_cost, 2),
+            "records_processed": len(ctx.data)
+        }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGE 5 — Per-Row Decision Engine
 # ─────────────────────────────────────────────────────────────────────────────
 
 class DecisionStage(PipelineStage):
