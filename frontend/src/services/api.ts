@@ -1,4 +1,42 @@
-export const API_BASE_URL = 'http://localhost:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export interface DashboardData {
+  summary: {
+    total_revenue: number;
+    total_cost: number;
+    total_profit: number;
+    total_revm: number;
+    loss_shipments: number;
+  };
+  confidence: { global_score: number };
+  financial_impact?: { wacc_cost?: number; total_efi?: number };
+  shocks?: any[];
+}
+
+export interface MLPerformance {
+  delay_accuracy_pct: number;
+  delay_accuracy_delta: string;
+  cost_accuracy_pct: number;
+  cost_accuracy_delta: string;
+  system_bias_inr: number;
+  drift_detected: boolean;
+  drift_model: string;
+  drift_detail: string;
+  retraining_mode: string;
+  last_retrained: string;
+  trust_score: number;
+  learning_insights: string[];
+  updated_at: string;
+}
+
+export interface RedisStatus {
+  available: boolean;
+  host: string;
+  degraded_features: string[];
+  fallback_behavior: string | null;
+}
+
+
 
 /**
  * Get the Authorization header using the stored JWT token.
@@ -12,7 +50,7 @@ export const apiService = {
   /**
    * Fetch executive dashboard metrics
    */
-  async getExecutiveOverview(tenantId: string = 'default_tenant') {
+  async getExecutiveOverview(tenantId: string = 'default_tenant'): Promise<DashboardData> {
     try {
       const response = await fetch(`${API_BASE_URL}/financial-intelligence?tenant_id=${tenantId}`, {
         headers: getAuthHeader()
@@ -320,6 +358,15 @@ export const apiService = {
     return await response.json();
   },
 
+  /** GET /optimization/status/:jobId — poll for background job result */
+  async getJobStatus(jobId: string) {
+    const response = await fetch(`${API_BASE_URL}/optimization/status/${jobId}`, {
+      headers: getAuthHeader(),
+    });
+    if (!response.ok) throw new Error('Job status check failed');
+    return await response.json();
+  },
+
   /** GET /admin/redis-status — whether Redis is live and which features are degraded */
   async getRedisStatus() {
     const response = await fetch(`${API_BASE_URL}/admin/redis-status`, {
@@ -335,6 +382,16 @@ export const apiService = {
       headers: getAuthHeader()
     });
     if (!response.ok) throw new Error('ML performance fetch failed');
+    return await response.json();
+  },
+
+  /** GET /datagrid/shipments — paginated sortable shipment grid */
+  async getShipmentGrid(page: number, sortBy: string, sortDir: 'asc' | 'desc') {
+    const response = await fetch(
+      `${API_BASE_URL}/datagrid/shipments?page=${page}&limit=50&sort_by=${sortBy}&sort_dir=${sortDir}`,
+      { headers: getAuthHeader() }
+    );
+    if (!response.ok) throw new Error('Shipment grid fetch failed');
     return await response.json();
   },
 

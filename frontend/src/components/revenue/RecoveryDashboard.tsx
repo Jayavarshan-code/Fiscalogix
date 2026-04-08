@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { apiService } from '../../services/api';
+import React, { useState } from 'react';
+import { useARDefault } from '../../hooks/queries';
 import './RecoveryDashboard.css';
 
 interface RecoveryEvent {
@@ -35,70 +35,50 @@ const SEED_EVENTS: RecoveryEvent[] = [
   },
 ];
 
+const AR_CUSTOMERS = SEED_EVENTS.map(e => ({
+  customer_id:         e.shipmentId,
+  order_value:         e.lossAmount,
+  credit_days:         30,
+  historical_defaults: e.status === 'contested' ? 1 : 0,
+}));
+
 const RecoveryDashboard: React.FC = () => {
-  const [events, setEvents] = useState<RecoveryEvent[]>(SEED_EVENTS);
-  const [arLoading, setArLoading] = useState(true);
+  const { data: arResults, isLoading: arLoading } = useARDefault(AR_CUSTOMERS);
 
-  // Enrich claims with live AR default risk on mount
-  useEffect(() => {
-    const enrichWithARDefault = async () => {
-      try {
-        const customers = SEED_EVENTS.map(e => ({
-          customer_id:         e.shipmentId,
-          order_value:         e.lossAmount,
-          credit_days:         30,
-          historical_defaults: e.status === 'contested' ? 1 : 0,
-        }));
+  // Merge live AR default risk into seed events
+  const riskMap: Record<string, any> = {};
+  for (const r of arResults ?? []) riskMap[r.customer_id] = r;
 
-        const results = await apiService.getARDefault(customers);
+  const events: RecoveryEvent[] = SEED_EVENTS.map(e => {
+    const risk = riskMap[e.shipmentId];
+    return risk
+      ? { ...e, defaultProbability: risk.probability_of_default, expectedCreditLoss: risk.expected_credit_loss, arAction: risk.recommended_action }
+      : e;
+  });
 
-        // Map results back by customer_id
-        const riskMap: Record<string, typeof results[0]> = {};
-        for (const r of results) {
-          riskMap[r.customer_id] = r;
-        }
+  // Local state for UI-only status transitions (draft → file → counter)
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, RecoveryEvent['status']>>({});
 
-        setEvents(prev =>
-          prev.map(e => {
-            const risk = riskMap[e.shipmentId];
-            return risk
-              ? {
-                  ...e,
-                  defaultProbability:  risk.probability_of_default,
-                  expectedCreditLoss:  risk.expected_credit_loss,
-                  arAction:            risk.recommended_action,
-                }
-              : e;
-          })
-        );
-      } catch (err) {
-        console.error('AR default enrichment failed:', err);
-      } finally {
-        setArLoading(false);
-      }
-    };
+  // Apply status overrides on top of the AR-enriched events
+  const displayEvents = events.map(e =>
+    statusOverrides[e.id] ? { ...e, status: statusOverrides[e.id] } : e
+  );
 
-    enrichWithARDefault();
-  }, []);
+  const setStatus = (id: string, status: RecoveryEvent['status']) =>
+    setStatusOverrides(prev => ({ ...prev, [id]: status }));
 
-  const handleGenerateClaim = (id: string) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'drafted' } : e));
-  };
-
-  const handleFileClaim = (id: string) => {
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'filed' } : e));
-  };
-
-  const handleCounterClaim = (id: string) => {
+  const handleGenerateClaim  = (id: string) => setStatus(id, 'drafted');
+  const handleFileClaim      = (id: string) => setStatus(id, 'filed');
+  const handleCounterClaim   = (id: string) => {
     alert('Counter-Claim Authored: Attaching ACLED & MarineTraffic Database Logs.');
-    setEvents(prev => prev.map(e => e.id === id ? { ...e, status: 'filed' } : e));
+    setStatus(id, 'filed');
   };
 
   const handleDownloadEvidence = (fileName: string) => {
     alert(`Downloading Encrypted Evidence Package: ${fileName}\nIncludes: MSA.pdf, H3_Spatial_Logs.csv, Financial_Audit.json`);
   };
 
-  const pendingRecovery = events
+  const pendingRecovery = displayEvents
     .filter(e => ['drafted', 'filed', 'contested'].includes(e.status))
     .reduce((sum, e) => sum + e.lossAmount, 0);
 
@@ -133,7 +113,7 @@ const RecoveryDashboard: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {events.map(event => {
+            {displayEvents.map(event => {
               const risk = defaultRiskLabel(event.defaultProbability);
               return (
                 <tr key={event.id} className={event.status}>
@@ -194,7 +174,7 @@ const RecoveryDashboard: React.FC = () => {
         </table>
       </div>
 
-      {!arLoading && events.some(e => e.defaultProbability != null && e.defaultProbability > 0.05) && (
+      {!arLoading && displayEvents.some(e => e.defaultProbability != null && e.defaultProbability > 0.05) && (
         <div className="hitl-note" style={{ borderColor: 'var(--semantic-warning)', background: 'rgba(245,158,11,0.05)' }}>
           <p>⚠️ <b>AR Risk Alert:</b> One or more claims carry elevated default probability. Consider invoice factoring or cash-in-advance terms before settlement.</p>
         </div>

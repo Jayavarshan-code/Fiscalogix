@@ -1,23 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { AlertTriangle, Activity, RefreshCw, Gauge, Loader2, Database, WifiOff } from 'lucide-react';
-import { apiService } from '../../services/api';
-
-interface MLPerformance {
-  delay_accuracy_pct: number;
-  delay_accuracy_delta: string;
-  cost_accuracy_pct: number;
-  cost_accuracy_delta: string;
-  system_bias_inr: number;
-  drift_detected: boolean;
-  drift_model: string;
-  drift_detail: string;
-  retraining_mode: string;
-  last_retrained: string;
-  trust_score: number;
-  learning_insights: string[];
-  updated_at: string;
-}
-
+import { useMLPerformance, useRedisStatus } from '../../hooks/queries';
 interface MetricProps {
   label: string;
   value: string;
@@ -38,28 +21,10 @@ const MetricCard: React.FC<MetricProps> = ({ label, value, trend, status }) => (
 );
 
 export const ModelPerformanceDashboard: React.FC = () => {
-  const [perf, setPerf] = useState<MLPerformance | null>(null);
-  const [redisStatus, setRedisStatus] = useState<{ available: boolean; host: string; degraded_features: string[]; fallback_behavior: string | null } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: perf, isLoading: loading, error: perfError, refetch: refetchPerf } = useMLPerformance();
+  const { data: redisStatus } = useRedisStatus();
 
-  const fetchPerf = async () => {
-    setLoading(true); setError('');
-    try {
-      const [data, redis] = await Promise.all([
-        apiService.getMLPerformance(),
-        apiService.getRedisStatus().catch(() => null),
-      ]);
-      setPerf(data);
-      setRedisStatus(redis);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchPerf(); }, []);
+  const errorMsg = perfError ? perfError.message : '';
 
   if (loading) return (
     <div className="p-6 flex items-center gap-3 text-muted">
@@ -68,9 +33,9 @@ export const ModelPerformanceDashboard: React.FC = () => {
     </div>
   );
 
-  if (error || !perf) return (
+  if (errorMsg || !perf) return (
     <div className="p-6 text-critical text-sm flex items-center gap-2">
-      <AlertTriangle size={16} /> {error || 'Failed to load performance data'}
+      <AlertTriangle size={16} /> {errorMsg || 'Failed to load performance data'}
     </div>
   );
 
@@ -88,7 +53,7 @@ export const ModelPerformanceDashboard: React.FC = () => {
           <span className="text-[9px] text-muted font-mono">
             Updated: {new Date(perf.updated_at).toLocaleTimeString()}
           </span>
-          <button onClick={fetchPerf} className="p-1.5 rounded-lg border border-subtle text-muted hover:text-primary transition-colors">
+          <button onClick={() => refetchPerf()} className="p-1.5 rounded-lg border border-subtle text-muted hover:text-primary transition-colors">
             <RefreshCw size={14} />
           </button>
           <div className="flex items-center gap-2 px-3 py-1 bg-safe/10 text-safe rounded-full border border-safe/30 animate-pulse">
@@ -99,7 +64,7 @@ export const ModelPerformanceDashboard: React.FC = () => {
       </div>
 
       {/* Redis Status Banner */}
-      {redisStatus !== null && (
+      {redisStatus && (
         <div className={`flex items-start gap-3 p-4 rounded-2xl border ${
           redisStatus.available
             ? 'bg-safe/5 border-safe/20'

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { KPICard } from './KPICard';
 import { AlertTriangle, ShieldCheck, Activity, CheckCircle } from 'lucide-react';
 import { CashflowChart } from './CashflowChart';
@@ -6,21 +6,9 @@ import FreightArbitrageEngine from './FreightArbitrageEngine';
 import SpatialGridOverlay from '../matrix/SpatialGridOverlay';
 import VisionDiagnosticModal from '../ingestion/VisionDiagnosticModal';
 import RecoveryDashboard from '../revenue/RecoveryDashboard';
-import { apiService } from '../../services/api';
+import { useExecutiveOverview } from '../../hooks/queries';
 
-// Shape of the /financial-intelligence response we care about for the dashboard
-interface DashboardData {
-  summary: {
-    total_revenue: number;
-    total_cost: number;
-    total_profit: number;
-    total_revm: number;
-    loss_shipments: number;
-  };
-  confidence: { global_score: number };
-  financial_impact?: { wacc_cost?: number; total_efi?: number };
-  shocks?: any[];
-}
+// Shape of the /financial-intelligence response is now imported via queries if needed
 
 const fmt = (val: number, currency = '₹') =>
   `${currency}${Math.abs(val).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
@@ -28,24 +16,8 @@ const fmt = (val: number, currency = '₹') =>
 export const Dashboard: React.FC = () => {
   const [hasShocks, setHasShocks] = useState(true);
   const [showVision, setShowVision] = useState(false);
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const result = await apiService.getExecutiveOverview();
-        if (!cancelled) setData(result);
-      } catch {
-        // Silently fall through — hardcoded fallback renders below
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    load();
-    return () => { cancelled = true; };
-  }, []);
+  const { data, isLoading: loading } = useExecutiveOverview();
 
   // Derive KPI values from live data when available, else show safe placeholders
   const summary = data?.summary;

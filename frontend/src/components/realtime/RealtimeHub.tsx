@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Activity, Wifi, WifiOff, AlertTriangle, Zap, Radio } from 'lucide-react';
-import { API_BASE_URL, apiService } from '../../services/api';
+import { API_BASE_URL } from '../../services/api';
+import { useMapERPFieldsMutation } from '../../hooks/queries';
 
 // Convert http(s):// → ws(s)://
 const WS_BASE = API_BASE_URL.replace(/^http/, 'ws');
@@ -13,17 +14,12 @@ interface RiskEvent {
 
 // ── ERP Field Mapper ──────────────────────────────────────────────────────────
 const ERPMappingPanel: React.FC = () => {
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [error, setError] = useState('');
   const [headerInput, setHeaderInput] = useState('ship_dt, eta_act, cost_inc, val_ord, cust_nm, inv_no');
+  const erpMutation = useMapERPFieldsMutation();
 
-  const run = async () => {
-    setLoading(true); setError(''); setResult(null);
+  const run = () => {
     const headers = headerInput.split(',').map(h => h.trim()).filter(Boolean);
-    try { setResult(await apiService.mapERPFields(headers)); }
-    catch (e: any) { setError(e.message); }
-    finally { setLoading(false); }
+    erpMutation.mutate(headers);
   };
 
   return (
@@ -39,18 +35,18 @@ const ERPMappingPanel: React.FC = () => {
           placeholder="ship_dt, eta_act, cost_inc..."
         />
       </div>
-      <button className="btn-primary text-xs flex items-center gap-2" onClick={run} disabled={loading}>
-        {loading
+      <button className="btn-primary text-xs flex items-center gap-2" onClick={run} disabled={erpMutation.isPending}>
+        {erpMutation.isPending
           ? <><span className="animate-spin">⟳</span> Mapping...</>
           : <><Zap size={12} /> Map Fields (AIFieldMapper-v4)</>}
       </button>
-      {result && (
+      {erpMutation.data && (
         <div className="mt-3">
           <div className="text-[9px] font-bold text-muted uppercase mb-2">
-            Mapping Result · Confidence: {(result.confidence * 100).toFixed(0)}% · Engine: {result.engine}
+            Mapping Result · Confidence: {(erpMutation.data.confidence * 100).toFixed(0)}% · Engine: {erpMutation.data.engine}
           </div>
           <div className="space-y-1">
-            {Object.entries(result.mapping || {}).map(([raw, mapped]: [string, any]) => (
+            {Object.entries(erpMutation.data.mapping || {}).map(([raw, mapped]: [string, any]) => (
               <div key={raw} className="flex items-center justify-between p-2 bg-surface rounded-lg border border-subtle text-[10px]">
                 <span className="font-mono text-warning">{raw}</span>
                 <span className="text-muted mx-2">→</span>
@@ -60,9 +56,9 @@ const ERPMappingPanel: React.FC = () => {
           </div>
         </div>
       )}
-      {error && (
+      {erpMutation.error && (
         <div className="mt-3 flex items-center gap-2 text-critical text-[11px] p-3 bg-critical/10 rounded-xl border border-critical/30">
-          <AlertTriangle size={14} /> {error}
+          <AlertTriangle size={14} /> {erpMutation.error.message}
         </div>
       )}
     </div>

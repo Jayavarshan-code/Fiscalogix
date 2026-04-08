@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, CheckCircle, ShieldAlert, Loader2, Lock, RefreshCw } from 'lucide-react';
-import { apiService } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { useShipmentInsights, useConfidenceExplain, useExecuteActionMutation } from '../../hooks/queries';
 import { TemporalRiskTimeline } from './TemporalRiskTimeline';
 import { StochasticScenarioChart } from './StochasticScenarioChart';
 import { RerouteStudio } from './RerouteStudio';
@@ -18,35 +18,17 @@ interface ConfidencePanelProps {
 }
 
 export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, onClose }) => {
-  const [isExecuting, setIsExecuting] = useState(false);
+  // All hooks at top — before any conditional return (fixes Rules of Hooks violation)
   const [isRerouteStudioOpen, setIsRerouteStudioOpen] = useState(false);
   const [riskAppetite, setRiskAppetite] = useState<RiskAppetite>('BALANCED');
   const [executionResult, setExecutionResult] = useState<any>(null);
   const { hasPermission } = useAuth();
 
+  const { data: decisionData, isLoading: isLoadingInsights } = useShipmentInsights(shipmentId);
+  const { data: explainData } = useConfidenceExplain(shipmentId);
+  const executeMutation = useExecuteActionMutation();
+
   if (!shipmentId) return null;
-
-  const [decisionData, setDecisionData] = useState<any>(null);
-  const [explainData, setExplainData] = useState<any>(null);
-  const [isLoadingInsights, setIsLoadingInsights] = useState(false);
-
-  useEffect(() => {
-    if (!shipmentId) return;
-    setIsLoadingInsights(true);
-
-    // Run both calls in parallel: financial insights + explainability layer
-    Promise.all([
-      apiService.getShipmentInsights(shipmentId),
-      apiService.getConfidenceExplain(shipmentId).catch(() => null),  // non-blocking
-    ]).then(([insights, explain]) => {
-      setDecisionData(insights);
-      setExplainData(explain);
-    }).catch(err => {
-      console.error("Failed to load insights:", err);
-    }).finally(() => {
-      setIsLoadingInsights(false);
-    });
-  }, [shipmentId]);
 
   if (isLoadingInsights || !decisionData) {
     return (
@@ -60,10 +42,8 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
   }
 
   const handleExecute = async () => {
-    setIsExecuting(true);
     try {
-      // Identity comes from the JWT — no mock_user_id or tenant_id needed in the body
-      const result = await apiService.executeAction({
+      const result = await executeMutation.mutateAsync({
         action_type: 'REROUTE_AIR_FREIGHT',
         shipment_id: shipmentId,
         erp_target: 'SAP',
@@ -71,14 +51,12 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         parameters: { risk_posture: riskAppetite },
       });
       setExecutionResult(result.erp_receipt);
-      // In a real system, we'd update executiveSummary from the backend response here:
-      // setExecutiveSummary(result.decision_context.executive_summary);
     } catch (err) {
       console.error(err);
-    } finally {
-      setIsExecuting(false);
     }
   };
+
+  const isExecuting = executeMutation.isPending;
 
   return (
     <div className="confidence-panel active">

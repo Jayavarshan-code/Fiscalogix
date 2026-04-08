@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Shield, RefreshCcw, Activity, AlertCircle, CheckCircle2, History, Zap, XCircle } from 'lucide-react';
-import { apiService } from '../../services/api';
+import { useModelHealth } from '../../hooks/queries';
 
 interface ModelStatus {
   status: 'ok' | 'fallback' | 'unavailable';
@@ -16,27 +16,9 @@ interface ModelHealthResponse {
 
 export const GovernanceDashboardMatrix: React.FC = () => {
   const [isRollingBack, setIsRollingBack] = useState(false);
-  const [health, setHealth] = useState<ModelHealthResponse | null>(null);
-  const [healthLoading, setHealthLoading] = useState(true);
+  const { data: health, isLoading: healthLoading } = useModelHealth();
 
-  useEffect(() => {
-    const fetchHealth = async () => {
-      try {
-        const data = await apiService.getModelHealth();
-        setHealth(data);
-      } catch (e) {
-        console.error('Failed to fetch model health', e);
-      } finally {
-        setHealthLoading(false);
-      }
-    };
-    fetchHealth();
-    // Refresh every 60 seconds so ops team sees live drift
-    const id = setInterval(fetchHealth, 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const overallStatus = health?.overall_status ?? 'unknown';
+  const overallStatus: ModelHealthResponse['overall_status'] = health?.overall_status ?? 'unknown';
 
   const statusColors: Record<string, string> = {
     ok:       'text-safe',
@@ -67,7 +49,7 @@ export const GovernanceDashboardMatrix: React.FC = () => {
   };
 
   // Build live stat cards from model health data
-  const liveModels = health ? Object.entries(health.models) : [];
+  const liveModels: [string, ModelStatus][] = health ? Object.entries<ModelStatus>(health.models) : [];
   const okCount    = liveModels.filter(([, m]) => m.status === 'ok').length;
   const total      = liveModels.length;
 

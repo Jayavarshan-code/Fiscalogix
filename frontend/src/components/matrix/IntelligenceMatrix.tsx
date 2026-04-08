@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { Filter, Download, MoreVertical, AlertTriangle, ArrowUpDown, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { ConfidencePanel } from './ConfidencePanel';
-import { API_BASE_URL } from '../../services/api';
+import { useShipmentGrid } from '../../hooks/queries';
 import './IntelligenceMatrix.css';
 
 interface ShipmentRow {
@@ -20,51 +20,25 @@ interface ShipmentRow {
 }
 
 export const IntelligenceMatrix: React.FC = () => {
-  const [data, setData] = useState<ShipmentRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalRecords, setTotalRecords] = useState(0);
-  
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [activeShipmentId, setActiveShipmentId] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'total_value_usd', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({
+    key: 'total_value_usd',
+    direction: 'desc',
+  });
 
-  const fetchGridData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const resp = await fetch(
-        `${API_BASE_URL}/datagrid/shipments?page=${page}&limit=50&sort_by=${sortConfig.key}&sort_dir=${sortConfig.direction}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          }
-        }
-      );
-      if (resp.ok) {
-        const result = await resp.json();
-        setData(result.data);
-        setTotalPages(result.total_pages);
-        setTotalRecords(result.total_records);
-      }
-    } catch (e) {
-      console.error("Failed to fetch grid data", e);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, sortConfig]);
+  const { data: gridData, isLoading: loading } = useShipmentGrid(page, sortConfig.key, sortConfig.direction);
 
-  useEffect(() => {
-    fetchGridData();
-  }, [fetchGridData]);
+  const data: ShipmentRow[]  = gridData?.data        ?? [];
+  const totalPages: number   = gridData?.total_pages  ?? 1;
+  const totalRecords: number = gridData?.total_records ?? 0;
 
   const toggleSort = (key: string) => {
-    let direction: 'asc' | 'desc' = 'asc';
-    if (sortConfig.key === key && sortConfig.direction === 'asc') {
-      direction = 'desc';
-    }
+    const direction: 'asc' | 'desc' =
+      sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc';
     setSortConfig({ key, direction });
-    setPage(1); // Reset to first page on sort change
+    setPage(1);
   };
 
   const getSortIcon = (key: string) => {

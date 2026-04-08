@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
-import { apiService } from '../../services/api';
+import { useSpatialRisks } from '../../hooks/queries';
 import './SpatialGridOverlay.css';
 
 interface H3Cell {
@@ -14,37 +14,17 @@ interface H3Cell {
   expires_at: string | null;
 }
 
+const EVENT_LABEL: Record<string, string> = {
+  PORT_CONGESTION: 'Port Congestion',
+  WEATHER:         'Weather',
+  GEOPOLITICAL:    'Geopolitical',
+};
+
 const SpatialGridOverlay: React.FC = () => {
-  const [cells, setCells] = useState<H3Cell[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const { data, isLoading, isFetching, error, refetch, dataUpdatedAt } = useSpatialRisks();
 
-  const fetchRisks = async () => {
-    setLoading(true); setError('');
-    try {
-      const data = await apiService.getSpatialRisks();
-      setCells(data.cells || []);
-      setLastUpdated(new Date());
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchRisks();
-    // Refresh every 5 minutes
-    const id = setInterval(fetchRisks, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const eventTypeLabel: Record<string, string> = {
-    PORT_CONGESTION: 'Port Congestion',
-    WEATHER:         'Weather',
-    GEOPOLITICAL:    'Geopolitical',
-  };
+  const cells: H3Cell[] = data?.cells ?? [];
+  const lastUpdated = dataUpdatedAt ? new Date(dataUpdatedAt) : null;
 
   return (
     <div className="spatial-grid-container glass-panel">
@@ -60,31 +40,35 @@ const SpatialGridOverlay: React.FC = () => {
             </span>
           )}
           <button
-            onClick={fetchRisks}
-            disabled={loading}
+            onClick={() => refetch()}
+            disabled={isFetching}
             style={{ background: 'none', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={12} className={isFetching ? 'animate-spin' : ''} />
           </button>
         </div>
       </div>
 
-      {loading && cells.length === 0 ? (
+      {isLoading ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '24px', color: 'var(--text-muted)', fontSize: '12px' }}>
           <Loader2 size={16} className="animate-spin" /> Loading spatial events...
         </div>
       ) : error ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', color: 'var(--semantic-critical)', fontSize: '11px' }}>
-          <AlertTriangle size={14} /> {error}
+          <AlertTriangle size={14} /> {(error as Error).message}
         </div>
       ) : (
         <div className="hexagon-grid">
           {cells.map((cell) => (
-            <div key={cell.id} className={`hexagon-cell ${cell.risk_level}`} title={`${cell.source_api} · Severity: ${(cell.severity * 100).toFixed(0)}%`}>
+            <div
+              key={cell.id}
+              className={`hexagon-cell ${cell.risk_level}`}
+              title={`${cell.source_api} · Severity: ${(cell.severity * 100).toFixed(0)}%`}
+            >
               <div className="hex-content">
                 <span className="hex-id" style={{ fontSize: '8px' }}>{cell.id.slice(-8)}</span>
                 <span className="hex-status" style={{ fontSize: '8px', fontWeight: 'bold' }}>
-                  {eventTypeLabel[cell.event_type] ?? cell.event_type}
+                  {EVENT_LABEL[cell.event_type] ?? cell.event_type}
                 </span>
                 <span style={{ fontSize: '7px', opacity: 0.8 }}>{cell.status.slice(0, 22)}</span>
               </div>

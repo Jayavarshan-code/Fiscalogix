@@ -1,34 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { apiService } from '../../services/api';
+import { usePredictiveCashflow } from '../../hooks/queries';
 
 export const CashflowChart: React.FC = () => {
-  const [chartData, setChartData] = useState<any[]>([
+  const { data } = usePredictiveCashflow();
+
+  const chartData = data?.trajectory ? [
+    { date: 'Current', cash: data.trajectory[0] },
+    { date: 'Day 30', cash: data.trajectory[1] },
+    { date: 'Day 60', cash: data.trajectory[2] },
+    { date: 'Day 90', cash: data.trajectory[3] }
+  ] : [
     { date: 'Day 0', cash: 0 },
     { date: 'Day 30', cash: 0 },
     { date: 'Day 60', cash: 0 },
     { date: 'Day 90', cash: 0 }
-  ]);
-
-  useEffect(() => {
-    const fetchCashflow = async () => {
-      try {
-        const result = await apiService.getPredictiveCashflow();
-        if (result && result.trajectory) {
-          const newData = [
-            { date: 'Current', cash: result.trajectory[0] },
-            { date: 'Day 30', cash: result.trajectory[1] },
-            { date: 'Day 60', cash: result.trajectory[2] },
-            { date: 'Day 90', cash: result.trajectory[3] }
-          ];
-          setChartData(newData);
-        }
-      } catch (e) {
-        console.error("Failed loading AR predictions", e);
-      }
-    };
-    fetchCashflow();
-  }, []);
+  ];
 
   return (
     <div style={{ width: '100%', height: '300px' }}>
@@ -52,7 +39,7 @@ export const CashflowChart: React.FC = () => {
           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#94a3b8' }} tickFormatter={(val) => `$${val/1000}k`} />
           <Tooltip 
             contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.05)' }}
-            formatter={(value: number) => [`$${value.toLocaleString()}`, 'Projected Cash']}
+            formatter={(value: any) => [`$${Number(value).toLocaleString()}`, 'Projected Cash']}
           />
           <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="3 3" />
           <Area 

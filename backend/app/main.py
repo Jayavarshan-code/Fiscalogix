@@ -1,4 +1,11 @@
+import os
+import logging
+from contextlib import asynccontextmanager
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 from app.routes.twin import router as twin_router
 from app.routes.expansion import router as expansion_router
 from app.routes.confidence_studio import router as confidence_router
@@ -19,18 +26,57 @@ from app.api.v1.endpoints.mapping import router as v1_mapping
 from app.api.v1.endpoints.documents import router as v1_documents
 from app.api.v1.endpoints.realtime import router as v1_realtime
 
-from fastapi.middleware.cors import CORSMiddleware
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Fiscalogix Financial Engine - Enterprise Hub")
+_MODELS_DIR = Path(__file__).parent / "financial_system" / "ml_pipeline" / "models"
+_REQUIRED_MODELS = ["delay_model.pkl", "risk_pipeline.pkl", "demand_model.pkl"]
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """
+    Startup: train ML models if pkl files are missing (first boot or clean clone).
+    Uses real data from dw_shipment_facts when >= 500 rows exist; synthetic otherwise.
+    Training runs in a thread executor so the event loop stays unblocked.
+    Subsequent boots skip training — models load from disk in <1s.
+    """
+    missing = [m for m in _REQUIRED_MODELS if not (_MODELS_DIR / m).exists()]
+    if missing:
+        logger.info(
+            f"[startup] ML model files missing: {missing}. "
+            "Running first-boot training (~10s on synthetic data, longer on real data)..."
+        )
+        import asyncio
+        from app.financial_system.ml_pipeline.train_models import train_all
+        loop = asyncio.get_event_loop()
+        try:
+            result = await loop.run_in_executor(None, train_all)
+            logger.info(
+                f"[startup] Models trained — "
+                f"delay_rmse={result.get('delay_rmse', '?'):.2f}d  "
+                f"risk_acc={result.get('risk_accuracy', '?'):.1%}  "
+                f"source={result.get('data_source', '?')}"
+            )
+        except Exception as e:
+            logger.error(
+                f"[startup] Model training failed ({type(e).__name__}: {e}). "
+                "Inference will use heuristic fallbacks until resolved."
+            )
+    else:
+        logger.info("[startup] All ML model files present — skipping training.")
+    yield
+
 
 # --- CORS Configuration ---
-# FIX N: Replaced allow_origins=["*"] with an env-var-controlled allowlist.
-# WHAT WAS WRONG: Wildcard CORS allows ANY website to make credentialed requests
-# to this API from a user's browser — a significant security vulnerability.
-# HOW IT WAS FIXED: ALLOWED_ORIGINS env var controls the list. Defaults to
-# localhost for dev. Set it to your Vercel URL on production.
+# Replaced allow_origins=["*"] with an env-var-controlled allowlist.
+# Set ALLOWED_ORIGINS to your Vercel/production URL on deployment.
 _origins_env = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
 ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+
+app = FastAPI(
+    title="Fiscalogix Financial Engine - Enterprise Hub",
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,14 +107,14 @@ app.include_router(v1_mapping, prefix="/api/v1/mapping", tags=["Enterprise Mappi
 app.include_router(v1_documents, prefix="/api/v1/documents", tags=["Document Intelligence"])
 app.include_router(v1_realtime, tags=["Enterprise Real-Time"])
 
+
 @app.get("/health")
 def health_check():
     """Liveness probe for Render/Koyeb deployment."""
     return {"status": "healthy", "service": "Fiscalogix Brain"}
 
+
 if __name__ == "__main__":
     import uvicorn
-    import os
-    # Dynamically bind to the port provided by Render/Koyeb
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=False)
