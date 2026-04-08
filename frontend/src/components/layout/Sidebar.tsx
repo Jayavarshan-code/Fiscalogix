@@ -1,14 +1,15 @@
 import React from 'react';
-import { 
-  BarChart3, 
-  Activity, 
-  Wallet, 
-  Zap, 
-  Cpu, 
-  Settings, 
+import {
+  BarChart3,
+  Activity,
+  Wallet,
+  Zap,
+  Cpu,
+  Settings,
   Shuffle,
-  Shield, // import shield for admin panel
-  Database // import database for ingest
+  Shield,
+  Database,
+  Radio,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -50,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
             <Database size={18} />
             Data Warehouse
           </a>
-          <a href="#" className="nav-item">
+          <a href="#" className={`nav-item ${activeView === 'cashflow' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'cashflow')}>
             <Wallet size={18} />
             Cashflow & Shocks
           </a>
@@ -58,7 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
 
         <div className="nav-group">
           <span className="nav-group-title">Intelligence</span>
-          <a href="#" className="nav-item">
+          <a href="#" className={`nav-item ${activeView === 'optimization' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'optimization')}>
             <Zap size={18} />
             Optimization (POE)
           </a>
@@ -66,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
             <Shield size={18} />
             AI Shield (Governance)
           </a>
-          <a href="#" className="nav-item">
+          <a href="#" className={`nav-item ${activeView === 'matrix' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'matrix')}>
             <Shuffle size={18} />
             Scenario Simulation
           </a>
@@ -84,9 +85,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
 
         <div className="nav-group">
           <span className="nav-group-title">Advanced Control</span>
-          <a href="#" className="nav-item">
+          <a href="#" className={`nav-item ${activeView === 'enterprise' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'enterprise')}>
             <Cpu size={18} />
             Enterprise Modules
+          </a>
+          <a href="#" className={`nav-item ${activeView === 'realtime' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'realtime')}>
+            <Radio size={18} />
+            Real-Time & Integrations
           </a>
         </div>
       </nav>

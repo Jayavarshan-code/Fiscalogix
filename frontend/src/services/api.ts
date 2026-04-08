@@ -143,7 +143,6 @@ export const apiService = {
 
   /**
    * POST to AR default predictor — returns probability of default + expected credit loss
-   * customers: array of { customer_id, order_value, credit_days, historical_defaults?, macro_economic_index? }
    */
   async getARDefault(customers: {
     customer_id: string;
@@ -164,5 +163,197 @@ export const apiService = {
       console.error("Failed to fetch AR default risk:", error);
       throw error;
     }
-  }
+  },
+
+  /** POST /enterprise/carbon-tax — Scope 3 emissions + CBAM tax per shipment */
+  async getCarbonTax(shipments: {
+    shipment_id: string; route: string; carrier: string;
+    order_value: number; total_cost: number; weight_tons?: number;
+  }[]) {
+    const response = await fetch(`${API_BASE_URL}/enterprise/carbon-tax`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(shipments)
+    });
+    if (!response.ok) throw new Error('Carbon tax engine error');
+    return await response.json();
+  },
+
+  /** POST /enterprise/meio-inventory — Multi-echelon inventory optimization */
+  async getMEIO(skus: {
+    sku: string; global_inventory: number; wacc?: number;
+    holding_cost_usd: number; stockout_penalty_usd: number;
+  }[]) {
+    const response = await fetch(`${API_BASE_URL}/enterprise/meio-inventory`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(skus)
+    });
+    if (!response.ok) throw new Error('MEIO engine error');
+    return await response.json();
+  },
+
+  /** POST /enterprise/gnn-systemic-risk — GNN contagion risk propagation */
+  async getGNNRisk(shipments: Record<string, any>[]) {
+    const response = await fetch(`${API_BASE_URL}/enterprise/gnn-systemic-risk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ shipments })
+    });
+    if (!response.ok) throw new Error('GNN risk engine error');
+    return await response.json();
+  },
+
+  /** POST /enterprise/llm-negotiator — LLM contract negotiation prompts */
+  async getLLMNegotiator(suppliers: {
+    supplier_id: string; historical_delay_variance_pct?: number;
+    current_payment_terms?: number; target_payment_terms?: number;
+    wacc_carrying_cost_usd: number;
+  }[]) {
+    const response = await fetch(`${API_BASE_URL}/enterprise/llm-negotiator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(suppliers)
+    });
+    if (!response.ok) throw new Error('LLM negotiator error');
+    return await response.json();
+  },
+
+  /** POST /optimization/network — MILP network routing (returns job_id) */
+  async optimizeNetwork(payload: {
+    origins: string[]; destinations: string[];
+    supply: Record<string, number>; demand: Record<string, number>;
+    costs: Record<string, Record<string, number>>;
+    capacities: Record<string, Record<string, number>>;
+  }) {
+    const response = await fetch(`${API_BASE_URL}/optimization/network`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Network optimizer error');
+    return await response.json();
+  },
+
+  /** POST /optimization/inventory_meio — MEIO via job queue (returns job_id) */
+  async optimizeInventoryQueue(nodes: Record<string, any>[], service_level = 0.95) {
+    const response = await fetch(`${API_BASE_URL}/optimization/inventory_meio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ nodes, service_level })
+    });
+    if (!response.ok) throw new Error('Inventory optimizer error');
+    return await response.json();
+  },
+
+  /** POST /optimization/monte_carlo_risk — Step-cost Monte Carlo (returns job_id) */
+  async runMonteCarloRisk(legs: Record<string, number>[], target_arrival_days: number, simulations = 10000) {
+    const response = await fetch(`${API_BASE_URL}/optimization/monte_carlo_risk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ legs, target_arrival_days, simulations })
+    });
+    if (!response.ok) throw new Error('Monte Carlo engine error');
+    return await response.json();
+  },
+
+  /** POST /api/v1/predict/delay — Batch delay prediction */
+  async predictDelay(shipments: Record<string, any>[]) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/predict/delay`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(shipments)
+    });
+    if (!response.ok) throw new Error('Delay prediction error');
+    return await response.json();
+  },
+
+  /** POST /api/v1/predict/efi — StochasticMIP EFI optimization */
+  async optimizeEFI(candidateMatrix: Record<string, any>[][], available_cash = 1000000, risk_appetite = 'BALANCED') {
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/predict/efi?available_cash=${available_cash}&risk_appetite=${risk_appetite}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+        body: JSON.stringify(candidateMatrix)
+      }
+    );
+    if (!response.ok) throw new Error('EFI optimizer error');
+    return await response.json();
+  },
+
+  /** GET /api/v1/documents/agentic/gaps — Cross-document coverage gap analysis */
+  async getDocumentGaps() {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/agentic/gaps`, {
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Document gap analysis error');
+    return await response.json();
+  },
+
+  /** GET /api/v1/documents/agentic/disputes — Autonomous billing dispute detection */
+  async getDocumentDisputes() {
+    const response = await fetch(`${API_BASE_URL}/api/v1/documents/agentic/disputes`, {
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Dispute detection error');
+    return await response.json();
+  },
+
+  /** POST /api/v1/mapping/erp — AI ERP field mapper */
+  async mapERPFields(headers: string[]) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/mapping/erp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(headers)
+    });
+    if (!response.ok) throw new Error('ERP mapping error');
+    return await response.json();
+  },
+
+  /** GET /execution/spatial/active-risks — live H3 spatial risk events */
+  async getSpatialRisks() {
+    const response = await fetch(`${API_BASE_URL}/execution/spatial/active-risks`, {
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Spatial risk query failed');
+    return await response.json();
+  },
+
+  /** GET /admin/redis-status — whether Redis is live and which features are degraded */
+  async getRedisStatus() {
+    const response = await fetch(`${API_BASE_URL}/admin/redis-status`, {
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('Redis status check failed');
+    return await response.json();
+  },
+
+  /** GET /admin/ml-performance — model accuracy, drift, learning loop status */
+  async getMLPerformance() {
+    const response = await fetch(`${API_BASE_URL}/admin/ml-performance`, {
+      headers: getAuthHeader()
+    });
+    if (!response.ok) throw new Error('ML performance fetch failed');
+    return await response.json();
+  },
+
+  /** POST /api/v1/documents/upload — multipart document upload for vision analysis */
+  async uploadDocument(file: File, shipmentId?: number) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const url = shipmentId
+      ? `${API_BASE_URL}/api/v1/documents/upload?shipment_id=${shipmentId}`
+      : `${API_BASE_URL}/api/v1/documents/upload`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: formData,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(err.detail || 'Document upload failed');
+    }
+    return await response.json();
+  },
 };

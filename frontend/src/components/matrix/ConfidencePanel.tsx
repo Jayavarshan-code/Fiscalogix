@@ -22,7 +22,7 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
   const [isRerouteStudioOpen, setIsRerouteStudioOpen] = useState(false);
   const [riskAppetite, setRiskAppetite] = useState<RiskAppetite>('BALANCED');
   const [executionResult, setExecutionResult] = useState<any>(null);
-  const { currentUser, hasPermission } = useAuth();
+  const { hasPermission } = useAuth();
 
   if (!shipmentId) return null;
 
@@ -213,12 +213,12 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
             {/* Pillar 5 Upgrade: Side-by-Side Scenario Comparison Table — live stress-test data */}
             <ScenarioComparisonMatrix scenarios={decisionData.scenario_analysis} />
 
-            {/* Tech Giant Upgrade: Constraint Visibility Panel */}
-            <ConstraintVisibilityPanel 
-              constraints={["Liquidity: High budget utilization detected.", "Capacity: EU-HUB rail terminal near peak."]}
-              capacityUtilization={94}
-              costBudgetUtilization={92}
-              slaHealth={98}
+            {/* Tech Giant Upgrade: Constraint Visibility Panel — live from insights API */}
+            <ConstraintVisibilityPanel
+              constraints={decisionData.constraints?.messages ?? ["Liquidity: High budget utilization detected.", "Capacity: EU-HUB rail terminal near peak."]}
+              capacityUtilization={decisionData.constraints?.capacity_utilization ?? 94}
+              costBudgetUtilization={decisionData.constraints?.budget_utilization ?? 92}
+              slaHealth={decisionData.constraints?.sla_health ?? 98}
             />
 
             {/* Tech Giant Upgrade: Multimodal Trade-off Alternatives */}

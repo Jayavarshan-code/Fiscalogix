@@ -6,11 +6,21 @@ from app.financial_system.dw_schema import DWShipmentFact
 from app.financial_system.delay_model import DelayPredictionModel
 from app.financial_system.risk_engine import RiskEngine
 from app.financial_system.executive.monte_carlo import MonteCarloEngine
+from app.financial_system.time_model import TimeValueModel
+from app.financial_system.future_model import FutureImpactModel
+from app.financial_system.cashflow.orchestrator import CashflowPredictorOrchestrator
+from app.financial_system.executive.scenario_engine import ScenarioSimulationEngine
+from app.financial_system.sla_model import SLAPenaltyModel
 
 router = APIRouter()
 delay_model = DelayPredictionModel()
 risk_engine = RiskEngine()
 mc_engine = MonteCarloEngine()
+time_model = TimeValueModel()
+future_model = FutureImpactModel()
+sla_model = SLAPenaltyModel()
+cashflow_orch = CashflowPredictorOrchestrator()
+scenario_engine = ScenarioSimulationEngine(risk_engine, time_model, future_model, cashflow_orch)
 
 @router.post("/delay")
 async def predict_delay(payload: List[Dict[str, Any]]):
@@ -80,14 +90,59 @@ async def get_shipment_insights(shipment_id: str, db: Session = Depends(get_db))
     mc_output = mc_engine.simulate_var([enriched_record], iterations=1000)
     scenarios = mc_output.get("scenarios", [])
 
+    # ── Scenario Stress Tests ─────────────────────────────────────────────────
+    base_records_for_scenario = [enriched_record]
+    scenario_analysis = []
+    SCENARIO_CONFIGS = [
+        {"name": "Base Case",            "delay": 0, "demand": 0.0,   "fx": 0.0,  "cost": 0.0,  "intl": False},
+        {"name": "Port Strike (+3d)",    "delay": 3, "demand": 0.0,   "fx": 0.0,  "cost": 0.05, "intl": True},
+        {"name": "FX Devaluation +20%",  "delay": 0, "demand": 0.0,   "fx": 0.20, "cost": 0.0,  "intl": False},
+        {"name": "Freight Spike +40%",   "delay": 1, "demand": -0.10, "fx": 0.0,  "cost": 0.40, "intl": False},
+        {"name": "Red Sea Reroute +7d",  "delay": 7, "demand": 0.0,   "fx": 0.05, "cost": 0.15, "intl": True},
+    ]
+    try:
+        for cfg in SCENARIO_CONFIGS:
+            result = scenario_engine.simulate(
+                base_records=base_records_for_scenario,
+                scenario_name=cfg["name"],
+                delay_shift=cfg["delay"],
+                demand_shift_pct=cfg["demand"],
+                fx_shock_pct=cfg["fx"],
+                cost_shock_pct=cfg["cost"],
+                international_only=cfg["intl"],
+            )
+            scenario_analysis.append(result)
+    except Exception:
+        scenario_analysis = []
+
+    # ── Constraint Snapshot ───────────────────────────────────────────────────
+    risk_score = risk_output.get("score", 0.05)
+    capacity_utilization = min(99, int(70 + risk_score * 40))
+    budget_utilization   = min(99, int(65 + risk_score * 35))
+    sla_health           = max(50, int(100 - risk_score * 60))
+    constraint_messages  = []
+    if capacity_utilization > 90:
+        constraint_messages.append(f"Capacity: Network utilization at {capacity_utilization}% — near saturation threshold.")
+    if budget_utilization > 85:
+        constraint_messages.append(f"Liquidity: Budget utilization at {budget_utilization}% — limited cash headroom for rerouting.")
+    if sla_health < 80:
+        constraint_messages.append(f"SLA Health: Integrity at {sla_health}% — breach risk elevated on this corridor.")
+
     return {
-        "recommended_action": "Reroute via Alternate Hub" if risk_output.get('score', 0) > 0.5 else "Proceed standard route",
+        "recommended_action": "Reroute via Alternate Hub" if risk_score > 0.5 else "Proceed standard route",
         "profit_impact_delta": (shipment.margin_usd or 1500) * 0.9,
-        "risk_reduction_pct": f"{(risk_output.get('score', 0) * 0.8 * 100):.1f}%",
+        "risk_reduction_pct": f"{(risk_score * 0.8 * 100):.1f}%",
         "confidence_score": risk_output.get("confidence", 0.95),
-        "operational_alert": "Critical disruption detected" if risk_output.get('score', 0) > 0.8 else "Nominal operation",
+        "operational_alert": "Critical disruption detected" if risk_score > 0.8 else "Nominal operation",
         "executive_narrative": executive_narrative,
         "monte_carlo_scenarios": scenarios,
+        "scenario_analysis": scenario_analysis,
+        "constraints": {
+            "capacity_utilization": capacity_utilization,
+            "budget_utilization":   budget_utilization,
+            "sla_health":           sla_health,
+            "messages":             constraint_messages,
+        },
         "components": {
             "avg_revenue": shipment.total_value_usd or 10000,
             "avg_cost": (shipment.total_value_usd or 10000) - (shipment.margin_usd or 1500),

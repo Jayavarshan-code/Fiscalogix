@@ -12,9 +12,15 @@ import './App.css';
 import { GovernanceDashboardMatrix } from './components/matrix/GovernanceDashboard';
 import { CashflowChart } from './components/dashboard/CashflowChart';
 import RecoveryDashboard from './components/revenue/RecoveryDashboard';
+import { EnterpriseModulesPage } from './components/enterprise/EnterpriseModulesPage';
+import { OptimizationPage } from './components/optimization/OptimizationPage';
+import { RealtimeHubPage } from './components/realtime/RealtimeHub';
 
 const MainApp = () => {
-  const [activeView, setActiveView] = useState<'dashboard' | 'matrix' | 'admin' | 'ingest' | 'warehouse' | 'cashflow' | 'shield' | 'recovery'>('dashboard');
+  const [activeView, setActiveView] = useState<
+    'dashboard' | 'matrix' | 'admin' | 'ingest' | 'warehouse' |
+    'cashflow' | 'shield' | 'recovery' | 'enterprise' | 'optimization' | 'realtime'
+  >('dashboard');
   const { currentUser } = useAuth();
 
   if (!currentUser) {
@@ -76,6 +82,9 @@ const MainApp = () => {
         )}
 
         {activeView === 'recovery' && <RecoveryDashboard />}
+        {activeView === 'enterprise' && <EnterpriseModulesPage />}
+        {activeView === 'optimization' && <OptimizationPage />}
+        {activeView === 'realtime' && <RealtimeHubPage />}
 
         {activeView === 'admin' && <AdminDashboard />}
         {activeView === 'shield' && <GovernanceDashboardMatrix />}

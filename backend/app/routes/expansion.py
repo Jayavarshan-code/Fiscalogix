@@ -136,12 +136,15 @@ class SupplierData(BaseModel):
 class NegotiatorResponse(BaseModel):
     supplier_id: str
     llm_engine: str
-    system_prompt: str
-    user_prompt: str
+    strategy: str
+    actions: List[str]
     status: str
 
-llm_engine = GenerativeNegotiator()
+_negotiator = GenerativeNegotiator()
 
 @router.post("/llm-negotiator", response_model=List[NegotiatorResponse])
-def generate_negotiation_prompts(suppliers: List[SupplierData]):
-    return [llm_engine.generate_negotiation_payload(s.model_dump()) for s in suppliers]
+async def generate_negotiation_strategy(suppliers: List[SupplierData]):
+    results = []
+    for s in suppliers:
+        results.append(await _negotiator.generate_negotiation_payload(s.model_dump()))
+    return results
