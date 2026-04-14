@@ -4,6 +4,7 @@ import { Dashboard } from './components/dashboard/Dashboard';
 import { IntelligenceMatrix } from './components/matrix/IntelligenceMatrix';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Login } from './components/auth/Login';
+import { Register } from './components/auth/Register';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { IngestionStudio } from './components/ingestion/IngestionStudio';
 import ErrorBoundary from './components/layout/ErrorBoundary';
@@ -23,8 +24,12 @@ const MainApp = () => {
   >('dashboard');
   const { currentUser } = useAuth();
 
+  const [showRegister, setShowRegister] = useState(false);
+
   if (!currentUser) {
-    return <Login />;
+    return showRegister
+      ? <Register onSwitchToLogin={() => setShowRegister(false)} />
+      : <Login onSwitchToRegister={() => setShowRegister(true)} />;
   }
 
   return (

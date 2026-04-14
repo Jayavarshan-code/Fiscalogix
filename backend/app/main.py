@@ -12,11 +12,14 @@ from app.routes.confidence_studio import router as confidence_router
 from app.routes.parser_pipeline import router as pipeline_router
 from app.routes.execution import router as execution_router
 from app.routes.auth import router as auth_router
+from app.routes.register import router as register_router
 from app.routes.admin import router as admin_router
 from app.routes.ingestion import router as ingestion_router
 from app.routes.data_grid import router as grid_router
 from app.routes.optimization import router as opt_router
 from app.routes.india import router as india_router
+from app.routes.reports import router as reports_router
+from app.routes.alerts import router as alerts_router
 from app.connectors.sandbox_router import router as sandbox_router
 
 # --- Enterprise v1 Hub (API-First Architecture) ---
@@ -93,12 +96,15 @@ app.include_router(confidence_router)
 app.include_router(pipeline_router)
 app.include_router(execution_router)
 app.include_router(auth_router)
+app.include_router(register_router)
 app.include_router(admin_router)
 app.include_router(ingestion_router)
 app.include_router(grid_router)
 app.include_router(opt_router)
 app.include_router(sandbox_router)
 app.include_router(india_router)
+app.include_router(reports_router)
+app.include_router(alerts_router)
 
 # Enterprise API Layer (v1)
 app.include_router(v1_predict, prefix="/api/v1/predict", tags=["Enterprise Prediction"])
@@ -112,6 +118,18 @@ app.include_router(v1_realtime, tags=["Enterprise Real-Time"])
 def health_check():
     """Liveness probe for Render/Koyeb deployment."""
     return {"status": "healthy", "service": "Fiscalogix Brain"}
+
+
+@app.get("/fx-rate", tags=["Utilities"])
+def fx_rate():
+    """
+    Returns the current USD→INR exchange rate.
+    Served from Redis cache (refreshed daily). Falls back to live API,
+    then hardcoded 84.5 if both are unavailable.
+    """
+    from app.utils.fx import get_usd_to_inr
+    rate = get_usd_to_inr()
+    return {"base": "USD", "target": "INR", "rate": rate}
 
 
 if __name__ == "__main__":

@@ -1,16 +1,19 @@
 class ImpactEngine:
     """
-    Translates raw algorithmic metrics (WACC, REVM, stochastic VaR) 
+    Translates raw algorithmic metrics (WACC, REVM, stochastic VaR)
     into plain-English CFO-ready financial impacts.
+
+    Amounts in the CFO narrative are shown in the tenant's display currency
+    (default INR). Pass tenant_id to enable currency formatting; omit for USD.
     """
-    def compute(self, enriched_records, optimization_payload, stochastic_var):
+    def compute(self, enriched_records, optimization_payload, stochastic_var,
+                tenant_id: str = "default_tenant"):
         if not enriched_records:
             return {}
 
         # 1. Calculate the Unlocked Working Capital (UWC)
         # This is the trapped capital that Fiscalogix can technically free up 
         # by executing the optimization recommendations.
-        baseline_cost = sum(r.get("total_cost", 0) for r in enriched_records)
         optimized_savings = optimization_payload.get("projected_savings", 0.0)
         
         # New Metric: Prevented SLA Fines (Contractual Protection)
@@ -33,11 +36,19 @@ class ImpactEngine:
         # Assume the current data represents 1 month of operations for the narrative
         annualized_savings = unlocked_working_capital * 12
 
-        # 3. Generate CFO Narrative
+        # 3. Generate CFO Narrative — amounts in tenant's display currency
+        try:
+            from app.utils.currency import fmt as _fmt
+            _f = lambda v: _fmt(v, tenant_id)
+        except Exception:
+            _f = lambda v: f"${v:,.2f}"   # fallback to USD if currency util unavailable
+
         narrative = (
-            f"By executing Fiscalogix recommendations, you instantly avoid ${preventable_sla_fines:,.2f} in contractual OTIF late fines. "
-            f"This unlocks ${unlocked_working_capital:,.2f} in total working capital this period. "
-            f"Annualized, this drives ${annualized_savings:,.2f} in free cash flow back to your balance sheet, directly mitigating a 95% VaR exposure of ${current_risk_exposure:,.2f}."
+            f"By executing Fiscalogix recommendations, you instantly avoid "
+            f"{_f(preventable_sla_fines)} in contractual OTIF late fines. "
+            f"This unlocks {_f(unlocked_working_capital)} in total working capital this period. "
+            f"Annualized, this drives {_f(annualized_savings)} in free cash flow back to your "
+            f"balance sheet, directly mitigating a 95% VaR exposure of {_f(current_risk_exposure)}."
         )
 
         return {

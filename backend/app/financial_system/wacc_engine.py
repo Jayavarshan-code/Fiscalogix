@@ -46,6 +46,9 @@ _DAMODARAN_WACC = {
     "industrial":      0.086,   # Industrials: 8.6%     (capex heavy, moderate beta)
     "chemical":        0.088,   # Chemicals: 8.8%       (commodity exposure)
     "logistics":       0.092,   # Transportation/Logistics: 9.2% (asset heavy)
+    "seafood":         0.094,   # Food/Agribusiness: 9.4% (perishability risk premium,
+                                # cold-chain capex, seasonal catch volatility — Damodaran
+                                # Food Processing + Transportation blended estimate)
     "default":         0.085,   # Broad market average  (Damodaran overall market)
 }
 

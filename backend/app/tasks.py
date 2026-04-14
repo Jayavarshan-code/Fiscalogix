@@ -226,11 +226,31 @@ def task_process_etl_pipeline(csv_filepath: str, pdf_filepath: str, tenant_id: s
                     chunk_final.to_sql(detected_schema, engine, if_exists='append', index=False)
                     total_rows += len(chunk_final)
 
+        # Compute real financial impact from the rows just ingested
+        financial_impact = 0.0
+        try:
+            import sqlalchemy
+            with engine.connect() as conn:
+                res = conn.execute(
+                    sqlalchemy.text(
+                        "SELECT COALESCE(SUM(ABS(margin_usd)), 0) as at_risk, "
+                        "COALESCE(SUM(total_cost_usd), 0) as total_cost "
+                        "FROM dw_shipment_facts WHERE tenant_id = :tid "
+                        "AND source_system = 'ASYNC-PIPELINE'"
+                    ),
+                    {"tid": tenant_id},
+                )
+                row = res.fetchone()
+                financial_impact = float(row[0]) if row and row[0] else 0.0
+        except Exception:
+            pass  # Non-critical — don't fail the task if this query fails
+
         return {
             "status": "success",
             "rows_ingested": total_rows,
             "nlp_extracted_penalty": penalty_summary,
-            "calculated_rate": penalty_rate
+            "calculated_rate": penalty_rate,
+            "financial_impact": round(financial_impact, 2),
         }
     except Exception as e:
         return {"status": "failed", "error": str(e)}

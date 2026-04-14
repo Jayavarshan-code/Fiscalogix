@@ -11,13 +11,19 @@ from sqlalchemy.orm import declarative_base, relationship
 # FIX H: Moved connection string components to env vars with safe local fallbacks.
 # NOTE: Never commit real credentials to source control. Use .env + python-dotenv.
 # ---------------------------------------------------------------------------
-DB_USER = os.getenv("DB_USER", "admin")
-DB_PASS = os.getenv("DB_PASS", "password123")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "5433")
-DB_NAME = os.getenv("DB_NAME", "fiscalogix")
-
-SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Prefer DATABASE_URL (Render/Heroku/Railway inject this automatically).
+# Fall back to individual vars for local development.
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL") or (
+    "postgresql://{user}:{pw}@{host}:{port}/{db}".format(
+        user=os.getenv("DB_USER", "admin"),
+        pw=os.getenv("DB_PASS", "password123"),
+        host=os.getenv("DB_HOST", "localhost"),
+        port=os.getenv("DB_PORT", "5432"),
+        db=os.getenv("DB_NAME", "fiscalogix"),
+    )
+)
+# Render injects postgres:// but SQLAlchemy 2.x needs postgresql://
+SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # ---------------------------------------------------------------------------
 # FIX A: Single Authoritative Base
@@ -770,7 +776,7 @@ def _ensure_pgvector(engine):
 def initialize_db():
     import logging
     log = logging.getLogger(__name__)
-    log.info(f"Connecting to Postgres at {DB_HOST}:{DB_PORT}/{DB_NAME}...")
+    log.info(f"Connecting to Postgres at {SQLALCHEMY_DATABASE_URL.split('@')[-1]}...")
 
     # FIX K: Connection pool config (prevents exhaustion on cloud)
     engine = create_engine(

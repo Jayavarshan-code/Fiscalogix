@@ -74,6 +74,9 @@ from app.services.llm_gateway import LlmGateway
 
 from app.financial_system.pipeline.context import PipelineContext
 from app.financial_system.pipeline.runner import PipelineRunner
+from app.financial_system.cashflow.carrier_gap_engine import CarrierGapEngine
+from app.financial_system.concentration_engine import ConcentrationEngine
+
 from app.financial_system.pipeline.stages import (
     DataIngestionStage,
     MLInferenceStage,
@@ -128,6 +131,10 @@ class AdaptiveOrchestrator:
             self.risk_engine, self.time, self.future,
             route_optimizer=self.route_optimizer,
         )
+
+        # ── Freight-specific analytics ────────────────────────────────────────
+        self.carrier_gap   = CarrierGapEngine()
+        self.concentration = ConcentrationEngine()
 
         # ── Intelligence layer ────────────────────────────────────────────────
         self.llm = LlmGateway()
@@ -199,6 +206,19 @@ class AdaptiveOrchestrator:
         situation = ctx.result("situation_assessment")
         dispatch  = ctx.result("dispatch_planning")
 
+        # ── Freight-specific analytics (non-blocking) ─────────────────────────
+        try:
+            carrier_gap_data = self.carrier_gap.compute(ctx.data)
+        except Exception as e:
+            logger.warning(f"[Orchestrator] CarrierGapEngine failed: {e}")
+            carrier_gap_data = {}
+
+        try:
+            concentration_data = self.concentration.compute(ctx.data)
+        except Exception as e:
+            logger.warning(f"[Orchestrator] ConcentrationEngine failed: {e}")
+            concentration_data = {}
+
         return {
             # ── Backward-compatible keys (unchanged shape) ────────────────────
             "summary":            fin_data.get("summary", {}),
@@ -212,6 +232,10 @@ class AdaptiveOrchestrator:
             "buffer":             exec_data.get("buffer", {}),
             "liquidity":          {"liquidity_score": exec_data.get("liquidity_score", 0)},
             "financial_impact":   exec_data.get("impact", {}),
+
+            # ── Freight analytics (new — freight company focused) ────────────
+            "carrier_gap":        carrier_gap_data,
+            "concentration":      concentration_data,
 
             # ── Intelligence layer (additive) ─────────────────────────────────
             "intelligence": {

@@ -1,21 +1,52 @@
 import React, { useState } from 'react';
 import { KPICard } from './KPICard';
-import { AlertTriangle, ShieldCheck, Activity, CheckCircle } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, Activity, CheckCircle, Download, FileSpreadsheet, Bell } from 'lucide-react';
 import { CashflowChart } from './CashflowChart';
 import FreightArbitrageEngine from './FreightArbitrageEngine';
 import SpatialGridOverlay from '../matrix/SpatialGridOverlay';
 import VisionDiagnosticModal from '../ingestion/VisionDiagnosticModal';
 import RecoveryDashboard from '../revenue/RecoveryDashboard';
 import { useExecutiveOverview } from '../../hooks/queries';
-
-// Shape of the /financial-intelligence response is now imported via queries if needed
-
-const fmt = (val: number, currency = '₹') =>
-  `${currency}${Math.abs(val).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+import { apiService } from '../../services/api';
+import { useCurrency } from '../../context/CurrencyContext';
+import { formatCurrency } from '../../utils/currency';
 
 export const Dashboard: React.FC = () => {
-  const [hasShocks, setHasShocks] = useState(true);
-  const [showVision, setShowVision] = useState(false);
+  const [hasShocks, setHasShocks]       = useState(true); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const { currency, fxRate, toggle: toggleCurrency, rateLabel } = useCurrency();
+  const [showVision, setShowVision]     = useState(false);
+  const [alerts, setAlerts]             = useState<any[]>([]);
+  const [alertsChecked, setAlertsChecked] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const resp = await apiService.downloadExcel();
+      if (!resp.ok) throw new Error('Export failed');
+      const blob = await resp.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `fiscalogix_report_${new Date().toISOString().slice(0,10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Excel export failed:', e);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  const handleCheckAlerts = async () => {
+    try {
+      const result = await apiService.checkAlerts();
+      setAlerts(result.alerts ?? []);
+      setAlertsChecked(true);
+    } catch (e) {
+      console.error('Alert check failed:', e);
+    }
+  };
 
   const { data, isLoading: loading } = useExecutiveOverview();
 
@@ -26,15 +57,16 @@ export const Dashboard: React.FC = () => {
   const waccBurn = data?.financial_impact?.wacc_cost;
   const tlcExposure = summary ? Math.abs(summary.total_cost - summary.total_revm) : null;
 
-  // EFI copilot block: prefer live data, fall back to demo narrative
+  // EFI copilot block: use real breakdown from FinancialAggregator when available
+  const bd = summary?.breakdown;
   const efiPayload = summary
     ? {
-        headline: `Estimated Financial Impact: ${summary.total_revm < 0 ? fmt(summary.total_revm) + ' loss' : fmt(summary.total_revm) + ' protected'}`,
+        headline: `Estimated Financial Impact: ${summary.total_revm < 0 ? formatCurrency(summary.total_revm, currency, fxRate) + ' loss' : formatCurrency(summary.total_revm, currency, fxRate) + ' protected'}`,
         breakdown: {
-          delay_cost: 0,
-          penalty: 0,
-          inventory_cost: 0,
-          opportunity_cost: 0,
+          delay_cost:       bd?.delay_cost        ?? 0,
+          penalty:          bd?.penalty_cost       ?? 0,
+          inventory_cost:   bd?.inventory_holding  ?? 0,
+          opportunity_cost: bd?.opportunity_cost   ?? 0,
         },
         recommended_action: summary.loss_shipments > 0
           ? `${summary.loss_shipments} shipment(s) at negative ReVM — review reroute options in Intelligence Matrix.`
@@ -43,17 +75,11 @@ export const Dashboard: React.FC = () => {
         new_loss: '',
       }
     : {
-        headline: 'Estimated Financial Impact: ₹11,45,000 loss',
-        breakdown: {
-          delay_cost: 450000,
-          penalty: 300000,
-          inventory_cost: 245000,
-          opportunity_cost: 150000,
-        },
-        recommended_action:
-          'Reroute Shipment IN-09 via Colombo to bypass Singapore strike. Restores inventory availability by 48 hours.',
-        roi_improvement: '42%',
-        new_loss: '6,64,000',
+        headline: 'Loading financial intelligence...',
+        breakdown: { delay_cost: 0, penalty: 0, inventory_cost: 0, opportunity_cost: 0 },
+        recommended_action: 'Awaiting live data from the financial engine.',
+        roi_improvement: '',
+        new_loss: '',
       };
 
   return (
@@ -64,17 +90,59 @@ export const Dashboard: React.FC = () => {
           <p className="page-subtitle">Pillars 1-13: Systemic Risk &amp; Capital Optimization</p>
         </div>
         <div className="header-actions">
+          <button
+            className="btn-secondary"
+            onClick={toggleCurrency}
+            title={rateLabel}
+            style={{ fontWeight: 700, letterSpacing: '0.04em', minWidth: 72 }}
+          >
+            {currency === 'USD' ? '$ USD' : '₹ INR'}
+          </button>
           <button className="btn-secondary" onClick={() => setShowVision(true)}>
             <Activity size={16} /> Vision Scan
           </button>
-          <button className="btn-secondary" onClick={() => setHasShocks(!hasShocks)}>
-            Toggle Risks
+          <button className="btn-secondary" onClick={handleCheckAlerts} title="Check live alerts">
+            <Bell size={16} />
+            {alertsChecked && alerts.length > 0 && (
+              <span style={{ marginLeft: 4, background: 'var(--semantic-critical)', borderRadius: '50%', padding: '0 5px', fontSize: 10 }}>
+                {alerts.length}
+              </span>
+            )}
+          </button>
+          <button className="btn-secondary" onClick={handleExportExcel} disabled={exportingExcel} title="Download Excel report">
+            <FileSpreadsheet size={16} /> {exportingExcel ? 'Exporting...' : 'Export'}
+          </button>
+          <button className="btn-secondary" onClick={() => window.print()} title="Print / Save as PDF">
+            <Download size={16} /> PDF
           </button>
           <button className="btn-primary">Global Simulation</button>
         </div>
       </header>
 
       {showVision && <VisionDiagnosticModal onClose={() => setShowVision(false)} />}
+
+      {/* Live alert banner — shown after manual check */}
+      {alertsChecked && alerts.length > 0 && (
+        <section style={{ marginBottom: 16 }}>
+          {alerts.map((a: any, i: number) => (
+            <div key={i} className={`alert-item ${a.severity === 'critical' ? 'critical' : 'warning'}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', marginBottom: 6, borderRadius: 8 }}>
+              <AlertTriangle size={16} />
+              <div style={{ flex: 1 }}>
+                <strong>{a.event_type.replace(/_/g, ' ')}</strong>
+                <p style={{ margin: 0, fontSize: 12 }}>{a.message}</p>
+              </div>
+              <button className="btn-outline" style={{ fontSize: 11 }} onClick={() => setAlerts(prev => prev.filter((_, j) => j !== i))}>Dismiss</button>
+            </div>
+          ))}
+        </section>
+      )}
+      {alertsChecked && alerts.length === 0 && (
+        <div style={{ marginBottom: 16, padding: '10px 16px', borderRadius: 8, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CheckCircle size={16} color="var(--semantic-safe)" />
+          <span style={{ fontSize: 12 }}>No alerts — all thresholds are within normal range.</span>
+        </div>
+      )}
 
       {/* TOP KPI SECTION */}
       <section className="kpi-grid">

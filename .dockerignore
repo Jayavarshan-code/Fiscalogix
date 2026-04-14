@@ -1,0 +1,38 @@
+# Secrets — never bake into Docker image
+backend/.env
+.env
+**/*.env.local
+
+# Python cache
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+
+# Virtual environments
+.venv
+venv
+ENV
+
+# ML model binaries (auto-trained on first boot)
+**/*.pkl
+**/*.pt
+
+# Frontend (not needed for backend image)
+frontend/node_modules
+frontend/dist
+frontend/.env.production
+
+# Dev/test files
+backend/tests
+backend/test_*.py
+backend/verify_*.py
+backend/*.csv
+backend/benchmark_results.txt
+backend/tests_output.txt
+
+# Docs
+docs
+*.md
+*.txt

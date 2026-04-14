@@ -2,15 +2,21 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:80
 
 export interface DashboardData {
   summary: {
-    total_revenue: number;
-    total_cost: number;
-    total_profit: number;
-    total_revm: number;
-    loss_shipments: number;
+    total_revenue:    number;
+    total_cost:       number;
+    total_profit:     number;
+    total_revm:       number;
+    loss_shipments:   number;
+    breakdown?: {
+      delay_cost:        number;
+      penalty_cost:      number;
+      inventory_holding: number;
+      opportunity_cost:  number;
+    };
   };
-  confidence: { global_score: number };
+  confidence:      { global_score: number };
   financial_impact?: { wacc_cost?: number; total_efi?: number };
-  shocks?: any[];
+  shocks?:         any[];
 }
 
 export interface MLPerformance {
@@ -382,6 +388,35 @@ export const apiService = {
       headers: getAuthHeader()
     });
     if (!response.ok) throw new Error('ML performance fetch failed');
+    return await response.json();
+  },
+
+  /** GET /reports/export/excel — downloads .xlsx workbook; returns raw Response for blob handling */
+  async downloadExcel(): Promise<Response> {
+    return fetch(`${API_BASE_URL}/reports/export/excel`, { headers: getAuthHeader() });
+  },
+
+  /** GET /reports/export/summary — JSON summary for print-to-PDF */
+  async getReportSummary() {
+    const response = await fetch(`${API_BASE_URL}/reports/export/summary`, { headers: getAuthHeader() });
+    if (!response.ok) throw new Error('Report summary fetch failed');
+    return await response.json();
+  },
+
+  /** GET /alerts/thresholds — current alert thresholds */
+  async getAlertThresholds() {
+    const response = await fetch(`${API_BASE_URL}/alerts/thresholds`, { headers: getAuthHeader() });
+    if (!response.ok) throw new Error('Alert threshold fetch failed');
+    return await response.json();
+  },
+
+  /** POST /alerts/check — trigger live alert evaluation */
+  async checkAlerts() {
+    const response = await fetch(`${API_BASE_URL}/alerts/check`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+    });
+    if (!response.ok) throw new Error('Alert check failed');
     return await response.json();
   },
 

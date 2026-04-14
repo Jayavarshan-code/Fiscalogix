@@ -3,7 +3,11 @@ import { useAuth } from '../../context/AuthContext';
 import { Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
 import './Login.css';
 
-export const Login: React.FC = () => {
+interface LoginProps {
+  onSwitchToRegister?: () => void;
+}
+
+export const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -79,10 +83,18 @@ export const Login: React.FC = () => {
         </form>
         
         <div className="login-footer">
-          <p>Demo Accounts: <br /> 
-          <strong>admin@fiscalogix.com</strong> (Admin) <br /> 
-          <strong>analyst@fiscalogix.com</strong> (Read-Only) <br />
-          <em>PW: admin123 / analyst123</em></p>
+          {onSwitchToRegister ? (
+            <p>New to Fiscalogix?{' '}
+              <button
+                onClick={onSwitchToRegister}
+                style={{ background: 'none', border: 'none', color: 'var(--brand-primary)', cursor: 'pointer' }}
+              >
+                Create an account
+              </button>
+            </p>
+          ) : (
+            <p>Contact your administrator for access credentials.</p>
+          )}
         </div>
       </div>
     </div>

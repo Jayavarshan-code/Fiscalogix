@@ -13,6 +13,53 @@ from typing import Dict, Any, List
 from .base_agent import BaseAgent
 
 
+def _build_offline_brief(
+    total_revm: float,
+    var_95: float,
+    high_risk_count: int,
+    critical_count: int,
+    disruptions: list,
+    global_confidence: float,
+    liquidity_score: float,
+    buffer_rec: dict,
+    recommendations: list,
+) -> str:
+    """
+    Rule-based CFO brief used when the LLM is unavailable.
+    Produces professional prose from deterministic financial outputs.
+    """
+    revm_str = f"${total_revm:,.0f}" if total_revm >= 0 else f"-${abs(total_revm):,.0f}"
+    status = "operating within acceptable parameters" if total_revm >= 0 else "under margin pressure"
+    disruption_str = (
+        f"Active disruptions: {', '.join(disruptions)}." if disruptions
+        else "No active geopolitical disruptions detected."
+    )
+    risk_str = (
+        f"{critical_count} shipment(s) are in a critical state requiring immediate intervention."
+        if critical_count > 0
+        else f"{high_risk_count} shipment(s) flagged as high-risk."
+    )
+    action = recommendations[0] if recommendations else "Review Intelligence Matrix for individual shipment decisions."
+    buffer = buffer_rec.get("recommended_buffer", 0)
+
+    return (
+        f"SITUATION\n"
+        f"Portfolio ReVM stands at {revm_str} — the operation is {status}. "
+        f"System confidence is {global_confidence:.0%} with a liquidity score of {liquidity_score:.2f}. "
+        f"{disruption_str}\n\n"
+        f"KEY RISK\n"
+        f"{risk_str} "
+        f"Value at Risk (95th percentile) is ${var_95:,.0f}. "
+        f"A cash buffer of ${buffer:,.0f} is recommended to absorb tail-risk events.\n\n"
+        f"RECOMMENDED ACTION\n"
+        f"{action} "
+        f"Prioritize shipments with negative ReVM in the Intelligence Matrix for rerouting or expediting.\n\n"
+        f"FINANCIAL IMPACT\n"
+        f"Immediate intervention on critical shipments can recover margin currently at risk. "
+        f"Delay in action compounds penalty exposure by the SLA breach rate per additional day."
+    )
+
+
 _SYSTEM_PROMPT = """You are the AI CFO Advisor for Fiscalogix, a supply chain financial intelligence platform.
 
 Your job is to write an executive brief that a CFO can read in 60 seconds.
@@ -128,6 +175,20 @@ class ExecutiveAgent(BaseAgent):
             user=f"Current portfolio data:\n{facts}",
             temperature=0.3,
         )
+
+        # If LLM is offline, replace the raw error tag with a clean rule-based brief
+        if narrative.startswith("[LLM_OFFLINE]"):
+            narrative = _build_offline_brief(
+                total_revm=total_revm,
+                var_95=var_95,
+                high_risk_count=high_risk_count,
+                critical_count=critical_count,
+                disruptions=disruptions,
+                global_confidence=global_confidence,
+                liquidity_score=liquidity_score,
+                buffer_rec=buffer_rec,
+                recommendations=recommendations,
+            )
 
         return {
             "narrative":          narrative,

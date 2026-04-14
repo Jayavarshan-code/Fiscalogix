@@ -1,0 +1,37 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /code
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    libpq-dev \
+    libgomp1 \
+    libffi-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch (same as main API — keeps worker image small)
+RUN pip install \
+    torch==2.2.2+cpu \
+    --index-url https://download.pytorch.org/whl/cpu
+
+COPY backend/requirements.txt /code/requirements.txt
+RUN pip install -r /code/requirements.txt
+
+COPY backend/app        /code/app
+COPY backend/setup_db.py /code/setup_db.py
+
+RUN mkdir -p /code/app/financial_system/ml_pipeline/models
+
+# Celery worker — 2 concurrent task slots, INFO logging
+CMD ["celery", "-A", "app.tasks", "worker", \
+     "--loglevel=info", \
+     "--concurrency=2", \
+     "--max-tasks-per-child=50"]

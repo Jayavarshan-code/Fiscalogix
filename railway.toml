@@ -1,0 +1,18 @@
+[build]
+# Railway auto-detects the Dockerfile in the root directory.
+# No buildCommand needed — Docker handles everything.
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Railway injects PORT automatically — entrypoint.sh reads it.
+startCommand = "/code/entrypoint.sh"
+healthcheckPath = "/health"
+healthcheckTimeout = 300        # 5 min — ML models train on first boot
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[deploy.environmentVariables]
+# These are defaults only. Override sensitive values in the Railway dashboard.
+PYTHONUNBUFFERED = "1"
+LLM_MODEL = "claude-opus-4-6"
+ALLOWED_ORIGINS = "https://fiscalogix.vercel.app,https://fiscalogix-frontend.up.railway.app"
