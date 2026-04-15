@@ -10,6 +10,9 @@ import {
   Shield,
   Database,
   Radio,
+  Bell,
+  FileSpreadsheet,
+  IndianRupee,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
@@ -47,9 +50,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
             <Activity size={18} />
             REVM Analysis
           </a>
-          <a href="#" className={`nav-item ${activeView === 'ingest' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'ingest')}>
+          <a href="#" className={`nav-item ${activeView === 'warehouse' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'warehouse')}>
             <Database size={18} />
             Data Warehouse
+          </a>
+          <a href="#" className={`nav-item ${activeView === 'ingest' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'ingest')}>
+            <Activity size={18} />
+            Ingestion Studio
           </a>
           <a href="#" className={`nav-item ${activeView === 'cashflow' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'cashflow')}>
             <Wallet size={18} />
@@ -82,6 +89,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
             </a>
           </div>
         )}
+
+        <div className="nav-group">
+          <span className="nav-group-title">India Compliance</span>
+          <a href="#" className={`nav-item ${activeView === 'gst' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'gst')}>
+            <IndianRupee size={18} />
+            India GST Intelligence
+          </a>
+        </div>
+
+        <div className="nav-group">
+          <span className="nav-group-title">Reports & Alerts</span>
+          <a href="#" className={`nav-item ${activeView === 'reports' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'reports')}>
+            <FileSpreadsheet size={18} />
+            Reports &amp; Export
+          </a>
+          <a href="#" className={`nav-item ${activeView === 'alerts' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'alerts')}>
+            <Bell size={18} />
+            Alerts &amp; Notifications
+          </a>
+        </div>
 
         <div className="nav-group">
           <span className="nav-group-title">Advanced Control</span>

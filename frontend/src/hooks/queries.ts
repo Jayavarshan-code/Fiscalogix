@@ -110,6 +110,26 @@ export const useARDefault = (
     enabled:   customers.length > 0,
   });
 
+// ── India GST ─────────────────────────────────────────────────────────────────
+
+export const useGSTCost = (
+  shipments: Parameters<typeof apiService.getGSTCost>[0],
+  enabled = true,
+) =>
+  useQuery<any[], Error>({
+    queryKey:  ['gstCost', shipments.map(s => s.shipment_id).join(',')],
+    queryFn:   () => apiService.getGSTCost(shipments),
+    staleTime: STALE.medium,
+    enabled:   enabled && shipments.length > 0,
+  });
+
+export const useIndiaRoutes = () =>
+  useQuery<any, Error>({
+    queryKey:  ['indiaRoutes'],
+    queryFn:   () => apiService.getIndiaRoutes(),
+    staleTime: STALE.long,
+  });
+
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export const useExecuteActionMutation = () =>

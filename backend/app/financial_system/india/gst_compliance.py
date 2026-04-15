@@ -72,47 +72,145 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 
 GST_RATE_BY_HS_CHAPTER: Dict[str, float] = {
-    # 0% — Exempt / Zero-rated
-    "01": 0.00,   # Live animals
-    "02": 0.00,   # Meat and edible offal
-    "03": 0.05,   # Fish (5% for processed)
-    "10": 0.00,   # Cereals
-    "30": 0.12,   # Pharmaceutical products (12%)
-    # 5% slab
-    "09": 0.05,   # Coffee, tea, spices
-    "25": 0.05,   # Salt, sulphur, earth, stone
-    "27": 0.05,   # Mineral fuels (petroleum — specific rates apply)
-    "50": 0.05,   # Silk
-    "52": 0.05,   # Cotton
-    "63": 0.05,   # Textile articles
-    # 12% slab
-    "39": 0.12,   # Plastics and articles thereof
-    "48": 0.12,   # Paper and paperboard
-    "61": 0.12,   # Knitted apparel
-    "62": 0.12,   # Woven apparel
-    "64": 0.12,   # Footwear
-    "73": 0.18,   # Steel articles (18% for most processed steel)
-    # 18% slab (default for most industrial goods)
-    "28": 0.18,   # Inorganic chemicals
-    "29": 0.18,   # Organic chemicals
-    "32": 0.18,   # Paints, varnishes, inks
-    "33": 0.18,   # Essential oils, cosmetics
-    "38": 0.18,   # Miscellaneous chemical products
-    "40": 0.18,   # Rubber
-    "44": 0.18,   # Wood and articles thereof
-    "68": 0.18,   # Stone, plaster, cement articles
-    "69": 0.18,   # Ceramic products
-    "70": 0.18,   # Glass
-    "72": 0.18,   # Iron and steel
-    "76": 0.18,   # Aluminium
-    "84": 0.18,   # Machinery and mechanical appliances
-    "85": 0.18,   # Electrical equipment
-    "87": 0.28,   # Vehicles (28% — luxury/automotive)
-    "90": 0.18,   # Optical, medical instruments
-    "94": 0.18,   # Furniture
-    # 28% slab
-    "22": 0.28,   # Beverages, spirits, vinegar
-    "24": 0.28,   # Tobacco
+    # ── SECTION I: Live animals & animal products (Ch 01–05) ─────────────────
+    "01": 0.00,   # Live animals — Nil
+    "02": 0.00,   # Meat & edible offal — Nil (fresh/chilled); 12% for processed
+    "03": 0.05,   # Fish & crustaceans — 5% (processed/frozen); Nil for fresh
+    "04": 0.05,   # Dairy, eggs, honey — 5% (branded); Nil for unbranded
+    "05": 0.05,   # Animal products NES — 5%
+
+    # ── SECTION II: Vegetable products (Ch 06–14) ────────────────────────────
+    "06": 0.05,   # Live plants, flowers — 5%
+    "07": 0.00,   # Vegetables — Nil (fresh); 5% for frozen/preserved
+    "08": 0.00,   # Fruits & nuts — Nil (fresh); 12% for dried/processed
+    "09": 0.05,   # Coffee, tea, spices — 5%
+    "10": 0.00,   # Cereals (rice, wheat) — Nil (unbranded); 5% for branded
+    "11": 0.05,   # Milling products (flour, starch) — 5%
+    "12": 0.05,   # Oil seeds, misc grains — 5%
+    "13": 0.12,   # Lac, gums, resins — 12% (shellac 5%)
+    "14": 0.00,   # Vegetable plaiting materials — Nil
+
+    # ── SECTION III: Animal/vegetable fats & oils (Ch 15) ────────────────────
+    "15": 0.05,   # Fats, oils (edible) — 5%; hydrogenated veg oil 12%
+
+    # ── SECTION IV: Food, beverages, tobacco (Ch 16–24) ─────────────────────
+    "16": 0.12,   # Preparations of meat, fish — 12%
+    "17": 0.05,   # Sugar, confectionery — 5% (sugar); 18% (chocolates)
+    "18": 0.18,   # Cocoa & preparations — 18%
+    "19": 0.18,   # Cereals, flour preparations (biscuits, bread) — 18%
+    "20": 0.12,   # Preparations of vegetables, fruits — 12% (jams, juices)
+    "21": 0.18,   # Miscellaneous edible preparations (sauces, soups) — 18%
+    "22": 0.28,   # Beverages, spirits, vinegar — 28% + cess
+    "23": 0.00,   # Residues, animal feed — Nil
+    "24": 0.28,   # Tobacco & manufactured substitutes — 28% + cess
+
+    # ── SECTION V: Mineral products (Ch 25–27) ───────────────────────────────
+    "25": 0.05,   # Salt, sulphur, earth, stone — 5% (cement 28%)
+    "26": 0.00,   # Ores, slag, ash — Nil
+    "27": 0.05,   # Mineral fuels, petroleum products — 5% (LNG/CNG); petrol/diesel outside GST
+
+    # ── SECTION VI: Chemicals (Ch 28–38) ────────────────────────────────────
+    "28": 0.18,   # Inorganic chemicals — 18%
+    "29": 0.18,   # Organic chemicals — 18%
+    "30": 0.12,   # Pharmaceutical products — 12% (life-saving drugs 5% or Nil)
+    "31": 0.05,   # Fertilisers — 5%
+    "32": 0.18,   # Tanning/dyeing extracts, paints, varnishes — 18%
+    "33": 0.18,   # Essential oils, cosmetics, toiletries — 18% (28% for luxury perfumes)
+    "34": 0.18,   # Soap, detergents, waxes — 18%
+    "35": 0.18,   # Albuminoidal substances, glues, enzymes — 18%
+    "36": 0.18,   # Explosives, pyrotechnics — 18%
+    "37": 0.18,   # Photographic/cinematographic goods — 18%
+    "38": 0.18,   # Miscellaneous chemical products — 18%
+
+    # ── SECTION VII: Plastics & rubber (Ch 39–40) ────────────────────────────
+    "39": 0.18,   # Plastics and articles thereof — 18% (12% for some packaging)
+    "40": 0.18,   # Rubber and articles thereof — 18%
+
+    # ── SECTION VIII: Hides, leather, travel goods (Ch 41–43) ───────────────
+    "41": 0.05,   # Raw hides and skins — 5%
+    "42": 0.18,   # Leather articles, saddlery, bags — 18%
+    "43": 0.12,   # Furskins and articles — 12%
+
+    # ── SECTION IX: Wood, cork, straw (Ch 44–46) ────────────────────────────
+    "44": 0.18,   # Wood and articles thereof — 18% (12% for plywood)
+    "45": 0.12,   # Cork and articles thereof — 12%
+    "46": 0.12,   # Manufactures of straw, basketware — 12%
+
+    # ── SECTION X: Pulp, paper (Ch 47–49) ───────────────────────────────────
+    "47": 0.12,   # Pulp of wood — 12%
+    "48": 0.12,   # Paper and paperboard — 12% (18% for coated/specialty)
+    "49": 0.12,   # Printed books, newspapers, maps — 12% (0% for books)
+
+    # ── SECTION XI: Textiles (Ch 50–63) ─────────────────────────────────────
+    "50": 0.05,   # Silk — 5%
+    "51": 0.05,   # Wool, animal hair — 5%
+    "52": 0.05,   # Cotton — 5%
+    "53": 0.05,   # Other vegetable textile fibres — 5%
+    "54": 0.12,   # Man-made filaments — 12%
+    "55": 0.12,   # Man-made staple fibres — 12%
+    "56": 0.12,   # Wadding, felt, nonwovens, cordage — 12%
+    "57": 0.12,   # Carpets and textile floor coverings — 12%
+    "58": 0.12,   # Special woven fabrics — 12%
+    "59": 0.12,   # Impregnated/coated textile fabrics — 12%
+    "60": 0.12,   # Knitted or crocheted fabrics — 12%
+    "61": 0.12,   # Knitted or crocheted apparel — 12% (5% if ≤₹1000/pc)
+    "62": 0.12,   # Woven apparel — 12% (5% if ≤₹1000/pc)
+    "63": 0.05,   # Textile made-ups, worn clothing — 5% (12% for blankets)
+
+    # ── SECTION XII: Footwear, headgear (Ch 64–67) ──────────────────────────
+    "64": 0.18,   # Footwear — 18% (5% if ≤₹1000/pair)
+    "65": 0.18,   # Headgear — 18%
+    "66": 0.12,   # Umbrellas, walking sticks — 12%
+    "67": 0.12,   # Prepared feathers, artificial flowers — 12%
+
+    # ── SECTION XIII: Stone, ceramic, glass (Ch 68–70) ──────────────────────
+    "68": 0.18,   # Stone, plaster, cement articles — 18% (28% for cement)
+    "69": 0.18,   # Ceramic products — 18% (12% for earthenware)
+    "70": 0.18,   # Glass and glassware — 18%
+
+    # ── SECTION XIV: Precious metals, gems (Ch 71) ──────────────────────────
+    "71": 0.03,   # Precious metals, gems, jewellery — 3% (0.25% for diamonds)
+
+    # ── SECTION XV: Base metals (Ch 72–83) ──────────────────────────────────
+    "72": 0.18,   # Iron and steel — 18%
+    "73": 0.18,   # Articles of iron or steel — 18%
+    "74": 0.18,   # Copper and articles thereof — 18%
+    "75": 0.18,   # Nickel and articles thereof — 18%
+    "76": 0.18,   # Aluminium and articles thereof — 18%
+    "77": 0.18,   # Reserved chapter — 18% default
+    "78": 0.18,   # Lead and articles thereof — 18%
+    "79": 0.18,   # Zinc and articles thereof — 18%
+    "80": 0.18,   # Tin and articles thereof — 18%
+    "81": 0.18,   # Other base metals — 18%
+    "82": 0.18,   # Tools, cutlery — 18%
+    "83": 0.18,   # Miscellaneous articles of base metal — 18%
+
+    # ── SECTION XVI: Machinery & electrical (Ch 84–85) ──────────────────────
+    "84": 0.18,   # Nuclear reactors, machinery — 18% (12% for some agri machinery)
+    "85": 0.18,   # Electrical equipment, electronics — 18% (28% for ACs, TVs >32")
+
+    # ── SECTION XVII: Vehicles & transport (Ch 86–89) ───────────────────────
+    "86": 0.12,   # Railway locomotives and stock — 12%
+    "87": 0.28,   # Motor vehicles — 28% + cess (e-vehicles 5%)
+    "88": 0.18,   # Aircraft, spacecraft — 18% (5% for parts used in MRO)
+    "89": 0.05,   # Ships and boats — 5%
+
+    # ── SECTION XVIII: Optical, clocks, instruments (Ch 90–92) ─────────────
+    "90": 0.18,   # Optical, photographic, medical instruments — 18%
+    "91": 0.18,   # Clocks and watches — 18%
+    "92": 0.12,   # Musical instruments — 12%
+
+    # ── SECTION XIX: Arms & ammunition (Ch 93) ──────────────────────────────
+    "93": 0.18,   # Arms, ammunition — 18%
+
+    # ── SECTION XX: Miscellaneous manufactures (Ch 94–96) ───────────────────
+    "94": 0.18,   # Furniture, bedding, lamps — 18% (12% for wooden furniture)
+    "95": 0.12,   # Toys, games, sports equipment — 12% (28% if video games)
+    "96": 0.18,   # Miscellaneous manufactured articles — 18%
+
+    # ── SECTION XXI: Works of art, antiques (Ch 97–98) ──────────────────────
+    "97": 0.12,   # Works of art, collectors' pieces, antiques — 12%
+    "98": 0.18,   # Special classification provisions (project imports etc.) — 18%
 }
 
 # Default GST rate for chapters not listed — 18% is India's standard rate
@@ -125,20 +223,148 @@ _DEFAULT_GST_RATE = 0.18
 # ─────────────────────────────────────────────────────────────────────────────
 
 BCD_RATE_BY_HS_CHAPTER: Dict[str, float] = {
-    "30": 0.10,   # Pharma APIs — 10% BCD
-    "84": 0.075,  # Machinery — 7.5%
-    "85": 0.10,   # Electronics — 10% (PLI benefit applies separately)
-    "87": 0.125,  # Auto components — 12.5%
-    "61": 0.20,   # Apparel — 20%
-    "62": 0.20,   # Apparel — 20%
-    "72": 0.075,  # Steel — 7.5%
+    # ── Live animals & animal products ───────────────────────────────────────
+    "01": 0.00,   # Live animals — 0% (India is net importer for stud animals)
+    "02": 0.30,   # Meat — 30% (protectionist)
+    "03": 0.30,   # Fish — 30%
+    "04": 0.30,   # Dairy — 30% (60% for liquid milk; protecting domestic dairy)
+    "05": 0.00,   # Animal products NES — 0%
+
+    # ── Vegetable products ───────────────────────────────────────────────────
+    "06": 0.05,   # Plants, flowers — 5%
+    "07": 0.30,   # Vegetables — 30% (agricultural protection)
+    "08": 0.30,   # Fruits, nuts — 30% (50% for apples)
+    "09": 0.10,   # Coffee, tea, spices — 10%
+    "10": 0.50,   # Cereals — 50% (wheat 100%; rice highly protected)
+    "11": 0.30,   # Milling products — 30%
+    "12": 0.30,   # Oil seeds — 30% (0% for soybean for crushing)
+    "13": 0.10,   # Gums, resins — 10%
+    "14": 0.00,   # Vegetable plaiting materials — 0%
+
+    # ── Fats & oils ──────────────────────────────────────────────────────────
+    "15": 0.10,   # Edible oils — 10% (100% for crude palm oil seasonally)
+
+    # ── Food & beverages ─────────────────────────────────────────────────────
+    "16": 0.30,   # Meat/fish preparations — 30%
+    "17": 0.40,   # Sugar — 40% (highly protected sector)
+    "18": 0.30,   # Cocoa products — 30%
+    "19": 0.30,   # Cereal preparations — 30%
+    "20": 0.30,   # Vegetable/fruit preparations — 30%
+    "21": 0.30,   # Misc edible preparations — 30%
+    "22": 0.150,  # Beverages, spirits — 150% for spirits; 50% average
+    "23": 0.05,   # Animal feed residues — 5%
+    "24": 0.30,   # Tobacco — 30%
+
+    # ── Mineral products ─────────────────────────────────────────────────────
+    "25": 0.05,   # Salt, stone, cement raw materials — 5%
+    "26": 0.00,   # Ores — 0% (India needs raw materials)
+    "27": 0.05,   # Petroleum — 5% (crude 0%; refined products 2.5–5%)
+
+    # ── Chemicals ────────────────────────────────────────────────────────────
+    "28": 0.075,  # Inorganic chemicals — 7.5%
     "29": 0.075,  # Organic chemicals — 7.5%
+    "30": 0.10,   # Pharmaceuticals — 10% (0% for patented life-saving)
+    "31": 0.05,   # Fertilisers — 5% (0% for urea; strategic import)
+    "32": 0.075,  # Paints, varnishes — 7.5%
+    "33": 0.20,   # Cosmetics, essential oils — 20%
+    "34": 0.10,   # Soap, detergents — 10%
+    "35": 0.075,  # Albuminoidal substances — 7.5%
+    "36": 0.10,   # Explosives — 10%
+    "37": 0.10,   # Photo goods — 10%
+    "38": 0.075,  # Misc chemical products — 7.5%
+
+    # ── Plastics & rubber ────────────────────────────────────────────────────
     "39": 0.075,  # Plastics — 7.5%
-    "52": 0.00,   # Raw cotton — 0% (India is net exporter)
-    "90": 0.075,  # Medical instruments — 7.5%
+    "40": 0.10,   # Rubber — 10% (25% for tyres)
+
+    # ── Hides & leather ──────────────────────────────────────────────────────
+    "41": 0.00,   # Raw hides — 0% (India is major exporter)
+    "42": 0.10,   # Leather goods, bags — 10%
+    "43": 0.10,   # Furskins — 10%
+
+    # ── Wood, cork, straw ────────────────────────────────────────────────────
+    "44": 0.10,   # Wood — 10% (5% for logs; afforestation policy)
+    "45": 0.10,   # Cork — 10%
+    "46": 0.10,   # Basketware — 10%
+
+    # ── Paper & printing ─────────────────────────────────────────────────────
+    "47": 0.05,   # Paper pulp — 5%
+    "48": 0.10,   # Paper, paperboard — 10%
+    "49": 0.00,   # Printed books — 0% (education policy)
+
+    # ── Textiles ─────────────────────────────────────────────────────────────
+    "50": 0.10,   # Silk — 10%
+    "51": 0.10,   # Wool — 10%
+    "52": 0.00,   # Cotton raw — 0% (India is net exporter)
+    "53": 0.10,   # Other veg fibres — 10%
+    "54": 0.20,   # Man-made filaments — 20%
+    "55": 0.20,   # Man-made staple — 20%
+    "56": 0.20,   # Wadding, felt, nonwovens — 20%
+    "57": 0.20,   # Carpets — 20%
+    "58": 0.20,   # Special woven fabrics — 20%
+    "59": 0.20,   # Coated fabrics — 20%
+    "60": 0.20,   # Knitted fabrics — 20%
+    "61": 0.20,   # Knitted apparel — 20%
+    "62": 0.20,   # Woven apparel — 20%
+    "63": 0.20,   # Textile made-ups — 20%
+
+    # ── Footwear & headgear ──────────────────────────────────────────────────
+    "64": 0.20,   # Footwear — 20%
+    "65": 0.20,   # Headgear — 20%
+    "66": 0.20,   # Umbrellas — 20%
+    "67": 0.20,   # Feathers, artificial flowers — 20%
+
+    # ── Stone, ceramic, glass ────────────────────────────────────────────────
+    "68": 0.075,  # Stone articles — 7.5%
+    "69": 0.10,   # Ceramics — 10%
+    "70": 0.10,   # Glass — 10%
+
+    # ── Precious metals & gems ───────────────────────────────────────────────
+    "71": 0.075,  # Gold 15%; silver 15%; diamonds 0%; jewellery 7.5% avg
+
+    # ── Base metals ──────────────────────────────────────────────────────────
+    "72": 0.075,  # Iron and steel — 7.5% (0% for scrap; protects domestic mills)
+    "73": 0.075,  # Steel articles — 7.5%
+    "74": 0.05,   # Copper — 5%
+    "75": 0.025,  # Nickel — 2.5%
+    "76": 0.075,  # Aluminium — 7.5%
+    "77": 0.075,  # Reserved — 7.5% default
+    "78": 0.025,  # Lead — 2.5%
+    "79": 0.025,  # Zinc — 2.5%
+    "80": 0.025,  # Tin — 2.5%
+    "81": 0.075,  # Other base metals — 7.5%
+    "82": 0.075,  # Tools, cutlery — 7.5%
+    "83": 0.075,  # Misc base metal articles — 7.5%
+
+    # ── Machinery & electrical ───────────────────────────────────────────────
+    "84": 0.075,  # Machinery — 7.5% (0% for some capital goods; PLI scheme)
+    "85": 0.10,   # Electronics — 10% (20% for mobile phones; PLI tariff wall)
+
+    # ── Transport equipment ──────────────────────────────────────────────────
+    "86": 0.075,  # Railway — 7.5%
+    "87": 0.125,  # Vehicles — 12.5%–100% (cars 60–100%; e-vehicles 15%)
+    "88": 0.025,  # Aircraft — 2.5% (strategic; mostly 0% for commercial)
+    "89": 0.05,   # Ships — 5%
+
+    # ── Instruments ──────────────────────────────────────────────────────────
+    "90": 0.075,  # Instruments, medical devices — 7.5%
+    "91": 0.10,   # Clocks, watches — 10%
+    "92": 0.10,   # Musical instruments — 10%
+
+    # ── Arms ────────────────────────────────────────────────────────────────
+    "93": 0.10,   # Arms, ammunition — 10% (defence imports often 0%)
+
+    # ── Misc manufactures ────────────────────────────────────────────────────
+    "94": 0.20,   # Furniture — 20%
+    "95": 0.20,   # Toys, games — 20% (60% for toy imports post-2021 policy)
+    "96": 0.20,   # Misc manufactured articles — 20%
+
+    # ── Art & antiques ───────────────────────────────────────────────────────
+    "97": 0.00,   # Works of art, antiques — 0%
+    "98": 0.075,  # Special provisions — 7.5% default
 }
 
-_DEFAULT_BCD_RATE = 0.075  # Conservative average for unclassified chapters
+_DEFAULT_BCD_RATE = 0.075  # MFN average; used only if HS chapter resolution fails
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -149,21 +375,110 @@ _DEFAULT_BCD_RATE = 0.075  # Conservative average for unclassified chapters
 # ─────────────────────────────────────────────────────────────────────────────
 
 DGFT_DRAWBACK_AIR: Dict[str, float] = {
-    "30": 0.021,  # Pharma formulations — 2.1% of FOB
-    "84": 0.019,  # Engineering machinery — 1.9%
-    "85": 0.015,  # Electronics — 1.5%
-    "87": 0.017,  # Auto components — 1.7%
+    # ── Animal products ───────────────────────────────────────────────────────
+    "02": 0.000,  # Meat — 0% (no AIR; perishable; exports are Nil-rated)
+    "03": 0.010,  # Processed fish — 1.0%
+    "04": 0.000,  # Dairy — 0%
+    "05": 0.005,  # Animal products NES — 0.5%
+
+    # ── Vegetable products ───────────────────────────────────────────────────
+    "08": 0.010,  # Processed fruits — 1.0%
+    "09": 0.015,  # Spices, tea, coffee — 1.5%
+    "11": 0.010,  # Milling products — 1.0%
+    "12": 0.008,  # Oil seeds — 0.8%
+    "13": 0.010,  # Gums, resins — 1.0%
+
+    # ── Fats & oils ──────────────────────────────────────────────────────────
+    "15": 0.015,  # Edible oils (refined) — 1.5%
+
+    # ── Food preparations ────────────────────────────────────────────────────
+    "16": 0.020,  # Meat/fish preparations — 2.0%
+    "17": 0.010,  # Sugar products — 1.0%
+    "18": 0.015,  # Cocoa preparations — 1.5%
+    "19": 0.015,  # Cereal preparations (biscuits, pasta) — 1.5%
+    "20": 0.018,  # Fruit/veg preparations — 1.8%
+    "21": 0.015,  # Misc food preparations — 1.5%
+
+    # ── Chemicals ────────────────────────────────────────────────────────────
+    "28": 0.015,  # Inorganic chemicals — 1.5%
+    "29": 0.018,  # Organic chemicals — 1.8%
+    "30": 0.021,  # Pharma formulations — 2.1%
+    "32": 0.014,  # Paints, varnishes, inks — 1.4%
+    "33": 0.016,  # Cosmetics, essential oils — 1.6%
+    "34": 0.012,  # Soaps, detergents — 1.2%
+    "38": 0.013,  # Misc chemicals — 1.3%
+
+    # ── Plastics & rubber ────────────────────────────────────────────────────
+    "39": 0.014,  # Plastics and articles — 1.4%
+    "40": 0.015,  # Rubber articles — 1.5%
+
+    # ── Leather & travel goods ───────────────────────────────────────────────
+    "41": 0.010,  # Leather (raw/semi-processed) — 1.0%
+    "42": 0.035,  # Leather goods, bags, harness — 3.5%
+    "43": 0.020,  # Furskin articles — 2.0%
+
+    # ── Wood & paper ─────────────────────────────────────────────────────────
+    "44": 0.010,  # Wood articles — 1.0%
+    "47": 0.008,  # Paper pulp — 0.8%
+    "48": 0.010,  # Paper, paperboard — 1.0%
+
+    # ── Textiles (India's largest drawback beneficiary sector) ───────────────
+    "50": 0.020,  # Silk fabrics — 2.0%
+    "51": 0.018,  # Wool fabrics — 1.8%
+    "52": 0.025,  # Cotton yarn/fabric — 2.5%
+    "53": 0.015,  # Other veg fibre — 1.5%
+    "54": 0.022,  # Man-made filament fabrics — 2.2%
+    "55": 0.022,  # Man-made staple fabrics — 2.2%
+    "56": 0.015,  # Nonwovens, cordage — 1.5%
+    "57": 0.025,  # Carpets — 2.5%
+    "58": 0.020,  # Special woven fabrics — 2.0%
+    "59": 0.015,  # Coated/industrial fabrics — 1.5%
+    "60": 0.020,  # Knitted fabrics — 2.0%
     "61": 0.030,  # Knitted apparel — 3.0%
     "62": 0.028,  # Woven apparel — 2.8%
-    "72": 0.010,  # Steel — 1.0%
-    "29": 0.018,  # Organic chemicals — 1.8%
-    "52": 0.025,  # Cotton yarn/fabric — 2.5%
-    "63": 0.022,  # Textile made-ups — 2.2%
-    "39": 0.014,  # Plastics — 1.4%
-    "90": 0.018,  # Instruments — 1.8%
+    "63": 0.022,  # Textile made-ups (towels, bed linen) — 2.2%
+
+    # ── Footwear ────────────────────────────────────────────────────────────
+    "64": 0.032,  # Footwear (leather uppers) — 3.2%
+
+    # ── Stone, ceramic, glass ────────────────────────────────────────────────
+    "68": 0.008,  # Stone articles — 0.8%
+    "69": 0.010,  # Ceramics — 1.0%
+    "70": 0.010,  # Glass — 1.0%
+
+    # ── Gems & jewellery ────────────────────────────────────────────────────
+    "71": 0.010,  # Gems and jewellery — 1.0% (cut & polished diamonds vary)
+
+    # ── Base metals & metal products ────────────────────────────────────────
+    "72": 0.010,  # Iron and steel — 1.0%
+    "73": 0.012,  # Steel articles — 1.2%
+    "74": 0.012,  # Copper articles — 1.2%
+    "75": 0.010,  # Nickel articles — 1.0%
+    "76": 0.012,  # Aluminium articles — 1.2%
+    "82": 0.015,  # Tools, cutlery — 1.5%
+    "83": 0.015,  # Misc base metal articles — 1.5%
+
+    # ── Machinery & engineering ──────────────────────────────────────────────
+    "84": 0.019,  # Machinery (engineering goods) — 1.9%
+    "85": 0.015,  # Electronics — 1.5%
+
+    # ── Transport ────────────────────────────────────────────────────────────
+    "86": 0.010,  # Railway equipment — 1.0%
+    "87": 0.017,  # Auto parts, vehicles — 1.7%
+    "89": 0.010,  # Ships, boats — 1.0%
+
+    # ── Precision instruments ────────────────────────────────────────────────
+    "90": 0.018,  # Instruments, medical devices — 1.8%
+    "91": 0.015,  # Watches, clocks — 1.5%
+    "92": 0.012,  # Musical instruments — 1.2%
+
+    # ── Misc manufactures ────────────────────────────────────────────────────
+    "94": 0.018,  # Furniture — 1.8%
+    "95": 0.015,  # Toys, sporting goods — 1.5%
+    "96": 0.012,  # Misc manufactures — 1.2%
 }
 
-_DEFAULT_DRAWBACK_RATE = 0.012  # 1.2% conservative default
+_DEFAULT_DRAWBACK_RATE = 0.012  # 1.2% — DGFT AIR average for uncategorised chapters
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GST REFUND LAG — realistic processing times

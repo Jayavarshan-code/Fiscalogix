@@ -410,6 +410,23 @@ export const apiService = {
     return await response.json();
   },
 
+  /** POST /alerts/configure — save thresholds + notification channels */
+  async configureAlerts(config: {
+    cash_deficit_usd?:    number;
+    high_risk_shipments?: number;
+    confidence_floor?:    number;
+    alert_email?:         string;
+    alert_whatsapp_to?:   string;
+  }) {
+    const response = await fetch(`${API_BASE_URL}/alerts/configure`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(config),
+    });
+    if (!response.ok) throw new Error('Alert configure failed');
+    return await response.json();
+  },
+
   /** POST /alerts/check — trigger live alert evaluation */
   async checkAlerts() {
     const response = await fetch(`${API_BASE_URL}/alerts/check`, {
@@ -427,6 +444,59 @@ export const apiService = {
       { headers: getAuthHeader() }
     );
     if (!response.ok) throw new Error('Shipment grid fetch failed');
+    return await response.json();
+  },
+
+  // ── India GST Intelligence ────────────────────────────────────────────────
+
+  /** POST /india/gst-cost — per-shipment GST and customs cost breakdown */
+  async getGSTCost(shipments: {
+    shipment_id: string;
+    route: string;
+    order_value: number;
+    hs_code?: string;
+    wacc?: number;
+    gst_refund_mode?: string;
+  }[]) {
+    const response = await fetch(`${API_BASE_URL}/india/gst-cost`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(shipments),
+    });
+    if (!response.ok) throw new Error('GST cost calculation failed');
+    return await response.json();
+  },
+
+  /** POST /india/gst-refund-tracker — portfolio working capital burn from GST refund lag */
+  async getGSTRefundTracker(payload: {
+    shipments: {
+      shipment_id: string;
+      route: string;
+      order_value: number;
+      hs_code?: string;
+      gst_refund_mode?: string;
+      igst_paid?: number;
+      gst_refund_filed_date?: string;
+      credit_days?: number;
+    }[];
+    wacc?: number;
+    tenant_id?: string;
+  }) {
+    const response = await fetch(`${API_BASE_URL}/india/gst-refund-tracker`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error('GST refund tracker failed');
+    return await response.json();
+  },
+
+  /** GET /india/routes — supported Indian trade corridors with applicable rates */
+  async getIndiaRoutes() {
+    const response = await fetch(`${API_BASE_URL}/india/routes`, {
+      headers: getAuthHeader(),
+    });
+    if (!response.ok) throw new Error('India routes fetch failed');
     return await response.json();
   },
 

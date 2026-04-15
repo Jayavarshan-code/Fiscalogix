@@ -16,11 +16,16 @@ import RecoveryDashboard from './components/revenue/RecoveryDashboard';
 import { EnterpriseModulesPage } from './components/enterprise/EnterpriseModulesPage';
 import { OptimizationPage } from './components/optimization/OptimizationPage';
 import { RealtimeHubPage } from './components/realtime/RealtimeHub';
+import { AlertsPage } from './components/alerts/AlertsPage';
+import { ReportsPage } from './components/reports/ReportsPage';
+import { ShipmentDataWarehouse } from './components/warehouse/ShipmentDataWarehouse';
+import { GSTDashboard } from './components/india/GSTDashboard';
 
 const MainApp = () => {
   const [activeView, setActiveView] = useState<
     'dashboard' | 'matrix' | 'admin' | 'ingest' | 'warehouse' |
-    'cashflow' | 'shield' | 'recovery' | 'enterprise' | 'optimization' | 'realtime'
+    'cashflow' | 'shield' | 'recovery' | 'enterprise' | 'optimization' | 'realtime' |
+    'alerts' | 'reports' | 'gst'
   >('dashboard');
   const { currentUser } = useAuth();
 
@@ -38,43 +43,11 @@ const MainApp = () => {
         {activeView === 'dashboard' && <Dashboard />}
         {activeView === 'matrix' && <IntelligenceMatrix />}
         
-        {/* Explicit separation of Ingestion and Warehouse */}
+        {/* Ingestion Studio — CSV upload and ERP mapping */}
         {activeView === 'ingest' && <IngestionStudio onNavigate={(view) => setActiveView(view as any)} />}
-        
-        {activeView === 'warehouse' && (
-          <div className="p-8">
-            <h2 className="text-2xl font-bold mb-2">Data Warehouse</h2>
-            <p className="text-secondary mb-6 text-sm">The 13-Pillar enterprise data lake. All ingested records from ERP systems and CSV uploads are stored and queryable here.</p>
-            <div className="glass-panel p-6">
-              <h3 className="text-md font-semibold mb-4 text-secondary uppercase tracking-widest text-xs">Recent Ingestion Log</h3>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-subtle text-muted text-left">
-                    <th className="pb-2 pr-4">Table</th>
-                    <th className="pb-2 pr-4">Source</th>
-                    <th className="pb-2 pr-4">Rows</th>
-                    <th className="pb-2">Ingested At</th>
-                  </tr>
-                </thead>
-                <tbody className="text-secondary">
-                  <tr className="border-b border-subtle/30">
-                    <td className="py-2 pr-4 font-mono text-xs">dw_shipment_facts</td>
-                    <td className="py-2 pr-4">BULK-CSV</td>
-                    <td className="py-2 pr-4">30,000</td>
-                    <td className="py-2 text-muted">Live via Ingestion Studio</td>
-                  </tr>
-                  <tr className="border-b border-subtle/30">
-                    <td className="py-2 pr-4 font-mono text-xs">dw_customer_dimensions</td>
-                    <td className="py-2 pr-4">Seeded</td>
-                    <td className="py-2 pr-4">500</td>
-                    <td className="py-2 text-muted">Setup Seed</td>
-                  </tr>
-                </tbody>
-              </table>
-              <p className="text-xs text-muted mt-4">Connect to Postgres via the Ingestion Studio to populate this view with live data.</p>
-            </div>
-          </div>
-        )}
+
+        {/* Data Warehouse — live paginated shipment grid */}
+        {activeView === 'warehouse' && <ShipmentDataWarehouse />}
         
         {activeView === 'cashflow' && (
           <div className="p-8">
@@ -90,6 +63,10 @@ const MainApp = () => {
         {activeView === 'enterprise' && <EnterpriseModulesPage />}
         {activeView === 'optimization' && <OptimizationPage />}
         {activeView === 'realtime' && <RealtimeHubPage />}
+
+        {activeView === 'alerts' && <AlertsPage />}
+        {activeView === 'reports' && <ReportsPage />}
+        {activeView === 'gst' && <GSTDashboard />}
 
         {activeView === 'admin' && <AdminDashboard />}
         {activeView === 'shield' && <GovernanceDashboardMatrix />}
