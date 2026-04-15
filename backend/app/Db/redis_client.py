@@ -62,7 +62,7 @@ def get_redis_client():
         REDIS_AVAILABLE = True
         logger.info(f"Redis connected: {REDIS_URL.split('@')[-1]}")
         return client
-    except redis.exceptions.ConnectionError as e:
+    except (redis.exceptions.ConnectionError, redis.exceptions.TimeoutError, Exception) as e:
         REDIS_AVAILABLE = False
         logger.warning(
             f"Redis unavailable ({e}). "
