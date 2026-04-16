@@ -70,7 +70,7 @@ RUN chmod +x /code/entrypoint.sh
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
     CMD curl -f http://localhost:$PORT/health || exit 1
 
 CMD ["/code/entrypoint.sh"]
