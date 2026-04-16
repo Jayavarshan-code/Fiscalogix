@@ -53,3 +53,8 @@ backend/synthetic_*.csv
 # Private documentation — local only, not for public repo
 *.md
 !README.md
+
+# MS Office temporary files
+~$*.pptx
+~$*.docx
+~$*.xlsx

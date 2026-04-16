@@ -7,7 +7,11 @@
       "Bash(grep -v \"^README.md$\")",
       "Bash(xargs git:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m ':*)"
+      "Bash(git commit -m ':*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(python generate_pitch_deck.py)",
+      "Bash(python generate_tech_deck.py)"
     ]
   }
 }

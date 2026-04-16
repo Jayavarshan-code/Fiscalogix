@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Fiscalogix — Executive Summary</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #f0f4f8;
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #0A1628;
+  }
+
+  .page {
+    width: 794px;
+    min-height: 1123px;
+    background: white;
+    padding: 0;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #0A1628 0%, #1E3A8A 60%, #1D4ED8 100%);
+    padding: 40px 50px 32px;
+    position: relative;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #F59E0B, #EF4444, #8B5CF6);
+  }
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, #F59E0B, #EF4444);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 900; color: white;
+    box-shadow: 0 4px 12px rgba(245,158,11,0.4);
+  }
+  .logo-text { color: white; }
+  .logo-text .name { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; }
+  .logo-text .tagline { font-size: 12px; font-weight: 400; opacity: 0.75; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  .header-headline {
+    color: white;
+    font-size: 15px;
+    font-weight: 300;
+    line-height: 1.7;
+    opacity: 0.88;
+    max-width: 600px;
+  }
+  .header-badges {
+    display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap;
+  }
+  .badge {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Body ── */
+  .body { padding: 36px 50px 30px; }
+
+  /* ── Section ── */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #1D4ED8;
+    border-left: 3px solid #F59E0B;
+    padding-left: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* ── Problem/Solution row ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .box {
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .box-red { background: #FFF5F5; border: 1px solid #FED7D7; }
+  .box-blue { background: #EFF6FF; border: 1px solid #BFDBFE; }
+  .box-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 10px; }
+  .box-red .box-title { color: #DC2626; }
+  .box-blue .box-title { color: #1D4ED8; }
+  .box ul { list-style: none; }
+  .box ul li {
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: #374151;
+    padding-left: 16px;
+    position: relative;
+    margin-bottom: 4px;
+  }
+  .box-red ul li::before { content: '✗'; position: absolute; left: 0; color: #EF4444; font-size: 11px; top: 2px; }
+  .box-blue ul li::before { content: '✓'; position: absolute; left: 0; color: #10B981; font-size: 11px; top: 2px; }
+
+  /* ── Feature pills ── */
+  .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .feature-card {
+    background: linear-gradient(135deg, #F8FAFF, #EFF6FF);
+    border: 1px solid #DBEAFE;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .feature-icon { font-size: 20px; margin-bottom: 6px; }
+  .feature-name { font-size: 12px; font-weight: 700; color: #1E3A8A; margin-bottom: 4px; }
+  .feature-desc { font-size: 11px; color: #6B7280; line-height: 1.5; }
+
+  /* ── Stats row ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .stat-box {
+    background: linear-gradient(135deg, #0A1628, #1E3A8A);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-number { font-size: 22px; font-weight: 900; color: #F59E0B; letter-spacing: -1px; }
+  .stat-label { font-size: 10px; color: rgba(255,255,255,0.7); margin-top: 4px; line-height: 1.4; font-weight: 500; }
+
+  /* ── Tech stack ── */
+  .tech-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tech-pill {
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+  }
+  .tech-pill.highlight {
+    background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+    border-color: #93C5FD;
+    color: #1D4ED8;
+  }
+
+  /* ── Business model ── */
+  .biz-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .biz-card {
+    border-radius: 10px;
+    padding: 14px 16px;
+    border: 1px solid #E5E7EB;
+  }
+  .biz-tier { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .biz-price { font-size: 18px; font-weight: 900; color: #0A1628; }
+  .biz-price span { font-size: 11px; font-weight: 400; color: #6B7280; }
+  .biz-features { margin-top: 8px; }
+  .biz-features li { font-size: 11px; color: #6B7280; list-style: none; padding-left: 14px; position: relative; margin-bottom: 3px; }
+  .biz-features li::before { content: '·'; position: absolute; left: 4px; color: #1D4ED8; font-size: 14px; top: -2px; }
+  .tier-starter { background: #F9FAFB; }
+  .tier-growth { background: linear-gradient(135deg, #EFF6FF, #F0FDF4); border-color: #93C5FD; }
+  .tier-enterprise { background: linear-gradient(135deg, #FFF7ED, #FFFBEB); border-color: #FCD34D; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 8px;
+    padding: 16px 50px;
+    background: linear-gradient(135deg, #0A1628, #1E3A8A);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-left { color: rgba(255,255,255,0.9); font-size: 12px; font-weight: 600; }
+  .footer-right { color: rgba(255,255,255,0.6); font-size: 11px; text-align: right; }
+  .footer-cta {
+    background: linear-gradient(135deg, #F59E0B, #EF4444);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px 18px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  @media print {
+    body { background: white; padding: 0; }
+    .page { box-shadow: none; width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-row">
+      <div class="logo-icon">F</div>
+      <div class="logo-text">
+        <div class="name">Fiscalogix</div>
+        <div class="tagline">Intelligent Financial Operating System</div>
+      </div>
+    </div>
+    <div class="header-headline">
+      India's first AI-native platform that unifies financial management, supply chain intelligence,
+      GST compliance, and demand forecasting — giving enterprises a single source of operational truth.
+    </div>
+    <div class="header-badges">
+      <span class="badge">AI-Powered</span>
+      <span class="badge">GST Compliant</span>
+      <span class="badge">Real-Time</span>
+      <span class="badge">Enterprise-Ready</span>
+      <span class="badge">DPIIT Eligible</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+
+    <!-- Problem / Solution -->
+    <div class="two-col">
+      <div class="box box-red">
+        <div class="box-title">The Problem</div>
+        <ul>
+          <li>Finance, logistics &amp; compliance run on 5+ disconnected tools</li>
+          <li>Manual GST reconciliation takes days, not minutes</li>
+          <li>Supply chain disruptions are noticed after they happen</li>
+          <li>No real-time cash flow or demand visibility for decision-making</li>
+          <li>Audit trails are fragmented and hard to produce</li>
+        </ul>
+      </div>
+      <div class="box box-blue">
+        <div class="box-title">The Solution</div>
+        <ul>
+          <li>One unified AI platform replacing all fragmented tools</li>
+          <li>Automated GST filing, validation &amp; reconciliation</li>
+          <li>Predictive disruption alerts before they impact operations</li>
+          <li>Digital twin with real-time demand &amp; cash flow modeling</li>
+          <li>Immutable audit logs with full decision traceability</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Key Features -->
+    <div class="section">
+      <div class="section-title">Core Platform Capabilities</div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <div class="feature-name">AI Digital Twin</div>
+          <div class="feature-desc">Live simulation of your entire financial & supply chain operation with adaptive scenario modeling</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛣️</div>
+          <div class="feature-name">Route Optimizer</div>
+          <div class="feature-desc">Geopolitical-aware route planning across Ocean, Rail & Truck with real-time risk scoring</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <div class="feature-name">Demand Forecasting</div>
+          <div class="feature-desc">Prophet-based ML models with SHAP explainability — forecast 90 days ahead with confidence bands</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🇮🇳</div>
+          <div class="feature-name">GST Compliance</div>
+          <div class="feature-desc">Auto-generate GSTR-1, GSTR-3B, reconcile ITC, validate invoices against GST portal rules</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <div class="feature-name">Real-Time Alerts</div>
+          <div class="feature-desc">Risk engine monitors 20+ financial signals — alerts via dashboard, SMS (Twilio) before crises hit</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <div class="feature-name">AI Copilot (RAG)</div>
+          <div class="feature-desc">Claude-powered assistant with semantic search over your documents, contracts & financial history</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-box">
+        <div class="stat-number">6+</div>
+        <div class="stat-label">AI/ML models running simultaneously</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">90d</div>
+        <div class="stat-label">Demand forecast horizon with explainability</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">20+</div>
+        <div class="stat-label">Real-time financial risk signals monitored</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-number">1</div>
+        <div class="stat-label">Platform replacing 5+ enterprise tools</div>
+      </div>
+    </div>
+
+    <!-- Business Model -->
+    <div class="section">
+      <div class="section-title">Business Model</div>
+      <div class="biz-row">
+        <div class="biz-card tier-starter">
+          <div class="biz-tier" style="color:#6B7280">Starter</div>
+          <div class="biz-price">₹9,999 <span>/month</span></div>
+          <ul class="biz-features">
+            <li>GST Compliance Module</li>
+            <li>Basic Demand Forecasting</li>
+            <li>Dashboard & Alerts</li>
+            <li>Up to 5 users</li>
+          </ul>
+        </div>
+        <div class="biz-card tier-growth">
+          <div class="biz-tier" style="color:#1D4ED8">Growth</div>
+          <div class="biz-price">₹29,999 <span>/month</span></div>
+          <ul class="biz-features">
+            <li>Full Digital Twin</li>
+            <li>Route Optimizer</li>
+            <li>AI Copilot (RAG)</li>
+            <li>Up to 25 users + API</li>
+          </ul>
+        </div>
+        <div class="biz-card tier-enterprise">
+          <div class="biz-tier" style="color:#D97706">Enterprise</div>
+          <div class="biz-price">Custom <span>pricing</span></div>
+          <ul class="biz-features">
+            <li>On-premise / Private Cloud</li>
+            <li>Custom ML fine-tuning</li>
+            <li>Dedicated SLA + Support</li>
+            <li>Unlimited users + integrations</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="section" style="margin-bottom:20px">
+      <div class="section-title">Technology Stack</div>
+      <div class="tech-row">
+        <span class="tech-pill highlight">FastAPI</span>
+        <span class="tech-pill highlight">Claude AI (Anthropic)</span>
+        <span class="tech-pill highlight">PostgreSQL + pgvector</span>
+        <span class="tech-pill">Redis</span>
+        <span class="tech-pill">Prophet Forecasting</span>
+        <span class="tech-pill">XGBoost + SHAP</span>
+        <span class="tech-pill">NetworkX Route Engine</span>
+        <span class="tech-pill">OR-Tools Optimizer</span>
+        <span class="tech-pill">Celery Workers</span>
+        <span class="tech-pill">Docker + Railway</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-left">Fiscalogix — Confidential &amp; Proprietary</div>
+    <span class="footer-cta">Schedule a Demo</span>
+    <div class="footer-right">India's AI Financial OS<br/>2024–2025</div>
+  </div>
+
+</div>
+</body>
+</html>
