@@ -36,6 +36,11 @@ class GeopoliticalRouteOptimizer:
                            customs_delay=customs_delay,
                            is_strike_active=False)
 
+    def set_strike(self, u, v, active=True):
+        """Mark an edge as strike-active (raises risk penalty in routing)."""
+        if self.graph.has_edge(u, v):
+            self.graph[u][v]["is_strike_active"] = active
+
     def find_best_route(self, origin, destination, is_critical=False, risk_engine=None):
         def multimodal_weight(u, v, edge_data):
             # Mode Switch Penalty: $200 + 4 hours if mode changes
