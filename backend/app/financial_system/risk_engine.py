@@ -78,8 +78,8 @@ class RiskEngine:
     def set_contagion_context(self, graph, beta=0.85):
         """Injects global logistics graph context for propagation modeling.
         Also pre-builds the GNN node-feature tensors so inference is instant."""
-        from app.financial_system.optimization.contagion_predictor import TemporalContagionPredictor
-        self.contagion_predictor = TemporalContagionPredictor(graph, propagation_beta=beta)
+        from app.financial_system.optimization.contagion_predictor import HybridRiskRadar
+        self.contagion_predictor = HybridRiskRadar(graph, propagation_beta=beta)
         self._gnn_graph = graph
         self._build_gnn_graph(graph)
 
