@@ -49,20 +49,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Layer 2: PyTorch CPU-only ─────────────────────────────────────────────────
-# Install CPU-only torch BEFORE requirements.txt so pip does not pull
-# the 2 GB CUDA wheel. CPU inference is sufficient for our ML models.
-# Pinned to a stable release — update deliberately, not via >=.
-RUN pip install \
-    torch==2.2.2+cpu \
-    torchvision==0.17.2+cpu \
-    --index-url https://download.pytorch.org/whl/cpu
-
-# ── Layer 3: App Python dependencies ─────────────────────────────────────────
+# ── Layer 2: App Python dependencies ─────────────────────────────────────────
+# requirements.txt pins torch==2.2.2+cpu with --extra-index-url pointing to
+# the PyTorch CPU wheel index. This prevents pip from pulling the 2 GB CUDA
+# wheel when resolving sentence-transformers dependencies.
 COPY backend/requirements.txt /code/requirements.txt
 RUN pip install -r /code/requirements.txt
 
-# ── Layer 4: Application source ───────────────────────────────────────────────
+# ── Layer 3: Application source ───────────────────────────────────────────────
 COPY backend/app        /code/app
 COPY backend/setup_db.py /code/setup_db.py
 COPY backend/seed_db.py  /code/seed_db.py
@@ -70,7 +64,7 @@ COPY backend/seed_db.py  /code/seed_db.py
 # Pre-create model directory so first-boot auto-training has a target path
 RUN mkdir -p /code/app/financial_system/ml_pipeline/models
 
-# ── Layer 5: Startup entrypoint ───────────────────────────────────────────────
+# ── Layer 4: Startup entrypoint ───────────────────────────────────────────────
 COPY entrypoint.sh /code/entrypoint.sh
 RUN chmod +x /code/entrypoint.sh
 

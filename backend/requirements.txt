@@ -18,7 +18,14 @@ bcrypt>=4.0.0
 # ── AI / LLM ───────────────────────────────────────────────────────────────────
 anthropic>=0.30.0
 
-# ── ML Core (CPU-only torch installed separately in Dockerfile) ────────────────
+# ── PyTorch (CPU-only — must be pinned here AND in Dockerfile Layer 2) ─────────
+# Without this pin, pip re-resolves torch when installing sentence-transformers
+# and pulls the full 2 GB CUDA wheel from PyPI, causing Railway build timeouts.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2+cpu
+torchvision==0.17.2+cpu
+
+# ── ML Core ────────────────────────────────────────────────────────────────────
 scikit-learn>=1.2.0
 joblib>=1.3.0
 numpy>=1.24.0
@@ -27,6 +34,7 @@ shap>=0.42.0
 xgboost>=1.7.0
 
 # ── Sentence Embeddings (RAG) ──────────────────────────────────────────────────
+# lazy-imported in embedder.py — has keyword fallback if unavailable
 sentence-transformers>=2.7.0
 
 # ── Data Processing ────────────────────────────────────────────────────────────
