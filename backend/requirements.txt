@@ -22,8 +22,8 @@ anthropic>=0.30.0
 # Without this pin, pip re-resolves torch when installing sentence-transformers
 # and pulls the full 2 GB CUDA wheel from PyPI, causing Railway build timeouts.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.11.0+cpu
-torchvision==0.26.0+cpu
+torch==2.2.2+cpu
+torchvision==0.17.2+cpu
 
 # ── ML Core ────────────────────────────────────────────────────────────────────
 scikit-learn>=1.2.0
