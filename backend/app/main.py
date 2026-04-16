@@ -51,20 +51,25 @@ async def lifespan(_app: FastAPI):
         )
         import asyncio
         from app.financial_system.ml_pipeline.train_models import train_all
+
+        def background_train():
+            try:
+                result = train_all()
+                logger.info(
+                    f"[startup] Models trained — "
+                    f"delay_rmse={result.get('delay_rmse', '?'):.2f}d  "
+                    f"risk_acc={result.get('risk_accuracy', '?'):.1%}  "
+                    f"source={result.get('data_source', '?')}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"[startup] Model training failed ({type(e).__name__}: {e}). "
+                    "Inference will use heuristic fallbacks until resolved."
+                )
+
         loop = asyncio.get_event_loop()
-        try:
-            result = await loop.run_in_executor(None, train_all)
-            logger.info(
-                f"[startup] Models trained — "
-                f"delay_rmse={result.get('delay_rmse', '?'):.2f}d  "
-                f"risk_acc={result.get('risk_accuracy', '?'):.1%}  "
-                f"source={result.get('data_source', '?')}"
-            )
-        except Exception as e:
-            logger.error(
-                f"[startup] Model training failed ({type(e).__name__}: {e}). "
-                "Inference will use heuristic fallbacks until resolved."
-            )
+        # Fire and forget instead of blocking so Uvicorn can open its port before Render times it out
+        loop.run_in_executor(None, background_train)
     else:
         logger.info("[startup] All ML model files present — skipping training.")
     yield
