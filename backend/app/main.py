@@ -14,7 +14,6 @@ from app.rate_limiter import limiter
 from app.routes.twin import router as twin_router
 from app.routes.expansion import router as expansion_router
 from app.routes.confidence_studio import router as confidence_router
-from app.routes.parser_pipeline import router as pipeline_router
 from app.routes.execution import router as execution_router
 from app.routes.auth import router as auth_router
 from app.routes.register import router as register_router
@@ -109,7 +108,6 @@ app.add_middleware(
 app.include_router(twin_router)
 app.include_router(expansion_router)
 app.include_router(confidence_router)
-app.include_router(pipeline_router)
 app.include_router(execution_router)
 app.include_router(auth_router)
 app.include_router(register_router)
