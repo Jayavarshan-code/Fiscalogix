@@ -31,27 +31,19 @@ export const TopMenuRibbon: React.FC<TopMenuRibbonProps> = ({ activeView = 'dash
 
   return (
     <div className="top-ribbon-container">
-      {/* 1. Native Application Menu Bar (File, Edit, View...) */}
-      <div className="application-menu-bar">
-        <div className="brand-logo-small">
-          <div className="brand-icon-small" />
-          <span className="brand-name-small">FISCALOGIX</span>
-        </div>
-        <div className="menu-items">
-          <span className="menu-item hover-menu">File</span>
-          <span className="menu-item hover-menu">Edit</span>
-          <span className="menu-item hover-menu">View</span>
-          <span className="menu-item hover-menu">Workspace</span>
-          <span className="menu-item hover-menu">Window</span>
-          <span className="menu-item hover-menu">Help</span>
-        </div>
-        <div className="user-profile-small">
-          <div className="avatar-circle">{currentUser?.profileName?.charAt(0) || 'U'}</div>
-        </div>
-      </div>
-
-      {/* 2. Tool Ribbon (Workspace Navigation) - No permission gating */}
+      {/* Tool Ribbon (Workspace Navigation) - No permission gating */}
       <nav className="tool-ribbon">
+        
+        {/* Brand Logo inside ribbon on the far left */}
+        <div className="ribbon-brand-section">
+          <div className="brand-logo-small">
+            <div className="brand-icon-small" />
+            <span className="brand-name-small">FISCALOGIX</span>
+          </div>
+        </div>
+
+        <div className="vertical-divider" />
+
         <div className="ribbon-group">
           <div className="ribbon-group-title">Executive</div>
           <div className="ribbon-items">
@@ -128,6 +120,11 @@ export const TopMenuRibbon: React.FC<TopMenuRibbonProps> = ({ activeView = 'dash
               <span>Settings</span>
             </a>
           </div>
+        </div>
+
+        {/* User avatar pushed to the right */}
+        <div className="ribbon-user-section">
+          <div className="avatar-circle">{currentUser?.profileName?.charAt(0) || 'U'}</div>
         </div>
       </nav>
     </div>

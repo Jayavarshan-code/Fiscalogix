@@ -10,22 +10,15 @@
     color: #1e293b;
 }
 
-/* Application Menu Bar - Topmost thin strip */
-.application-menu-bar {
+.ribbon-brand-section {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0 16px;
-    height: 32px;
-    background: #f1f5f9;
-    border-bottom: 1px solid #cbd5e1;
-    font-size: 13px;
+    padding-right: 12px;
 }
 
 .brand-logo-small {
     display: flex;
     align-items: center;
-    margin-right: 24px;
 }
 
 .brand-icon-small {
@@ -43,41 +36,23 @@
     color: #0f172a;
 }
 
-.menu-items {
-    display: flex;
-    gap: 0px;
-    height: 100%;
-}
-
-.menu-item {
+.ribbon-user-section {
     display: flex;
     align-items: center;
-    padding: 0 12px;
-    height: 100%;
-    cursor: default;
-    color: #475569;
-}
-
-.hover-menu:hover {
-    background: #e2e8f0;
-    color: #0f172a;
-}
-
-.user-profile-small {
-    display: flex;
-    align-items: center;
+    margin-left: auto;
+    padding-left: 12px;
 }
 
 .avatar-circle {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     background: #3b82f6;
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: bold;
 }
 
