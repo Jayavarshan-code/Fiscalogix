@@ -7,7 +7,11 @@ import {
   Database,
   UploadCloud,
   Settings,
-  Briefcase
+  Briefcase,
+  Layers,
+  Zap,
+  Bell,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './TopMenuRibbon.css';
@@ -27,70 +31,104 @@ export const TopMenuRibbon: React.FC<TopMenuRibbonProps> = ({ activeView = 'dash
 
   return (
     <div className="top-ribbon-container">
-      {/* Top Utility Bar (Logo + User) */}
-      <div className="ribbon-utility-bar">
-        <div className="brand-logo">
-          <div className="brand-icon" />
-          <span className="brand-name text-lg font-bold ml-2 tracking-wide">FISCALOGIX</span>
+      {/* 1. Native Application Menu Bar (File, Edit, View...) */}
+      <div className="application-menu-bar">
+        <div className="brand-logo-small">
+          <div className="brand-icon-small" />
+          <span className="brand-name-small">FISCALOGIX</span>
         </div>
-        <div className="user-profile">
-          <span className="text-sm font-semibold mr-4">{currentUser?.profileName}</span>
+        <div className="menu-items">
+          <span className="menu-item hover-menu">File</span>
+          <span className="menu-item hover-menu">Edit</span>
+          <span className="menu-item hover-menu">View</span>
+          <span className="menu-item hover-menu">Workspace</span>
+          <span className="menu-item hover-menu">Window</span>
+          <span className="menu-item hover-menu">Help</span>
+        </div>
+        <div className="user-profile-small">
+          <div className="avatar-circle">{currentUser?.profileName?.charAt(0) || 'U'}</div>
         </div>
       </div>
 
-      {/* Ribbon Navigation Tabs */}
-      <nav className="ribbon-nav">
-        <a href="#" className={`ribbon-tab ${activeView === 'dashboard' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'dashboard')}>
-          <BarChart3 size={16} />
-          <span>Executive Overview</span>
-        </a>
+      {/* 2. Tool Ribbon (Workspace Navigation) - No permission gating */}
+      <nav className="tool-ribbon">
+        <div className="ribbon-group">
+          <div className="ribbon-group-title">Executive</div>
+          <div className="ribbon-items">
+            <a href="#" className={`ribbon-tab ${activeView === 'dashboard' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'dashboard')}>
+              <BarChart3 size={20} />
+              <span>Overview</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'matrix' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'matrix')}>
+              <Activity size={20} />
+              <span>Matrix</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'reports' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'reports')}>
+              <FileText size={20} />
+              <span>Reports</span>
+            </a>
+          </div>
+        </div>
 
-        {['Financial Analyst', 'Supply Chain Ops', 'System Admin'].includes(currentUser?.profileName || '') && (
-          <a href="#" className={`ribbon-tab ${activeView === 'matrix' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'matrix')}>
-            <Activity size={16} />
-            <span>REVM Analysis</span>
-          </a>
-        )}
+        <div className="vertical-divider" />
 
-        <a href="#" className={`ribbon-tab ${activeView === 'ingest' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'ingest')}>
-          <UploadCloud size={16} />
-          <span>Ingestion Studio</span>
-        </a>
+        <div className="ribbon-group">
+          <div className="ribbon-group-title">Operations</div>
+          <div className="ribbon-items">
+            <a href="#" className={`ribbon-tab ${activeView === 'ingest' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'ingest')}>
+              <UploadCloud size={20} />
+              <span>Data Link</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'gst' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'gst')}>
+              <Briefcase size={20} />
+              <span>India GST</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'warehouse' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'warehouse')}>
+              <Database size={20} />
+              <span>Warehouse</span>
+            </a>
+          </div>
+        </div>
 
-        {['System Admin', 'Auditor'].includes(currentUser?.profileName || '') && (
-          <a href="#" className={`ribbon-tab ${activeView === 'warehouse' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'warehouse')}>
-            <Database size={16} />
-            <span>Data Warehouse</span>
-          </a>
-        )}
+        <div className="vertical-divider" />
 
-        {['Financial Analyst', 'System Admin'].includes(currentUser?.profileName || '') && (
-          <a href="#" className={`ribbon-tab ${activeView === 'recovery' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'recovery')}>
-            <Briefcase size={16} />
-            <span>Revenue Recovery</span>
-          </a>
-        )}
+        <div className="ribbon-group">
+          <div className="ribbon-group-title">Intelligence</div>
+          <div className="ribbon-items">
+             <a href="#" className={`ribbon-tab ${activeView === 'recovery' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'recovery')}>
+              <Zap size={20} />
+              <span>Recovery</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'cashflow' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'cashflow')}>
+              <Wallet size={20} />
+              <span>Cashflow</span>
+            </a>
+             <a href="#" className={`ribbon-tab ${activeView === 'optimization' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'optimization')}>
+              <Layers size={20} />
+              <span>Optimizer</span>
+            </a>
+          </div>
+        </div>
 
-        {['Executive', 'Financial Analyst', 'System Admin'].includes(currentUser?.profileName || '') && (
-          <a href="#" className={`ribbon-tab ${activeView === 'cashflow' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'cashflow')}>
-            <Wallet size={16} />
-            <span>Cashflow & POE</span>
-          </a>
-        )}
+        <div className="vertical-divider" />
 
-        {['System Admin', 'Auditor'].includes(currentUser?.profileName || '') && (
-          <a href="#" className={`ribbon-tab ${activeView === 'shield' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'shield')}>
-            <Shield size={16} />
-            <span>AI Governance</span>
-          </a>
-        )}
-        
-        {currentUser?.profileName === 'System Admin' && (
-          <a href="#" className={`ribbon-tab ${activeView === 'admin' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'admin')}>
-            <Settings size={16} />
-            <span>Admin & Settings</span>
-          </a>
-        )}
+        <div className="ribbon-group">
+          <div className="ribbon-group-title">System</div>
+          <div className="ribbon-items">
+            <a href="#" className={`ribbon-tab ${activeView === 'shield' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'shield')}>
+              <Shield size={20} />
+              <span>Governance</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'alerts' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'alerts')}>
+              <Bell size={20} />
+              <span>Alerts</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'admin' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'admin')}>
+              <Settings size={20} />
+              <span>Settings</span>
+            </a>
+          </div>
+        </div>
       </nav>
     </div>
   );

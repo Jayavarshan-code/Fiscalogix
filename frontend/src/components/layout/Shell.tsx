@@ -11,13 +11,14 @@ interface ShellProps {
 export const Shell: React.FC<ShellProps> = ({ children, activeView, onNavigate }) => {
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ width: '100vw', margin: 0, padding: 0, overflowX: 'hidden' }}>
+    <div className="flex flex-col h-screen" style={{ width: '100vw', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
       <TopMenuRibbon 
         activeView={activeView} 
         onNavigate={onNavigate} 
       />
       
-      <main className="flex-grow w-full p-8" style={{ width: '100vw', margin: 0, boxSizing: 'border-box' }}>
+      {/* Full canvas workspace below the ribbon */}
+      <main className="flex-grow w-full relative" style={{ width: '100vw', height: 'calc(100vh - 114px)', margin: 0, padding: 0, boxSizing: 'border-box', overflowY: 'auto' }}>
         {children}
       </main>
     </div>
