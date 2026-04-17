@@ -76,6 +76,15 @@ async def lifespan(_app: FastAPI):
         loop.run_in_executor(None, background_train)
     else:
         logger.info("[startup] All ML model files present — skipping training.")
+
+    # FIX: Initialize Database schemas on startup to ensure carrier_performance is created on cloud platforms
+    try:
+        from setup_db import initialize_db
+        logger.info("[startup] Initializing database schemas...")
+        initialize_db()
+    except Exception as e:
+        logger.error(f"[startup] Database initialization failed: {e}")
+
     yield
 
 
