@@ -1,3 +1,5 @@
+from typing import Dict, Any
+
 from app.Db.neo4j_client import neo4j_client
 
 class GNNRiskMapper:
