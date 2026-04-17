@@ -270,9 +270,8 @@ class Shipment(Base):
     shipment_id               = Column(Integer, primary_key=True, autoincrement=True)
     tenant_id                 = Column(String(50), nullable=False, index=True)
     order_id                  = Column(Integer, ForeignKey('orders.order_id'))
-    # Gap: shipment had a raw penalty_rate float with no link back to which
     # contract produced it. sla_contract_id traces it to the source document.
-    sla_contract_id           = Column(Integer, ForeignKey('sla_contracts.id'), nullable=True)
+    sla_contract_id           = Column(Integer, ForeignKey('sla_contracts.contract_id'), nullable=True)
     shipment_cost             = Column(Float)
     total_cost                = Column(Float)
     shipment_value            = Column(Float)
