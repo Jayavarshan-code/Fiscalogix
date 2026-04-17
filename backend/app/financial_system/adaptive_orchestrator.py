@@ -259,9 +259,11 @@ class AdaptiveOrchestrator:
             # Ops can see "clv_calibration failed, 0 accounts enriched" in the
             # Governance Shield without having to dig into server logs.
             "pipeline_health": {
-                "timings_ms":    ctx.timing_summary(),
-                "failed_stages": ctx.failed_stages(),
-                "total_ms":      round(ctx.total_elapsed_ms(), 1),
+                "request_id":        ctx.request_id,
+                "timings_ms":        ctx.timing_summary(),
+                "failed_stages":     ctx.failed_stages(),
+                "total_ms":          round(ctx.total_elapsed_ms(), 1),
+                "persistence_health": ctx.result("persistence"),
             },
         }
 

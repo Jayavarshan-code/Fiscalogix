@@ -3,8 +3,13 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+from app.rate_limiter import limiter
 
 from app.routes.twin import router as twin_router
 from app.routes.expansion import router as expansion_router
@@ -86,6 +91,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── Rate limiting ─────────────────────────────────────────────────────────────
+# Global default: 60 req/min per IP.  Per-endpoint overrides in route files.
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -126,11 +137,13 @@ def health_check():
 
 
 @app.get("/fx-rate", tags=["Utilities"])
-def fx_rate():
+@limiter.limit("10/minute")
+def fx_rate(request: Request):
     """
     Returns the current USD→INR exchange rate.
     Served from Redis cache (refreshed daily). Falls back to live API,
     then hardcoded 84.5 if both are unavailable.
+    Strict rate limit: calls ExchangeRate-API which has a monthly quota.
     """
     from app.utils.fx import get_usd_to_inr
     rate = get_usd_to_inr()

@@ -232,13 +232,24 @@ class WACCEngine:
             pass
         return None
 
+    _WACC_STALE_THRESHOLD_SECONDS = 25200  # warn if cache older than 7 hours (Beat runs every 6h)
+
     def _get_industry_wacc(self, vertical: str) -> Optional[float]:
         if self._cache is None:
             return None
         try:
+            import time as _time
             key = _REDIS_INDUSTRY_KEY_FMT.format(vertical=vertical)
             val = self._cache.get(key)
             if val:
+                updated_at = self._cache.get(f"{key}:updated_at")
+                if updated_at:
+                    age = _time.time() - float(updated_at)
+                    if age > self._WACC_STALE_THRESHOLD_SECONDS:
+                        logger.warning(
+                            f"WACCEngine: stale cache for vertical={vertical} "
+                            f"(age={age/3600:.1f}h). Check Celery Beat WACC warmer."
+                        )
                 return self._clamp(float(val))
         except Exception:
             pass
@@ -332,13 +343,18 @@ def fetch_and_warm_wacc_cache() -> dict:
     adjustment = current_rfr - _DAMODARAN_BASELINE_RFR
 
     try:
+        import time as _time
+        warmed_at = str(_time.time())
         cache.setex(_REDIS_MARKET_ADJ_KEY, _REDIS_WACC_TTL_SECONDS, str(adjustment))
+        cache.setex(f"{_REDIS_MARKET_ADJ_KEY}:updated_at", _REDIS_WACC_TTL_SECONDS, warmed_at)
 
         adjusted_rates = {}
         for vertical, base in _DAMODARAN_WACC.items():
             key = _REDIS_INDUSTRY_KEY_FMT.format(vertical=vertical)
             adjusted = WACCEngine._clamp(base + adjustment)
             cache.setex(key, _REDIS_WACC_TTL_SECONDS, str(adjusted))
+            # Staleness sentinel per industry key
+            cache.setex(f"{key}:updated_at", _REDIS_WACC_TTL_SECONDS, warmed_at)
             adjusted_rates[vertical] = adjusted
 
         logger.info(

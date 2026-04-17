@@ -23,6 +23,7 @@ Stage execution order (enforced by orchestrator):
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import statistics
@@ -80,8 +81,36 @@ class DataIngestionStage(PipelineStage):
             raise ValueError(
                 f"DataIngestionStage: no records found for tenant='{ctx.tenant_id}'"
             )
-        ctx.data = [self._mapper.normalize_row_taxonomy(row) for row in raw]
-        return {"record_count": len(ctx.data)}
+
+        valid_rows  = []
+        failed_rows = []
+        for i, row in enumerate(raw):
+            try:
+                valid_rows.append(self._mapper.normalize_row_taxonomy(row))
+            except Exception as e:
+                failed_rows.append({"index": i, "error": str(e)})
+                logger.warning(
+                    f"[DataIngestionStage] Row {i} normalization failed — skipping: {e}"
+                )
+
+        if not valid_rows:
+            raise ValueError(
+                f"DataIngestionStage: all {len(raw)} rows failed normalization "
+                f"for tenant='{ctx.tenant_id}'"
+            )
+
+        if failed_rows:
+            logger.error(
+                f"[DataIngestionStage] {len(failed_rows)}/{len(raw)} rows failed normalization "
+                f"for tenant='{ctx.tenant_id}'. Processing {len(valid_rows)} valid rows."
+            )
+
+        ctx.data = valid_rows
+        return {
+            "record_count":        len(valid_rows),
+            "failed_row_count":    len(failed_rows),
+            "normalization_errors": failed_rows,
+        }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -112,6 +141,9 @@ class MLInferenceStage(PipelineStage):
 
         delay_model_mode  = "ml"  if getattr(self._delay,  "model", None) else "heuristic"
         demand_model_mode = "ml"  if getattr(self._demand, "model", None) else "heuristic"
+
+        # Release XGBoost intermediate arrays before the next stage allocates
+        gc.collect()
 
         return {
             "delay_model_mode":  delay_model_mode,
@@ -202,16 +234,34 @@ class DecisionStage(PipelineStage):
         self._engine = decision_engine
 
     def execute(self, ctx: PipelineContext) -> Dict[str, Any]:
+        failed = 0
         for row in ctx.data:
-            row["decision"] = self._engine.compute(row)
+            try:
+                row["decision"] = self._engine.compute(row)
+            except Exception as e:
+                failed += 1
+                logger.error(
+                    f"[DecisionStage] compute failed for row "
+                    f"shipment_id={row.get('shipment_id', '?')}: {e}",
+                    exc_info=True,
+                )
+                row["decision"] = {
+                    "action":     "ESCALATE TO MANAGEMENT",
+                    "reason":     "Decision engine error — conservative fallback applied.",
+                    "drivers":    ["upstream data missing or malformed"],
+                    "confidence": 0.0,
+                    "revm_pct":   0.0,
+                    "tier":       3,
+                }
 
         decisions = [r.get("decision", {}) for r in ctx.data]
         reroute_count = sum(
             1 for d in decisions if isinstance(d, dict) and d.get("action") == "REROUTE"
         )
         return {
-            "reroute_count":  reroute_count,
+            "reroute_count":   reroute_count,
             "total_decisions": len(ctx.data),
+            "failed_decisions": failed,
         }
 
 
@@ -243,6 +293,7 @@ class SituationAssessmentStage(PipelineStage):
 
         active_strikes   = False
         disruption_count = 0
+        graph_unavailable = False
         try:
             for _, _, edata in self._route_optimizer.graph.edges(data=True):
                 if edata.get("strike_active"):
@@ -251,8 +302,15 @@ class SituationAssessmentStage(PipelineStage):
             for _, ndata in self._route_optimizer.graph.nodes(data=True):
                 if ndata.get("territory_type") == "Enemy":
                     disruption_count += 1
-        except Exception:
-            pass  # Graph not seeded yet — safe to ignore
+        except Exception as e:
+            graph_unavailable = True
+            logger.warning(
+                f"[SituationAssessmentStage] Route graph unavailable ({e}). "
+                "disruption_count forced to 1 so RoutingAgent is dispatched as a precaution. "
+                "Check GeopoliticalRouteOptimizer seeding in AdaptiveOrchestrator.__init__."
+            )
+            # Force routing agent dispatch — better to over-dispatch than miss a live strike
+            disruption_count = 1
 
         sigma_breach = False
         if len(delays) > 3:
@@ -264,14 +322,15 @@ class SituationAssessmentStage(PipelineStage):
                 pass
 
         return {
-            "total_records":    len(data),
-            "high_risk_count":  high_risk,
-            "critical_count":   critical,
-            "total_exposure":   round(sum(order_values), 0),
-            "active_strikes":   active_strikes,
-            "disruption_count": disruption_count,
-            "sigma_breach":     sigma_breach,
-            "avg_risk_score":   round(sum(risk_scores) / max(len(risk_scores), 1), 3),
+            "total_records":     len(data),
+            "high_risk_count":   high_risk,
+            "critical_count":    critical,
+            "total_exposure":    round(sum(order_values), 0),
+            "active_strikes":    active_strikes,
+            "disruption_count":  disruption_count,
+            "sigma_breach":      sigma_breach,
+            "avg_risk_score":    round(sum(risk_scores) / max(len(risk_scores), 1), 3),
+            "graph_unavailable": graph_unavailable,
         }
 
 
@@ -321,7 +380,7 @@ class DispatchPlanningStage(PipelineStage):
         source = "llm"
 
         try:
-            raw  = await self._llm.execute(_DISPATCH_SYSTEM, user_msg, temperature=0.0)
+            raw  = await self._llm.execute(_DISPATCH_SYSTEM, user_msg, temperature=0.0, tenant_id=ctx.tenant_id)
             plan = self._parse_plan(raw)
         except Exception as e:
             logger.warning(f"[DispatchPlanningStage] LLM unavailable ({e}) — using heuristic plan")
@@ -366,47 +425,131 @@ class DispatchPlanningStage(PipelineStage):
 class AgentExecutionStage(PipelineStage):
     """
     Responsibility: Run the agents selected by DispatchPlanningStage.
-    Each agent receives ctx.data and the accumulated agent_results dict
-    so agents can build on each other's outputs (e.g. ExecutiveAgent
-    reads RiskAgent's output to write its CFO brief).
 
-    Degradation: If an individual agent raises, it is skipped and logged.
-    The remaining agents always execute. ExecutiveAgent always runs last —
-    even if earlier agents failed, it produces a degraded brief.
+    Execution model — three phases, purely functional (no agent mutates ctx.data):
+
+      Phase 1 (parallel):  routing, anomaly, risk — fully independent; receive
+                           an empty prior_results dict; read ctx.data read-only.
+      Phase 2 (serial):    financial — reads RiskAgent result from prior_results
+                           to get risk_scores; independent of routing/anomaly.
+      Phase 3 (serial):    executive — synthesises all prior results for CFO brief.
+      Fan-in:              row_enrichments returned by risk + financial are applied
+                           to ctx.data in one pass after all agents complete.
+
+    No agent writes directly to ctx.data rows.  All mutations go through fan-in,
+    eliminating shared-state race conditions for future parallelism.
+
+    DB sessions: agents are stateless — no SQLAlchemy sessions.  PersistenceStage
+    (Stage 8) owns all DB writes after the fan-in is complete.
     """
     name = "agent_execution"
+
+    _PHASE1_PARALLEL = frozenset({"routing", "anomaly", "risk"})
+    _PHASE2_SERIAL   = ("financial",)   # ordered; needs RiskAgent prior result
+    _PHASE3_LAST     = "executive"      # always runs last; synthesises everything
 
     def __init__(self, agents: Dict[str, Any]):
         self._agents = agents
 
     async def execute(self, ctx: PipelineContext) -> Dict[str, Any]:
+        import asyncio as _asyncio
+        import time as _time
+
         plan      = ctx.result("dispatch_planning").get("plan", ["risk", "financial", "executive"])
         tenant_id = ctx.tenant_id
 
         agent_results: Dict[str, Any] = {}
         timings:       Dict[str, float] = {}
 
-        for agent_name in plan:
+        # ── Phase 1: parallel (routing, anomaly, risk) ────────────────────────
+        phase1_names = [n for n in plan if n in self._PHASE1_PARALLEL]
+
+        async def _run_one_parallel(agent_name: str):
             agent = self._agents.get(agent_name)
             if agent is None:
                 logger.warning(f"[AgentExecutionStage] Unknown agent '{agent_name}' — skipping")
-                continue
-
-            import time as _time
+                return agent_name, None, 0.0
             t0 = _time.perf_counter()
-            try:
-                result = await agent.run(ctx.data, agent_results, tenant_id)
-                agent_results[result.agent_name if hasattr(result, "agent_name") else agent.__class__.__name__] = result
-            except Exception as exc:
-                logger.error(f"[AgentExecutionStage] Agent '{agent_name}' failed: {exc}", exc_info=True)
-            finally:
-                timings[agent_name] = round((_time.perf_counter() - t0) * 1000, 2)
+            # Empty prior_results: phase-1 agents are fully independent
+            result  = await agent.run(ctx.data, {}, tenant_id)
+            elapsed = (_time.perf_counter() - t0) * 1000
+            return agent_name, result, elapsed
+
+        if phase1_names:
+            p1_start   = _time.perf_counter()
+            outcomes   = await _asyncio.gather(
+                *[_run_one_parallel(n) for n in phase1_names],
+                return_exceptions=True,
+            )
+            p1_elapsed = (_time.perf_counter() - p1_start) * 1000
+
+            for outcome in outcomes:
+                if isinstance(outcome, BaseException):
+                    logger.error(f"[AgentExecutionStage] Phase-1 agent raised: {outcome}", exc_info=outcome)
+                    continue
+                agent_name, result, elapsed = outcome
+                timings[agent_name] = round(elapsed, 2)
+                if result is not None:
+                    key = result.agent_name if hasattr(result, "agent_name") else agent_name
+                    agent_results[key] = result
+
+            logger.info(
+                f"[AgentExecutionStage] Phase 1 done — {len(phase1_names)} agents "
+                f"in {p1_elapsed:.1f}ms (parallel)"
+            )
+
+        # ── Phase 2: serial agents that depend on Phase 1 results ─────────────
+        for agent_name in self._PHASE2_SERIAL:
+            if agent_name not in plan:
+                continue
+            agent = self._agents.get(agent_name)
+            if agent is None:
+                continue
+            t0 = _time.perf_counter()
+            result = await agent.run(ctx.data, agent_results, tenant_id)
+            timings[agent_name] = round((_time.perf_counter() - t0) * 1000, 2)
+            key = result.agent_name if hasattr(result, "agent_name") else agent_name
+            agent_results[key] = result
+
+        # ── Phase 3: ExecutiveAgent (reads all prior results) ─────────────────
+        if self._PHASE3_LAST in plan:
+            exec_agent = self._agents.get(self._PHASE3_LAST)
+            if exec_agent is not None:
+                t0 = _time.perf_counter()
+                result = await exec_agent.run(ctx.data, agent_results, tenant_id)
+                timings[self._PHASE3_LAST] = round((_time.perf_counter() - t0) * 1000, 2)
+                key = result.agent_name if hasattr(result, "agent_name") else self._PHASE3_LAST
+                agent_results[key] = result
+
+        # ── Fan-in: apply row_enrichments to ctx.data in one safe pass ────────
+        self._apply_row_enrichments(ctx.data, agent_results)
+
+        # PyTorch GNN tensors + Monte Carlo NumPy arrays are no longer needed
+        # after agents complete — release before PersistenceStage allocates DB sessions
+        gc.collect()
 
         return {
             "agent_results": agent_results,
             "agent_timings": timings,
             "agents_run":    list(timings.keys()),
         }
+
+    @staticmethod
+    def _apply_row_enrichments(
+        ctx_data: list, agent_results: Dict[str, Any]
+    ) -> None:
+        """
+        Single-pass fan-in: collect row_enrichments from all agent results and
+        apply them to ctx.data rows.  Called after all three phases complete —
+        no agent touches ctx.data during execution.
+        """
+        for result in agent_results.values():
+            if not (result and getattr(result, "success", False)):
+                continue
+            enrichments = result.data.get("row_enrichments", [])
+            for i, fields in enumerate(enrichments):
+                if i < len(ctx_data):
+                    ctx_data[i].update(fields)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -454,6 +597,18 @@ class PersistenceStage(PipelineStage):
             results["decision_log"] = True
         except Exception as e:
             logger.error(f"[PersistenceStage] DecisionLog write failed: {e}", exc_info=True)
+
+        # Surface partial failures — pipeline_health.failed_stages won't catch these
+        # because the stage itself succeeds; expose them explicitly.
+        failed_writes = [k for k, v in results.items() if not v]
+        if failed_writes:
+            logger.warning(
+                f"[PersistenceStage] Partial audit trail for tenant='{ctx.tenant_id}' — "
+                f"failed writes: {failed_writes}. Financial results are correct; "
+                f"compliance records may be incomplete."
+            )
+        results["partial_failure"] = bool(failed_writes)
+        results["failed_writes"]   = failed_writes
 
         return results
 

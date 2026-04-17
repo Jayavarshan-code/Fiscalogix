@@ -85,5 +85,13 @@ celery_app.conf.update(
             "task":     "warm_wacc_cache",
             "schedule": crontab(minute=0, hour="*/6"),
         },
+        # Warm spatial events every 60 minutes.
+        # Fetches Weather (OpenWeatherMap), Geopolitical (ACLED), and Port
+        # Congestion (MarineTraffic) data into external_spatial_events table.
+        # /execution/spatial/active-risks reads from DB — never live HTTP.
+        "warm-spatial-events-every-60-minutes": {
+            "task":     "warm_spatial_events",
+            "schedule": crontab(minute=0),
+        },
     },
 )

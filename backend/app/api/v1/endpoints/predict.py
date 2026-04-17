@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from app.Db.connections import get_db
+from app.rate_limiter import limiter
 from app.financial_system.dw_schema import DWShipmentFact
 from app.financial_system.delay_model import DelayPredictionModel
 from app.financial_system.risk_engine import RiskEngine
@@ -43,7 +44,8 @@ async def predict_delay(payload: List[Dict[str, Any]]):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/shipment/{shipment_id}/insights")
-async def get_shipment_insights(shipment_id: str, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+async def get_shipment_insights(request: Request, shipment_id: str, db: Session = Depends(get_db)):
     """
     Live Executive Cockpit API.
     Provides SHAP value drivers and Monte Carlo stochastic arrays for dynamic UI rendering.
@@ -90,9 +92,11 @@ async def get_shipment_insights(shipment_id: str, db: Session = Depends(get_db))
     mc_output = mc_engine.simulate_var([enriched_record], iterations=1000)
     scenarios = mc_output.get("scenarios", [])
 
-    # ── Scenario Stress Tests ─────────────────────────────────────────────────
+    # ── Scenario Stress Tests — concurrent with 12s total timeout ────────────
+    # Previously: 5 sequential simulate() calls — P99 latency up to 30s.
+    # Now: all 5 run concurrently in the thread executor; hard 12s ceiling.
+    # If timeout is hit, partial results are returned with scenarios_complete=False.
     base_records_for_scenario = [enriched_record]
-    scenario_analysis = []
     SCENARIO_CONFIGS = [
         {"name": "Base Case",            "delay": 0, "demand": 0.0,   "fx": 0.0,  "cost": 0.0,  "intl": False},
         {"name": "Port Strike (+3d)",    "delay": 3, "demand": 0.0,   "fx": 0.0,  "cost": 0.05, "intl": True},
@@ -100,20 +104,38 @@ async def get_shipment_insights(shipment_id: str, db: Session = Depends(get_db))
         {"name": "Freight Spike +40%",   "delay": 1, "demand": -0.10, "fx": 0.0,  "cost": 0.40, "intl": False},
         {"name": "Red Sea Reroute +7d",  "delay": 7, "demand": 0.0,   "fx": 0.05, "cost": 0.15, "intl": True},
     ]
+
+    import asyncio as _asyncio
+
+    async def _run_scenarios():
+        loop = _asyncio.get_event_loop()
+
+        async def _one(cfg):
+            try:
+                return await loop.run_in_executor(
+                    None,
+                    lambda c=cfg: scenario_engine.simulate(
+                        base_records=base_records_for_scenario,
+                        scenario_name=c["name"],
+                        delay_shift=c["delay"],
+                        demand_shift_pct=c["demand"],
+                        fx_shock_pct=c["fx"],
+                        cost_shock_pct=c["cost"],
+                        international_only=c["intl"],
+                    ),
+                )
+            except Exception:
+                return None
+
+        results = await _asyncio.gather(*[_one(cfg) for cfg in SCENARIO_CONFIGS])
+        return [r for r in results if r is not None]
+
+    scenarios_complete = True
     try:
-        for cfg in SCENARIO_CONFIGS:
-            result = scenario_engine.simulate(
-                base_records=base_records_for_scenario,
-                scenario_name=cfg["name"],
-                delay_shift=cfg["delay"],
-                demand_shift_pct=cfg["demand"],
-                fx_shock_pct=cfg["fx"],
-                cost_shock_pct=cfg["cost"],
-                international_only=cfg["intl"],
-            )
-            scenario_analysis.append(result)
-    except Exception:
+        scenario_analysis = await _asyncio.wait_for(_run_scenarios(), timeout=12.0)
+    except _asyncio.TimeoutError:
         scenario_analysis = []
+        scenarios_complete = False
 
     # ── Constraint Snapshot ───────────────────────────────────────────────────
     risk_score = risk_output.get("score", 0.05)
@@ -137,6 +159,7 @@ async def get_shipment_insights(shipment_id: str, db: Session = Depends(get_db))
         "executive_narrative": executive_narrative,
         "monte_carlo_scenarios": scenarios,
         "scenario_analysis": scenario_analysis,
+        "scenarios_complete": scenarios_complete,
         "constraints": {
             "capacity_utilization": capacity_utilization,
             "budget_utilization":   budget_utilization,

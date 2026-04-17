@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
 from app.financial_system.ai_mapper import AIFieldMapper
 from app.financial_system.dependencies import get_current_user
+from app.rate_limiter import limiter
 import pandas as pd
 import io
 import os
@@ -23,7 +24,9 @@ def _validate_file_size(content: bytes, filename: str):
         )
 
 @router.post("/analyze_csv")
+@limiter.limit("5/minute")
 async def analyze_csv(
+    request: Request,
     file: UploadFile = File(...),
     _current_user: dict = Depends(get_current_user)
 ):

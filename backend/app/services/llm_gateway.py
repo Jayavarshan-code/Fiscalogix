@@ -13,6 +13,8 @@ Design principles:
 import os
 import logging
 import asyncio
+import time
+import concurrent.futures
 from typing import Dict, Any, Optional, List
 
 import anthropic
@@ -22,6 +24,15 @@ logger = logging.getLogger(__name__)
 
 _MODEL = "claude-opus-4-5"          # pinned — change via env var LLM_MODEL
 _MAX_TOKENS = 2048
+_LLM_TIMEOUT_SECONDS = 8            # hard ceiling per call — pipeline never hangs past this
+_CIRCUIT_FAILURE_THRESHOLD = 3      # open circuit after this many consecutive failures
+_CIRCUIT_COOLDOWN_SECONDS = 60      # how long the circuit stays open before retrying
+
+# Bounded executor for execute_sync — max 2 concurrent LLM threads.
+# Prevents unbounded thread creation when callers (Celery tasks) timeout and retry.
+_SYNC_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2, thread_name_prefix="llm_sync"
+)
 
 
 def _get_rag_context(query: str, tenant_id: str, source_types=None) -> str:
@@ -64,9 +75,38 @@ class LlmGateway:
                 "All LLM calls will return degraded fallback responses."
             )
 
+        # Circuit breaker state — keyed by tenant_id so one tenant's failures
+        # don't block other tenants.  "global" is used for non-tenant calls.
+        self._circuit_failures: Dict[str, int]   = {}
+        self._circuit_open_until: Dict[str, float] = {}
+
     # ─────────────────────────────────────────────────────────────────────────
     # CORE PRIMITIVES
     # ─────────────────────────────────────────────────────────────────────────
+
+    def _is_circuit_open(self, tenant_id: str = "global") -> bool:
+        open_until = self._circuit_open_until.get(tenant_id, 0.0)
+        if open_until and time.time() < open_until:
+            return True
+        if open_until and time.time() >= open_until:
+            # Cooldown elapsed — half-open: allow one attempt through
+            self._circuit_open_until[tenant_id] = 0.0
+            self._circuit_failures[tenant_id]   = 0
+            logger.info(f"LlmGateway: circuit reset for tenant='{tenant_id}' — retrying Claude API.")
+        return False
+
+    def _record_success(self, tenant_id: str = "global") -> None:
+        self._circuit_failures[tenant_id] = 0
+
+    def _record_failure(self, reason: str, tenant_id: str = "global") -> None:
+        count = self._circuit_failures.get(tenant_id, 0) + 1
+        self._circuit_failures[tenant_id] = count
+        if count >= _CIRCUIT_FAILURE_THRESHOLD:
+            self._circuit_open_until[tenant_id] = time.time() + _CIRCUIT_COOLDOWN_SECONDS
+            logger.error(
+                f"LlmGateway: circuit OPEN for tenant='{tenant_id}' after {count} failures "
+                f"({reason}). Fallback active for {_CIRCUIT_COOLDOWN_SECONDS}s."
+            )
 
     async def execute(
         self,
@@ -74,58 +114,89 @@ class LlmGateway:
         user: str,
         temperature: float = 0.0,
         max_tokens: int = _MAX_TOKENS,
+        tenant_id: str = "global",
     ) -> str:
         """
         The single raw LLM call. All domain methods build on this.
 
         temperature=0.0  → deterministic (dispatch, classification, extraction)
         temperature=0.3  → slight variation allowed (narrative prose)
+
+        Hardened with:
+          - 8-second timeout: pipeline never stalls waiting for a slow Claude response
+          - Circuit breaker: after 3 consecutive failures the circuit opens for 60s,
+            all calls return fallback instantly until the cooldown expires
         """
         if not self._client:
             return self._fallback(user)
 
+        if self._is_circuit_open(tenant_id):
+            logger.warning(f"LlmGateway: circuit OPEN for tenant='{tenant_id}' — returning fallback.")
+            return self._fallback(user)
+
         try:
-            # anthropic SDK is sync; run in executor to keep FastAPI async-safe
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None,
-                lambda: self._client.messages.create(
-                    model=self._model,
-                    max_tokens=max_tokens,
-                    system=system,
-                    messages=[{"role": "user", "content": user}],
-                    # temperature is not a named param in all SDK versions —
-                    # pass via extra_body for compatibility
-                    **({"temperature": temperature} if temperature != 0.0 else {}),
+            response = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: self._client.messages.create(
+                        model=self._model,
+                        max_tokens=max_tokens,
+                        system=system,
+                        messages=[{"role": "user", "content": user}],
+                        **({"temperature": temperature} if temperature != 0.0 else {}),
+                    ),
                 ),
+                timeout=_LLM_TIMEOUT_SECONDS,
             )
+            self._record_success(tenant_id)
             return response.content[0].text
 
+        except asyncio.TimeoutError:
+            self._record_failure("timeout", tenant_id)
+            logger.warning(
+                f"LlmGateway: call timed out after {_LLM_TIMEOUT_SECONDS}s — returning fallback."
+            )
+            return self._fallback(user)
         except anthropic.AuthenticationError:
             logger.error("LlmGateway: Authentication failed — check ANTHROPIC_API_KEY.")
             return self._fallback(user)
         except anthropic.RateLimitError:
+            self._record_failure("rate_limit", tenant_id)
             logger.warning("LlmGateway: Rate limit hit — returning fallback.")
             return self._fallback(user)
         except anthropic.APIError as e:
+            self._record_failure(type(e).__name__, tenant_id)
             logger.error(f"LlmGateway: API error — {type(e).__name__}: {e}")
             return self._fallback(user)
 
     # Convenience sync wrapper for non-async callers (e.g. Celery tasks)
-    def execute_sync(self, system: str, user: str, temperature: float = 0.0) -> str:
+    def execute_sync(self, system: str, user: str, temperature: float = 0.0, tenant_id: str = "global") -> str:
         if not self._client:
             return self._fallback(user)
+        if self._is_circuit_open(tenant_id):
+            logger.warning(f"LlmGateway.execute_sync: circuit OPEN for tenant='{tenant_id}' — returning fallback.")
+            return self._fallback(user)
+        future = _SYNC_EXECUTOR.submit(
+            self._client.messages.create,
+            model=self._model,
+            max_tokens=_MAX_TOKENS,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+            **({"temperature": temperature} if temperature != 0.0 else {}),
+        )
         try:
-            response = self._client.messages.create(
-                model=self._model,
-                max_tokens=_MAX_TOKENS,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-                **({"temperature": temperature} if temperature != 0.0 else {}),
-            )
-            return response.content[0].text
-        except Exception as e:
-            logger.error(f"LlmGateway.execute_sync: {type(e).__name__}: {e}")
+            result = future.result(timeout=_LLM_TIMEOUT_SECONDS)
+            self._record_success(tenant_id)
+            return result.content[0].text
+        except concurrent.futures.TimeoutError:
+            future.cancel()
+            self._record_failure("timeout", tenant_id)
+            logger.warning(f"LlmGateway.execute_sync: timed out after {_LLM_TIMEOUT_SECONDS}s.")
+            return self._fallback(user)
+        except Exception as exc:
+            self._record_failure(type(exc).__name__, tenant_id)
+            logger.error(f"LlmGateway.execute_sync: {type(exc).__name__}: {exc}")
             return self._fallback(user)
 
     def _fallback(self, _user_prompt: str) -> str:

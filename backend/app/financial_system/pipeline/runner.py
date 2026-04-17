@@ -55,8 +55,9 @@ class PipelineRunner:
         Always returns the context — never raises.
         """
         total_stages = len(self._stages)
+        rid = ctx.request_id
         logger.info(
-            f"[Pipeline] Starting {total_stages}-stage pipeline for tenant='{ctx.tenant_id}'"
+            f"[{rid}] Pipeline starting — {total_stages} stages, tenant='{ctx.tenant_id}'"
         )
 
         for i, stage in enumerate(self._stages, start=1):
@@ -77,7 +78,7 @@ class PipelineRunner:
                     data=output_data or {},
                     elapsed_ms=round(elapsed, 2),
                 )
-                logger.info(f"[Pipeline] {stage_label} ✓  {elapsed:.1f}ms")
+                logger.info(f"[{rid}] {stage_label} ok  {elapsed:.1f}ms")
 
             except Exception as exc:
                 elapsed = (time.perf_counter() - t0) * 1000
@@ -88,9 +89,8 @@ class PipelineRunner:
                     elapsed_ms=round(elapsed, 2),
                     error=str(exc),
                 )
-                # Full traceback at ERROR level — never swallowed silently
                 logger.error(
-                    f"[Pipeline] {stage_label} ✗  {elapsed:.1f}ms — {exc}",
+                    f"[{rid}] {stage_label} FAILED  {elapsed:.1f}ms — {exc}",
                     exc_info=True,
                 )
                 # Pipeline continues — next stage runs with ctx.result(stage.name) == {}
@@ -98,12 +98,12 @@ class PipelineRunner:
         failed = ctx.failed_stages()
         if failed:
             logger.warning(
-                f"[Pipeline] Completed with {len(failed)} failed stage(s): {failed}  "
+                f"[{rid}] Pipeline done — {len(failed)} failed stage(s): {failed}  "
                 f"total={ctx.total_elapsed_ms():.0f}ms"
             )
         else:
             logger.info(
-                f"[Pipeline] All stages succeeded  total={ctx.total_elapsed_ms():.0f}ms  "
+                f"[{rid}] Pipeline done — all stages ok  total={ctx.total_elapsed_ms():.0f}ms  "
                 f"breakdown={ctx.timing_summary()}"
             )
 

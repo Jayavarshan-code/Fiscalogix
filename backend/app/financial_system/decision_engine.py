@@ -37,10 +37,10 @@ class DecisionEngine:
     SEVERE_LOSS_PCT   = -0.25  # > 25% of order value — severe
 
     def compute(self, row):
-        revm        = row.get("revm", 0)
-        risk_prob   = row.get("risk_score", 0)
-        confidence  = row.get("risk_confidence", 0.5)
-        order_value = max(row.get("order_value", 1), 1)  # prevent div/0
+        revm        = float(row.get("revm")        or 0)
+        risk_prob   = float(row.get("risk_score")  or 0)
+        confidence  = float(row.get("risk_confidence") or 0.5)
+        order_value = max(float(row.get("order_value") or 1), 1)  # prevent div/0
 
         # Normalize ReVM loss to percentage of order value for magnitude awareness
         revm_pct = revm / order_value

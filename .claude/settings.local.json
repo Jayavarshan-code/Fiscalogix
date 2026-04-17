@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -c \"import setup_db; print\\('setup_db import OK'\\)\")"
+      "Bash(python -c \"import setup_db; print\\('setup_db import OK'\\)\")",
+      "Bash(.venv/Scripts/pip install *)",
+      "Bash(.venv/Scripts/pip show *)"
     ]
   }
 }

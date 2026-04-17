@@ -7,14 +7,26 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-# SECRET_KEY must be set via environment variable in production.
-# The fallback below is intentionally weak so it's obvious when misconfigured.
-SECRET_KEY = os.environ.get(
-    "JWT_SECRET_KEY",
-    "CHANGE_ME_SET_JWT_SECRET_KEY_ENV_VAR"
-)
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 Hours
+
+_INSECURE_FALLBACK = "CHANGE_ME_SET_JWT_SECRET_KEY_ENV_VAR"
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", _INSECURE_FALLBACK)
+
+if SECRET_KEY == _INSECURE_FALLBACK:
+    import logging as _logging
+    _logging.getLogger(__name__).critical(
+        "SECURITY: JWT_SECRET_KEY is not set (using insecure default). "
+        "Tokens can be forged. "
+        "Set JWT_SECRET_KEY in your environment before accepting traffic. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+    )
+    if os.environ.get("ALLOW_INSECURE_JWT", "").lower() not in ("1", "true"):
+        raise RuntimeError(
+            "JWT_SECRET_KEY environment variable is not set. "
+            "Set ALLOW_INSECURE_JWT=true to override in local development only."
+        )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -72,19 +84,44 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 def require_permission(permission: str):
     """
     Factory dependency that gates a route behind a specific permission key.
-    The permission is read from Role.permissions, which is embedded in the JWT.
+
+    Re-fetches the user's role from the DB on every call so role changes
+    (demotion, suspension) take effect immediately — not after the 24-hour
+    token expiry.  Adds one DB query per protected request; acceptable cost
+    for write/admin operations.
 
     Usage:
         @router.post("/execution/action")
         def execute(user=Depends(require_permission("can_execute_actions"))):
             ...
     """
-    def _check(user: dict = Depends(get_current_user)):
-        perms = user.get("permissions", {})
-        if not (perms.get("is_admin") or perms.get(permission)):
+    def _check(
+        user: dict = Depends(get_current_user),
+        db: Session = Depends(_get_db),
+    ):
+        from setup_db import User, Role
+        db_user = db.query(User).filter(User.id == user.get("user_id")).first()
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User account not found.",
+            )
+        role       = db.query(Role).filter(Role.id == db_user.role_id).first()
+        live_perms = role.permissions if role else {}
+        if not (live_perms.get("is_admin") or live_perms.get(permission)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Permission denied: '{permission}' required.",
             )
         return user
     return _check
+
+
+def _get_db():
+    """Local import avoids circular dependency with app.Db.connections."""
+    from app.Db.connections import SessionLocal
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

@@ -43,7 +43,6 @@ Redis key schema:
 
 import json
 import logging
-import math
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -151,12 +150,12 @@ class CLVCalibrator:
             else:
                 uncached[cid] = tier
 
-        # Fetch history for uncached customers in a single batch query
+        # Fetch aggregate stats for uncached customers in a single SQL round-trip
         if uncached:
-            history = self._fetch_history_batch(list(uncached.keys()), tenant_id)
+            stats_by_customer = self._fetch_history_batch(list(uncached.keys()), tenant_id)
             for cid, tier in uncached.items():
-                customer_history = history.get(cid, [])
-                calibration = self._compute_calibration(cid, tier, customer_history)
+                customer_stats = stats_by_customer.get(cid, {})
+                calibration = self._compute_calibration(cid, tier, customer_stats)
                 results[cid] = calibration
                 if calibration is not None:
                     self._cache_result(tenant_id, cid, calibration)
@@ -169,34 +168,35 @@ class CLVCalibrator:
         self,
         customer_id: str,
         tier: str,
-        history: List[dict],
+        stats: dict,
     ) -> Optional[dict]:
         """
-        Computes the calibrated CLV multiplier from raw history rows.
+        Computes the calibrated CLV multiplier from pre-aggregated SQL stats.
 
-        Each history row: {order_value, days_ago}
+        stats shape (from _fetch_history_batch):
+            {orders_all_time, orders_12m, avg_value_all_time, avg_value_12m}
+
+        Using SQL aggregates instead of raw rows means no row cap — enterprise
+        customers with 50k+ orders are calibrated on their full history.
         """
-        base_mult = self._base_tier_multipliers.get(tier, 3.0)
+        base_mult   = self._base_tier_multipliers.get(tier, 3.0)
         annual_freq = _TIER_ANNUAL_FREQUENCY.get(tier, 4)
 
-        if not history:
+        if not stats:
             return None  # No history — caller uses pure tier multiplier
 
-        orders_all_time = len(history)
-        orders_12m = [r for r in history if r.get("days_ago", 999) <= 365]
-        n_12m = len(orders_12m)
+        orders_all_time = stats.get("orders_all_time", 0)
+        if orders_all_time == 0:
+            return None
+
+        n_12m        = stats.get("orders_12m", 0)
+        baseline_avg = stats.get("avg_value_all_time", 0.0) or 0.0
+        recent_avg   = stats.get("avg_value_12m") or baseline_avg  # None → fallback
 
         # ── Growth signal: are recent orders bigger? ──────────────────────────
-        all_values = [r.get("order_value", 0) for r in history]
-        recent_values = [r.get("order_value", 0) for r in orders_12m]
-
-        baseline_avg = sum(all_values) / max(len(all_values), 1)
-        recent_avg   = sum(recent_values) / max(len(recent_values), 1) if recent_values else baseline_avg
-
         growth_signal = min(max(recent_avg / max(baseline_avg, 1.0), 0.5), 2.0)
 
         # ── Frequency signal: ordering faster or slower than tier baseline? ───
-        # Annualise: if customer made n_12m orders in last 12m vs annual_freq baseline
         frequency_signal = min(max(n_12m / max(annual_freq, 1), 0.4), 2.5)
 
         # ── Calibrated multiplier ─────────────────────────────────────────────
@@ -205,15 +205,13 @@ class CLVCalibrator:
 
         # ── Confidence level ──────────────────────────────────────────────────
         if orders_all_time >= MIN_ORDERS_FOR_CALIBRATION and n_12m >= 2:
-            confidence = "full"
+            confidence       = "full"
             final_multiplier = calibrated
         elif orders_all_time >= MIN_ORDERS_FOR_BLEND:
-            confidence = "blended"
-            # 60% calibrated, 40% base tier — partial trust in thin history
+            confidence       = "blended"
             final_multiplier = round(0.60 * calibrated + 0.40 * base_mult, 3)
         else:
-            # Only 1 order — barely any signal, use mostly tier
-            confidence = "blended_thin"
+            confidence       = "blended_thin"
             final_multiplier = round(0.25 * calibrated + 0.75 * base_mult, 3)
 
         return {
@@ -235,12 +233,20 @@ class CLVCalibrator:
         self,
         customer_ids: List[str],
         tenant_id: str,
-    ) -> Dict[str, List[dict]]:
+    ) -> Dict[str, dict]:
         """
-        Batch-queries dw_shipment_facts for the order history of all
-        provided customer_ids (single SQL round-trip).
+        Batch-queries dw_shipment_facts using SQL aggregates — one round-trip,
+        no row cap.  Returns pre-computed signals per customer so the calibration
+        math never sees raw rows and is never silently truncated for high-volume
+        enterprise customers.
 
-        Returns: {customer_id: [{order_value, days_ago}, ...]}
+        Returns:
+            {customer_id: {
+                "orders_all_time":     int,
+                "orders_12m":          int,
+                "avg_value_all_time":  float,
+                "avg_value_12m":       float | None,   # None if no orders in last 12m
+            }}
         """
         if not customer_ids:
             return {}
@@ -249,21 +255,21 @@ class CLVCalibrator:
             from sqlalchemy import text
             from app.Db.connections import engine as db_engine
 
-            # Use parameterised IN clause to avoid N+1 and SQL injection
             placeholders = ", ".join(f":cid_{i}" for i in range(len(customer_ids)))
             query = text(f"""
                 SELECT
                     customer_id,
-                    total_value_usd                              AS order_value,
-                    (CURRENT_DATE - created_at::date)::int      AS days_ago
+                    COUNT(*)                                                                         AS orders_all_time,
+                    COUNT(CASE WHEN (CURRENT_DATE - created_at::date) <= 365 THEN 1 END)             AS orders_12m,
+                    AVG(total_value_usd)                                                             AS avg_value_all_time,
+                    AVG(CASE WHEN (CURRENT_DATE - created_at::date) <= 365 THEN total_value_usd END) AS avg_value_12m
                 FROM dw_shipment_facts
-                WHERE tenant_id = :tenant_id
+                WHERE tenant_id    = :tenant_id
                   AND customer_id IN ({placeholders})
-                  AND created_at IS NOT NULL
+                  AND created_at   IS NOT NULL
                   AND total_value_usd IS NOT NULL
                   AND total_value_usd > 0
-                ORDER BY customer_id, created_at DESC
-                LIMIT 5000
+                GROUP BY customer_id
             """)
             params = {"tenant_id": tenant_id}
             params.update({f"cid_{i}": cid for i, cid in enumerate(customer_ids)})
@@ -271,28 +277,30 @@ class CLVCalibrator:
             with db_engine.connect() as conn:
                 rows = conn.execute(query, params).fetchall()
 
-            history: Dict[str, List[dict]] = {cid: [] for cid in customer_ids}
+            result: Dict[str, dict] = {cid: {} for cid in customer_ids}
             for row in rows:
                 cid = str(row.customer_id)
-                if cid in history:
-                    history[cid].append({
-                        "order_value": float(row.order_value),
-                        "days_ago":    int(row.days_ago),
-                    })
+                if cid in result:
+                    result[cid] = {
+                        "orders_all_time":    int(row.orders_all_time),
+                        "orders_12m":         int(row.orders_12m),
+                        "avg_value_all_time": float(row.avg_value_all_time or 0.0),
+                        "avg_value_12m":      float(row.avg_value_12m) if row.avg_value_12m is not None else None,
+                    }
 
-            queried = sum(len(v) for v in history.values())
+            found = sum(1 for v in result.values() if v)
             logger.info(
-                f"CLVCalibrator: fetched {queried} history rows for "
-                f"{len(customer_ids)} customers (tenant={tenant_id})."
+                f"CLVCalibrator: aggregate stats fetched for {found}/{len(customer_ids)} "
+                f"customers (tenant={tenant_id}). No row cap — full history used."
             )
-            return history
+            return result
 
         except Exception as e:
             logger.warning(
                 f"CLVCalibrator._fetch_history_batch failed ({type(e).__name__}: {e}). "
-                "Returning empty history — FutureImpactModel will use tier multipliers."
+                "Returning empty stats — FutureImpactModel will use tier multipliers."
             )
-            return {cid: [] for cid in customer_ids}
+            return {cid: {} for cid in customer_ids}
 
     # ── Redis helpers ─────────────────────────────────────────────────────────
 

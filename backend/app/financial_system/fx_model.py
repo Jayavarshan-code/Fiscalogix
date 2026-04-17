@@ -48,14 +48,28 @@ _ROUTE_CURRENCY_MAP = {
 }
 
 
+_FX_STALE_THRESHOLD_SECONDS = 7200  # warn if cache older than 2 hours
+
+
 def _read_cached_volatility(route: str) -> float:
     """
     INFERENCE-SAFE: Redis-only read. Zero network I/O. Guaranteed sub-millisecond.
+    Logs a warning if the cached value is older than _FX_STALE_THRESHOLD_SECONDS.
     """
     try:
+        import time as _time
         from app.Db.redis_client import cache
         cached = cache.get(f"fx_vol:{route}")
         if cached:
+            updated_at = cache.get(f"fx_vol:{route}:updated_at")
+            if updated_at:
+                age = _time.time() - float(updated_at)
+                if age > _FX_STALE_THRESHOLD_SECONDS:
+                    logger.warning(
+                        f"FXRiskModel: stale cache for route={route} "
+                        f"(age={age/3600:.1f}h > threshold={_FX_STALE_THRESHOLD_SECONDS/3600:.0f}h). "
+                        "Check if Celery Beat FX warmer is running."
+                    )
             return float(cached)
     except Exception as e:
         logger.debug(f"FXRiskModel: Redis unavailable: {e}")
@@ -74,6 +88,8 @@ def fetch_and_warm_fx_cache():
         with urllib.request.urlopen(url, timeout=5) as resp:
             data = json.loads(resp.read())
         rates = data.get("rates", {})
+        import time as _time
+        warmed_at = str(_time.time())
         for route, currencies in _ROUTE_CURRENCY_MAP.items():
             if not currencies:
                 vol = _FALLBACK_VOLATILITY_INDEX.get(route, 0.01)
@@ -85,6 +101,8 @@ def fetch_and_warm_fx_cache():
                 ) / len(currencies)
                 vol = round(max(total_vol, 0.005), 4)
             cache.setex(f"fx_vol:{route}", 3600, str(vol))
+            # Staleness sentinel — inference path reads this to flag stale data
+            cache.setex(f"fx_vol:{route}:updated_at", 3600, warmed_at)
             logger.info(f"FX Cache warmed: route={route}, vol={vol}")
         logger.info("FX cache warming complete.")
         return {"status": "warmed", "routes": ALL_KNOWN_ROUTES}

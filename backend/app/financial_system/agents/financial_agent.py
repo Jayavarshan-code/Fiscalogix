@@ -31,43 +31,67 @@ class FinancialAgent(BaseAgent):
     ) -> Dict[str, Any]:
         predicted_delays = [row.get("predicted_delay", 0) for row in enriched_data]
 
+        # Read risk outputs from RiskAgent result — purely functional, no row reads.
+        # Falls back to per-row value (or 0.05) only if RiskAgent failed.
+        risk_result  = prior_results.get("RiskAgent")
+        prior_risk   = (
+            risk_result.data.get("risk_outputs", [])
+            if (risk_result and risk_result.success)
+            else []
+        )
+
         # Batch compute cost components
         fx_outputs  = self._fx.compute_batch(enriched_data, predicted_delays)
         sla_outputs = self._sla.compute_batch(enriched_data, predicted_delays)
 
-        total_revm = 0.0
+        total_revm     = 0.0
+        row_enrichments: list = []
+
         for i, row in enumerate(enriched_data):
             contribution_profit = row.get("contribution_profit", 0.0)
             order_value         = row.get("order_value", 0.0)
-            risk_score          = row.get("risk_score", 0.05)
+
+            # Risk score: prefer RiskAgent result; fallback to row value or 0.05
+            risk_score = (
+                prior_risk[i]["score"]
+                if i < len(prior_risk)
+                else row.get("risk_score", 0.05)
+            )
 
             risk_penalty = risk_score * order_value
             time_cost    = self._time.compute(row, predicted_delays[i], tenant_id=tenant_id)
 
-            # Gap-7: pass per-account CLV calibration from orchestrator Step 2
-            clv_calibration = row.get("clv_calibration")  # None if no history
+            clv_calibration = row.get("clv_calibration")
             future_result   = self._future.compute(
                 row, predicted_delays[i], row.get("predicted_demand", 0),
                 clv_calibration=clv_calibration,
             )
-            # future_model now returns a dict; extract scalar for ReVM formula
+
             if isinstance(future_result, dict):
                 future_cost = future_result["value"]
-                # Stamp enriched CLV fields onto row for CFO brief + anomaly detection
-                row["clv_multiplier"]    = future_result.get("clv_multiplier")
-                row["clv_source"]        = future_result.get("clv_source")
-                row["churn_probability"] = future_result.get("churn_probability")
-                row["clv_at_risk"]       = future_result.get("clv_at_risk")
+                clv_fields  = {
+                    "clv_multiplier":    future_result.get("clv_multiplier"),
+                    "clv_source":        future_result.get("clv_source"),
+                    "churn_probability": future_result.get("churn_probability"),
+                    "clv_at_risk":       future_result.get("clv_at_risk"),
+                }
             else:
-                future_cost = float(future_result)  # backwards compat if called directly
+                future_cost = float(future_result)
+                clv_fields  = {}
 
-            fx_cost      = fx_outputs[i]
-            sla_penalty  = sla_outputs[i]
-            gst_cost     = row.get("gst_cost", 0.0)
+            fx_cost     = fx_outputs[i]
+            sla_penalty = sla_outputs[i]
+            gst_cost    = row.get("gst_cost", 0.0)
 
-            revm = contribution_profit - risk_penalty - time_cost - future_cost - fx_cost - sla_penalty - gst_cost
+            revm = (
+                contribution_profit
+                - risk_penalty - time_cost - future_cost
+                - fx_cost - sla_penalty - gst_cost
+            )
+            total_revm += revm
 
-            row.update({
+            # Collect enrichments — fan-in in AgentExecutionStage applies these to rows.
+            row_enrichments.append({
                 "risk_penalty": risk_penalty,
                 "time_cost":    time_cost,
                 "future_cost":  future_cost,
@@ -75,8 +99,8 @@ class FinancialAgent(BaseAgent):
                 "sla_penalty":  sla_penalty,
                 "gst_cost":     gst_cost,
                 "revm":         revm,
+                **clv_fields,
             })
-            total_revm += revm
 
         # Aggregated portfolio summary
         summary        = self._aggregator.summarize(enriched_data)
@@ -87,11 +111,12 @@ class FinancialAgent(BaseAgent):
         var_output = self._mc.simulate_var(enriched_data, 1000)
 
         return {
-            "summary":        summary,
-            "cashflow":       cashflow_report,
-            "var":            var_output,
-            "total_revm":     round(total_revm, 2),
-            "ending_cash":    ending_cash,
-            "var_95":         var_output.get("var_95", 0),
-            "peak_deficit":   cashflow_report.get("metrics", {}).get("peak_deficit", 0),
+            "summary":         summary,
+            "cashflow":        cashflow_report,
+            "var":             var_output,
+            "total_revm":      round(total_revm, 2),
+            "ending_cash":     ending_cash,
+            "var_95":          var_output.get("var_95", 0),
+            "peak_deficit":    cashflow_report.get("metrics", {}).get("peak_deficit", 0),
+            "row_enrichments": row_enrichments,
         }

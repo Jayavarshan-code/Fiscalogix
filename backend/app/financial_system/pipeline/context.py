@@ -17,6 +17,7 @@ Mutation contract for ctx.data:
 from __future__ import annotations
 
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -48,6 +49,7 @@ class PipelineContext:
          to assemble the final payload.
     """
     tenant_id:     str
+    request_id:    str                   = field(default_factory=lambda: uuid.uuid4().hex)
     data:          List[Dict[str, Any]]  = field(default_factory=list)
     stage_outputs: Dict[str, StageOutput] = field(default_factory=dict)
 

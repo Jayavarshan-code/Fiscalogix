@@ -14,7 +14,13 @@ import os
 # This is the ONLY place a live HTTP call to open.er-api.com is made.
 # The inference path (FXRiskModel.compute_batch) reads ONLY from Redis.
 # ─────────────────────────────────────────────────────────────────────────────
-@celery_app.task(name="warm_fx_cache")
+@celery_app.task(
+    name="warm_fx_cache",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    default_retry_delay=30,
+    retry_backoff=True,
+)
 def task_warm_fx_cache():
     """
     Periodic FX cache warmer. Pre-populates Redis with live volatility rates
@@ -33,7 +39,13 @@ def task_warm_fx_cache():
 # The inference path (TimeValueModel) reads ONLY from Redis (or falls back
 # to raw Damodaran if Redis is unavailable).
 # ─────────────────────────────────────────────────────────────────────────────
-@celery_app.task(name="warm_wacc_cache")
+@celery_app.task(
+    name="warm_wacc_cache",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    default_retry_delay=60,
+    retry_backoff=True,
+)
 def task_warm_wacc_cache():
     """
     Periodic WACC cache warmer.
@@ -121,45 +133,74 @@ def task_retrain_ml_models():
     return result
 
 
-@celery_app.task(name="process_bulk_csv")
-def task_process_bulk_csv(filepath: str):
+# ─────────────────────────────────────────────────────────────────────────────
+# SPATIAL EVENTS CACHE WARMING TASK
+# Fetches live data from OpenWeatherMap, ACLED, and MarineTraffic and writes
+# to external_spatial_events table.  The inference path reads only from DB.
+# ─────────────────────────────────────────────────────────────────────────────
+@celery_app.task(
+    name="warm_spatial_events",
+    autoretry_for=(Exception,),
+    max_retries=3,
+    default_retry_delay=60,
+    retry_backoff=True,
+)
+def task_warm_spatial_events():
+    from app.services.external_api_ingester import ExternalApiIngester
+    from app.Db.connections import SessionLocal
+    db = SessionLocal()
+    try:
+        ingester = ExternalApiIngester(db)
+        count = ingester.execute_ingestion_cycle()
+        return {"status": "success", "events_stored": count}
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True, name="process_bulk_csv", max_retries=3)
+def task_process_bulk_csv(self, filepath: str):
     """
     Enterprise Data Streaming Pipeline.
     Reads a massive CSV in small memory-safe chunks to prevent OOM crashes.
+    Retries up to 3 times on transient DB/IO failures; file is preserved across
+    retries and deleted only on success or final failure.
     """
     try:
-        # Determine schema from the first chunk using AI Mapper
         df_head = pd.read_csv(filepath, nrows=10)
         detected_schema, mapping = AIFieldMapper.classify_and_map(list(df_head.columns))
-        
+
         if detected_schema == "UNKNOWN":
             return {"status": "failed", "error": "AI could not classify domain."}
-            
-        rename_map = {k: v for k, v in mapping.items() if v != "UNMAPPED_DISCARD"}
+
+        rename_map  = {k: v for k, v in mapping.items() if v != "UNMAPPED_DISCARD"}
         target_cols = AIFieldMapper.SCHEMAS[detected_schema]
-        
+
         total_rows = 0
-        # Stream file in memory-safe chunks (10,000 rows at a time instead of millions)
         for chunk in pd.read_csv(filepath, chunksize=10000):
             chunk_mapped = chunk.rename(columns=rename_map)
-            chunk_final = chunk_mapped[[col for col in target_cols if col in chunk_mapped.columns]].copy()
+            chunk_final  = chunk_mapped[[col for col in target_cols if col in chunk_mapped.columns]].copy()
             chunk_final['tenant_id'] = "default_tenant"
-            
             if detected_schema == "dw_shipment_facts":
                 chunk_final['source_system'] = "BULK-CSV"
-                
             chunk_final.to_sql(detected_schema, engine, if_exists='append', index=False)
             total_rows += len(chunk_final)
-            
-        return {"status": "success", "domain": detected_schema, "rows_ingested": total_rows}
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
-    finally:
+
+        # Success — safe to delete
         if os.path.exists(filepath):
             os.remove(filepath)
+        return {"status": "success", "domain": detected_schema, "rows_ingested": total_rows}
 
-@celery_app.task(name="process_etl_pipeline")
-def task_process_etl_pipeline(csv_filepath: str, pdf_filepath: str, tenant_id: str):
+    except Exception as exc:
+        if self.request.retries < self.max_retries:
+            # Keep file alive — retry with exponential backoff
+            raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
+        # Final failure — clean up and report
+        if os.path.exists(filepath):
+            os.remove(filepath)
+        return {"status": "failed", "error": str(exc), "retries_exhausted": True}
+
+@celery_app.task(bind=True, name="process_etl_pipeline", max_retries=3)
+def task_process_etl_pipeline(self, csv_filepath: str, pdf_filepath: str, tenant_id: str):
     """
     High-Performance Asynchronous ETL Pipeline.
     Extracts real SLA penalties from PDFs using regex NLP rules,
@@ -245,20 +286,25 @@ def task_process_etl_pipeline(csv_filepath: str, pdf_filepath: str, tenant_id: s
         except Exception:
             pass  # Non-critical — don't fail the task if this query fails
 
+        # Success — safe to delete uploaded files
+        for fp in (csv_filepath, pdf_filepath):
+            if fp and os.path.exists(fp):
+                os.remove(fp)
         return {
-            "status": "success",
-            "rows_ingested": total_rows,
+            "status":                "success",
+            "rows_ingested":         total_rows,
             "nlp_extracted_penalty": penalty_summary,
-            "calculated_rate": penalty_rate,
-            "financial_impact": round(financial_impact, 2),
+            "calculated_rate":       penalty_rate,
+            "financial_impact":      round(financial_impact, 2),
         }
-    except Exception as e:
-        return {"status": "failed", "error": str(e)}
-    finally:
-        if csv_filepath and os.path.exists(csv_filepath):
-            os.remove(csv_filepath)
-        if pdf_filepath and os.path.exists(pdf_filepath):
-            os.remove(pdf_filepath)
+    except Exception as exc:
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc, countdown=30 * (2 ** self.request.retries))
+        # Final failure — clean up and report
+        for fp in (csv_filepath, pdf_filepath):
+            if fp and os.path.exists(fp):
+                os.remove(fp)
+        return {"status": "failed", "error": str(exc), "retries_exhausted": True}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
