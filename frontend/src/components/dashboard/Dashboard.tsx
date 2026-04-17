@@ -12,7 +12,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { formatCurrency } from '../../utils/currency';
 
 export const Dashboard: React.FC = () => {
-  const [hasShocks, setHasShocks]       = useState(true); // eslint-disable-line @typescript-eslint/no-unused-vars
+  const [hasShocks]       = useState(true);
   const { currency, fxRate, toggle: toggleCurrency, rateLabel } = useCurrency();
   const [showVision, setShowVision]     = useState(false);
   const [alerts, setAlerts]             = useState<any[]>([]);
@@ -148,7 +148,7 @@ export const Dashboard: React.FC = () => {
       <section className="kpi-grid">
         <KPICard
           title="Protected EBITDA"
-          value={loading ? '—' : summary ? fmt(summary.total_profit) : '₹4.2Cr'}
+          value={loading ? '—' : summary ? formatCurrency(summary.total_profit, currency, fxRate) : '₹4.2Cr'}
           trend={12}
           trendLabel="recovery active"
           icon={<ShieldCheck size={20} />}
@@ -156,7 +156,7 @@ export const Dashboard: React.FC = () => {
         />
         <KPICard
           title="Capital Burn (WACC)"
-          value={loading ? '—' : waccBurn != null ? fmt(waccBurn) : '₹14.5L'}
+          value={loading ? '—' : waccBurn != null ? formatCurrency(waccBurn, currency, fxRate) : '₹14.5L'}
           trend={-2.4}
           trendLabel="reduced decay"
           icon={<Activity size={20} />}
@@ -164,7 +164,7 @@ export const Dashboard: React.FC = () => {
         />
         <KPICard
           title="TLC Exposure"
-          value={loading ? '—' : tlcExposure != null ? fmt(tlcExposure) : '₹82L'}
+          value={loading ? '—' : tlcExposure != null ? formatCurrency(tlcExposure, currency, fxRate) : '₹82L'}
           trend={5.1}
           trendLabel="Tariff Volatility"
           icon={<AlertTriangle size={20} />}

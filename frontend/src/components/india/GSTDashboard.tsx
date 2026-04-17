@@ -472,7 +472,7 @@ const ImportBreakdown: React.FC<{ r: GSTCostResult }> = ({ r }) => (
 const ResultRow: React.FC<{
   label: string; value: string;
   positive?: boolean; negative?: boolean; neutral?: boolean; large?: boolean;
-}> = ({ label, value, positive, negative, neutral, large }) => (
+}> = ({ label, value, positive, negative, large }) => (
   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0' }}>
     <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
     <span style={{

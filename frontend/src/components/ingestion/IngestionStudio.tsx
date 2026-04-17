@@ -35,7 +35,6 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
   const [ingestResult, setIngestResult] = useState<IngestionResult | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedSec, setElapsedSec] = useState<number | null>(null);
 
   const handleFileDrop = (e: React.DragEvent) => {
@@ -52,7 +51,6 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
     if (!file) return;
     setIsAnalyzing(true);
     setError(null);
-    setStartTime(Date.now());
 
     const formData = new FormData();
     if (file.name.toLowerCase().endsWith('.pdf')) {

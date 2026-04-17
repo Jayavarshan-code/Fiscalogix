@@ -7,7 +7,7 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { Currency } from '../utils/currency';
+import type { Currency } from '../utils/currency';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 const FALLBACK_RATE = 84.5;

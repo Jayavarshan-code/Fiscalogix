@@ -172,7 +172,7 @@ export const RerouteStudio: React.FC<RerouteStudioProps> = ({ shipmentId, onClos
               </div>
 
               {/* Tech Giant Upgrade: Cost Breakdown Transparency */}
-              <CostBreakdownTable breakdown={activeMode.breakdown} total={activeMode.cost} />
+              <CostBreakdownTable breakdown={activeMode.breakdown as any} total={activeMode.cost} />
 
               <div className="stochastic-deep-dive mt-6">
                  <StochasticScenarioChart 
