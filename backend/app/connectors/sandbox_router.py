@@ -9,18 +9,25 @@ import time
 
 router = APIRouter(prefix="/sandbox/sap/v1", tags=["SAP Enterprise Sandbox"])
 
-# One-time table initialization directly in the router for the Sandbox Adapter
-with engine.begin() as conn:
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS sandbox_erp_sales_orders (
-            document_number VARCHAR PRIMARY KEY,
-            tenant_id VARCHAR NOT NULL,
-            action_type VARCHAR NOT NULL,
-            payload JSON,
-            status VARCHAR NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """))
+
+def init_sandbox_table() -> None:
+    """Create the sandbox ERP table if it does not already exist.
+
+    Called once during application startup via the lifespan context manager
+    in main.py — never at module import time, so the app can start even when
+    the database is not yet reachable during the import phase.
+    """
+    with engine.begin() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS sandbox_erp_sales_orders (
+                document_number VARCHAR PRIMARY KEY,
+                tenant_id VARCHAR NOT NULL,
+                action_type VARCHAR NOT NULL,
+                payload JSON,
+                status VARCHAR NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
 
 @router.post("/sales_orders/{action}")
 async def execute_mock_sap_action(action: str, payload: Dict[str, Any], db: Session = Depends(get_db)):
