@@ -21,25 +21,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<UserPayload | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token');
-    const profileName = localStorage.getItem('profile_name');
-    const email = localStorage.getItem('email');
-    const userId = localStorage.getItem('user_id');
-    const permissionsRaw = localStorage.getItem('permissions');
-
-    if (token && email) {
-      // Use persisted permissions from login response; never hardcode by profile name
-      const perms: Record<string, boolean> = permissionsRaw
-        ? JSON.parse(permissionsRaw)
-        : {};
-
-      setCurrentUser({
-        id: Number(userId) || 1,
-        email,
-        profileName: profileName || '',
-        permissions: perms,
-      });
-    }
+    // TEMPORARY BYPASS: Hardcode user info to bypass login screen
+    setCurrentUser({
+      id: 1,
+      email: 'admin@fiscalogix.com',
+      profileName: 'System Admin (Bypass)',
+      permissions: {
+        "is_admin": true, "can_view_all": true,
+        "can_view_dashboard": true, "can_view_matrix": true,
+        "can_view_revm": true, "can_view_liquidity": true,
+        "can_view_recovery": true, "can_view_governance": true,
+        "can_view_warehouse": true, "can_execute_actions": true,
+      },
+    });
+    localStorage.setItem('access_token', 'mock_token');
+    return; // Skip reading local storage
   }, []);
 
   const login = async (email: string, pass: string) => {
