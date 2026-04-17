@@ -24,7 +24,7 @@ from app.routes.optimization import router as opt_router
 from app.routes.india import router as india_router
 from app.routes.reports import router as reports_router
 from app.routes.alerts import router as alerts_router
-from app.connectors.sandbox_router import router as sandbox_router
+from app.connectors.sandbox_router import router as sandbox_router, init_sandbox_table
 
 # --- Enterprise v1 Hub (API-First Architecture) ---
 from app.api.v1.endpoints.predict import router as v1_predict
@@ -47,6 +47,17 @@ async def lifespan(_app: FastAPI):
     Training runs in a thread executor so the event loop stays unblocked.
     Subsequent boots skip training — models load from disk in <1s.
     """
+    # Initialise sandbox DB table — deferred from import time to avoid a
+    # connection attempt before the app is fully started.
+    try:
+        init_sandbox_table()
+        logger.info("[startup] Sandbox ERP table verified/created.")
+    except Exception as e:
+        logger.warning(
+            f"[startup] Sandbox table init failed ({type(e).__name__}: {e}). "
+            "The /sandbox routes will be unavailable until the database is reachable."
+        )
+
     missing = [m for m in _REQUIRED_MODELS if not (_MODELS_DIR / m).exists()]
     if missing:
         logger.info(
