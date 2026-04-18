@@ -38,7 +38,7 @@ const MainApp = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100vw' }}>
       <Shell activeView={activeView} onNavigate={(view) => setActiveView(view as any)}>
         {activeView === 'dashboard' && <Dashboard />}
         {activeView === 'matrix' && <IntelligenceMatrix />}
