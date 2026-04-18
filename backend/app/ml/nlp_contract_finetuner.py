@@ -2,8 +2,6 @@ import os
 import json
 import random
 import logging
-import itertools
-from typing import List, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -95,59 +93,127 @@ class RobustTTFVFinetuner:
         label = f"Penalty valid. Calculate at {p} for 3 days."
         return (text, label)
 
-    def build_150k_dataset(self, num_samples: int = 150000):
-        logger.info(f"🚀 Generating {num_samples} Robust Trap Permutations for TTFV Hardening...")
-        
-        dataset = []
+    def build_dataset(self, num_samples: int = 150000) -> str:
+        """
+        Generates a JSONL fine-tuning dataset of contract clause trap permutations.
+        All samples are written to self.dataset_path.
+        Returns the output file path.
+        """
+        logger.info(f"Generating {num_samples} contract trap permutations → {self.dataset_path}")
+
         generators = [
             self._generate_false_positive_trap,
             self._generate_false_negative_trap,
             self._generate_grace_period_trap,
             self._generate_cap_limit_trap,
-            self._generate_standard_breach
+            self._generate_standard_breach,
         ]
-        
-        for i in range(num_samples):
-            # Mix the dataset evenly
-            gen_func = generators[i % len(generators)]
-            clause_text, expected_outcome = gen_func()
-            
-            prompt = f"Extract Liquidated Damages logic and determine penalty validity.\n\nClause & Context: {clause_text}"
-            
-            dataset.append({
-                "messages": [
-                    {"role": "system", "content": "You are a deterministic legal auditor for Fiscalogix. Extract penalties. Identify False Positives caused by Force Majeure, Caps, or Grace Periods. Be absolutely precise."},
-                    {"role": "user", "content": prompt},
-                    {"role": "assistant", "content": expected_outcome}
-                ]
-            })
-            
-            if i > 0 and i % 30000 == 0:
-                logger.info(f"Synthesized {i} high-complexity contract permutations...")
 
         os.makedirs(os.path.dirname(self.dataset_path), exist_ok=True)
-        with open(self.dataset_path, "w", encoding="utf-8") as f:
-            for item in dataset[:50]: # Save first 50 locally for trace demonstration
-                f.write(json.dumps(item) + "\n")
-                
-        logger.info(f"✅ 150K Dataset successfully compiled. Seed samples written to {self.dataset_path}")
 
-    def validate_robustness(self):
+        written = 0
+        with open(self.dataset_path, "w", encoding="utf-8") as f:
+            for i in range(num_samples):
+                clause_text, expected_outcome = generators[i % len(generators)]()
+                prompt = (
+                    "Extract Liquidated Damages logic and determine penalty validity.\n\n"
+                    f"Clause & Context: {clause_text}"
+                )
+                record = {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are a deterministic legal auditor for Fiscalogix. "
+                                "Extract penalties. Identify false positives caused by Force Majeure, "
+                                "caps, or grace periods. Be precise."
+                            ),
+                        },
+                        {"role": "user",      "content": prompt},
+                        {"role": "assistant", "content": expected_outcome},
+                    ]
+                }
+                f.write(json.dumps(record) + "\n")
+                written += 1
+
+                if written % 30000 == 0:
+                    logger.info(f"  {written:,} samples written...")
+
+        logger.info(f"Dataset complete — {written:,} samples written to {self.dataset_path}")
+        return self.dataset_path
+
+    def validate_on_holdout(self, holdout_samples: int = 500) -> dict:
         """
-        Simulates the K-Fold cross validation to ensure it doesn't fail on demos.
+        Runs the SLAContractExtractor regex engine against synthetic holdout cases
+        and measures false-positive / false-negative rates.
+
+        This tests the deterministic extraction layer — not a trained model.
+        For fine-tuned model evaluation, use your fine-tuning platform's eval pipeline.
         """
-        logger.info("\n--- EXECUTING DEMO ROBUSTNESS VALIDATION ---")
-        validation_log = """
-[TESTING]: Running Hold-Out Validation on 15,000 unseen False Positive / Cap Limit traps...
-[RESULT]: False Positive Rate: 0.001% (Model successfully ignored Force Majeure penalties in 14,999/15,000 cases).
-[TESTING]: Running Hold-Out Validation on 15,000 unseen False Negative (Loophole Expiration) traps...
-[RESULT]: False Negative Rate: 0.008% (Model correctly penalized carriers who failed conditional reporting).
-[STATUS]: TTFV Pipeline is hardened via Multi-Tier SLA injection. Model is definitively clear for Live CFO Demonstrations.
-        """
-        print(validation_log)
+        from app.ml.sla_extractor import SLAContractExtractor
+
+        generators = [
+            (self._generate_false_positive_trap, "no_penalty"),
+            (self._generate_grace_period_trap,   "no_penalty"),
+            (self._generate_false_negative_trap, "penalty"),
+            (self._generate_cap_limit_trap,      "penalty_with_cap"),
+            (self._generate_standard_breach,     "penalty"),
+        ]
+
+        tp = fp = tn = fn = 0
+
+        for i in range(holdout_samples):
+            gen_func, expected_class = generators[i % len(generators)]
+            clause_text, _ = gen_func()
+            result = SLAContractExtractor.extract(clause_text)
+
+            has_penalty = (
+                result["penalty_rate"] is not None or result["flat_fee_per_day"] is not None
+            )
+            force_majeure_caught = result["force_majeure_applies"]
+
+            if expected_class == "no_penalty":
+                # Model should NOT charge a penalty (force majeure / grace catches it)
+                if not has_penalty or force_majeure_caught:
+                    tn += 1
+                else:
+                    fp += 1
+            else:
+                # Model should detect a penalty
+                if has_penalty:
+                    tp += 1
+                else:
+                    fn += 1
+
+        total        = tp + fp + tn + fn
+        precision    = tp / (tp + fp) if (tp + fp) > 0 else 1.0
+        recall       = tp / (tp + fn) if (tp + fn) > 0 else 1.0
+        fp_rate      = fp / (fp + tn) if (fp + tn) > 0 else 0.0
+
+        metrics = {
+            "samples_evaluated": total,
+            "true_positives":    tp,
+            "false_positives":   fp,
+            "true_negatives":    tn,
+            "false_negatives":   fn,
+            "precision":         round(precision, 4),
+            "recall":            round(recall, 4),
+            "false_positive_rate": round(fp_rate, 4),
+        }
+
+        logger.info(f"Holdout validation complete: {metrics}")
+        return metrics
+
+    # Keep backward-compatible alias
+    def build_150k_dataset(self, num_samples: int = 150000) -> str:
+        return self.build_dataset(num_samples=num_samples)
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    import sys
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else 150000
     finetuner = RobustTTFVFinetuner()
-    finetuner.build_150k_dataset(num_samples=150000)
-    finetuner.validate_robustness()
+    path    = finetuner.build_dataset(num_samples=n)
+    metrics = finetuner.validate_on_holdout(holdout_samples=500)
+    print(f"\nDataset:  {path}")
+    print(f"Holdout:  precision={metrics['precision']:.2%}  recall={metrics['recall']:.2%}  FP-rate={metrics['false_positive_rate']:.2%}")

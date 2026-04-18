@@ -66,16 +66,23 @@ class SLAPenaltyModel:
         "trial":      0.005,  # 0.5%/day — no established SLA yet
     }
 
+    # OTIF breach levels and their penalty multipliers.
+    # An OTIF shortfall triggers the whole penalty regime, not just per-shipment math.
+    OTIF_BREACH_MULTIPLIER = {
+        "minor":    1.0,   # 1–3% below threshold — standard per-shipment penalty
+        "moderate": 1.5,   # 3–7% below — escalated, often triggers formal review
+        "severe":   2.5,   # 7–15% below — may trigger chargeback or deduction
+        "critical": 4.0,   # >15% below — Walmart/Amazon-style full rejection risk
+    }
+
     def compute(self, row, predicted_delay):
         if predicted_delay <= 0:
             return 0.0
 
-        order_value = row.get("order_value", 0.0)
+        order_value = max(float(row.get("order_value") or 0.0), 0.0)
 
-        # Apply grace period: penalties only clock in AFTER the grace window expires.
-        # A 1-day delay on a standard (2-day grace) contract = $0 penalty.
         contract_type = str(row.get("contract_type", "standard")).lower().strip()
-        grace_days = self.GRACE_PERIOD_BY_CONTRACT.get(
+        grace_days    = self.GRACE_PERIOD_BY_CONTRACT.get(
             contract_type, self.GRACE_PERIOD_BY_CONTRACT["standard"]
         )
         effective_delay = max(0.0, predicted_delay - grace_days)
@@ -83,25 +90,100 @@ class SLAPenaltyModel:
             return 0.0
 
         # Priority 1: NLP-extracted daily penalty rate from uploaded contract
-        nlp_rate = row.get("nlp_extracted_penalty_rate", None)
-        if nlp_rate is not None and nlp_rate > 0:
+        nlp_rate = row.get("nlp_extracted_penalty_rate")
+        if nlp_rate is not None and float(nlp_rate) > 0:
             daily_penalty_rate = float(nlp_rate)
         else:
-            # P1-B FIX: Customer-tier heuristic (replaces inverted credit_days logic)
-            customer_tier = str(row.get("customer_tier", "standard")).lower().strip()
+            customer_tier      = str(row.get("customer_tier", "standard")).lower().strip()
             daily_penalty_rate = self.TIER_PENALTY_RATE.get(
                 customer_tier, self.TIER_PENALTY_RATE["standard"]
             )
 
-        # Penalty cap from contract type
+        # OTIF multiplier: if the row carries an OTIF shortfall indicator, escalate
+        otif_multiplier = self._otif_multiplier(row)
+
         max_penalty_cap = self.CONTRACT_TYPE_CAPS.get(
             contract_type, self.CONTRACT_TYPE_CAPS["standard"]
         )
 
-        total_penalty_pct = min(effective_delay * daily_penalty_rate, max_penalty_cap)
-        financial_penalty = order_value * total_penalty_pct
+        # NLP-extracted penalty cap from the contract overrides the type-based cap
+        nlp_cap = row.get("nlp_extracted_penalty_cap")
+        if nlp_cap is not None:
+            try:
+                nlp_cap_pct = float(nlp_cap) / max(order_value, 1)
+                max_penalty_cap = min(max_penalty_cap, nlp_cap_pct)
+            except (TypeError, ZeroDivisionError):
+                pass
+
+        base_pct        = min(effective_delay * daily_penalty_rate, max_penalty_cap)
+        adjusted_pct    = min(base_pct * otif_multiplier, max_penalty_cap)
+        financial_penalty = order_value * adjusted_pct
 
         return round(financial_penalty, 2)
 
+    def compute_with_detail(self, row, predicted_delay) -> dict:
+        """
+        Returns full penalty breakdown — used by API endpoints and the executive cockpit.
+        """
+        order_value   = max(float(row.get("order_value") or 0.0), 0.0)
+        contract_type = str(row.get("contract_type", "standard")).lower().strip()
+        grace_days    = self.GRACE_PERIOD_BY_CONTRACT.get(
+            contract_type, self.GRACE_PERIOD_BY_CONTRACT["standard"]
+        )
+        effective_delay   = max(0.0, predicted_delay - grace_days)
+        otif_breach_level = self._otif_breach_level(row)
+        otif_multiplier   = self.OTIF_BREACH_MULTIPLIER.get(otif_breach_level, 1.0)
+        penalty           = self.compute(row, predicted_delay)
+
+        return {
+            "financial_penalty":  penalty,
+            "effective_delay":    round(effective_delay, 1),
+            "grace_days_applied": grace_days,
+            "contract_type":      contract_type,
+            "otif_breach_level":  otif_breach_level,
+            "otif_multiplier":    otif_multiplier,
+            "penalty_source":     "nlp_contract" if row.get("nlp_extracted_penalty_rate") else "tier_heuristic",
+            "breach_level":       self._breach_level(penalty, order_value),
+        }
+
     def compute_batch(self, rows_list, delays_array):
         return [self.compute(row, delays_array[i]) for i, row in enumerate(rows_list)]
+
+    # ── Private helpers ───────────────────────────────────────────────────────
+
+    def _otif_breach_level(self, row) -> str:
+        """Classify OTIF shortfall severity from row data."""
+        otif_actual    = row.get("otif_actual_pct")
+        otif_threshold = row.get("otif_threshold_pct", 95.0)
+        if otif_actual is None:
+            return "none"
+        shortfall = float(otif_threshold) - float(otif_actual)
+        if shortfall <= 0:
+            return "none"
+        if shortfall <= 3:
+            return "minor"
+        if shortfall <= 7:
+            return "moderate"
+        if shortfall <= 15:
+            return "severe"
+        return "critical"
+
+    def _otif_multiplier(self, row) -> float:
+        level = self._otif_breach_level(row)
+        return self.OTIF_BREACH_MULTIPLIER.get(level, 1.0)
+
+    @staticmethod
+    def _breach_level(penalty: float, order_value: float) -> str:
+        """Classify the financial severity of the computed penalty."""
+        if order_value <= 0:
+            return "unknown"
+        ratio = penalty / order_value
+        if ratio == 0:
+            return "none"
+        if ratio < 0.05:
+            return "minor"
+        if ratio < 0.15:
+            return "moderate"
+        if ratio < 0.30:
+            return "severe"
+        return "critical"

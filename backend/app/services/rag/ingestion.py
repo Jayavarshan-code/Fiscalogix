@@ -80,6 +80,64 @@ class RAGIngestionPipeline:
             content=text,
         )
 
+    def ingest_sla_contract(
+        self,
+        raw_text: str,
+        tenant_id: str,
+        contract_id: str,
+        supplier_id: str = "unknown",
+    ) -> int:
+        """
+        Parse a raw contract PDF text with SLAContractExtractor and embed each
+        extracted clause as its own knowledge chunk.
+
+        Embedding individual clauses (not the full contract blob) means the RAG
+        retriever returns precise clause-level context — e.g. the exact OTIF
+        penalty rate — rather than a 50-page wall of text.
+
+        Returns: number of clause chunks embedded.
+        """
+        from app.ml.sla_extractor import SLAContractExtractor
+
+        extraction = SLAContractExtractor.extract(raw_text)
+        clauses    = extraction.get("clauses", [])
+
+        if not clauses:
+            # Embed a summary chunk so the contract is at least findable by keyword
+            summary = (
+                f"Contract {contract_id} (supplier: {supplier_id}): "
+                f"no structured penalty clauses detected by regex engine. "
+                f"Preview: {raw_text[:300]}"
+            )
+            self._upsert_chunk(tenant_id, "sla_contract", f"contract_{contract_id}_summary", summary)
+            return 0
+
+        texts, ids = [], []
+        for idx, clause in enumerate(clauses):
+            severity = clause.get("bottleneck_severity", "NONE")
+            value    = clause.get("value")
+            unit     = clause.get("unit", "")
+            val_str  = f" (value: {value} {unit})" if value is not None else ""
+
+            text = (
+                f"Contract {contract_id} — {supplier_id} | "
+                f"Clause type: {clause['clause_type']}{val_str}. "
+                f"Severity: {severity}. "
+                f"Context: {clause.get('section_context', 'N/A')}. "
+                f"Text: {clause.get('raw_text', '')[:200]}. "
+                f"Risk: {clause.get('bottleneck_reason', '')}."
+            )
+            texts.append(text)
+            ids.append(f"contract_{contract_id}_clause_{idx}")
+
+        embedded = self._batch_upsert(tenant_id, "sla_contract", texts, ids)
+        logger.info(
+            f"RAG: ingested {embedded}/{len(clauses)} clauses for contract={contract_id} "
+            f"supplier={supplier_id} tenant={tenant_id} "
+            f"(critical={extraction['critical_count']}, high={extraction['high_risk_count']})"
+        )
+        return embedded
+
     # ─────────────────────────────────────────────────────────────────────────
     # SOURCE-SPECIFIC INGESTION METHODS
     # ─────────────────────────────────────────────────────────────────────────

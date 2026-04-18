@@ -500,6 +500,65 @@ export const apiService = {
     return await response.json();
   },
 
+  // ── SLA Contract Pipeline ─────────────────────────────────────────────────
+
+  /** POST /sla/analyze — full pipeline: parse + extract + penalty + score */
+  async analyzeSLAContract(file: File, params: {
+    order_value?: number;
+    contract_type?: string;
+    customer_tier?: string;
+    predicted_delay_days?: number;
+    otif_actual_pct?: number;
+    use_llm?: boolean;
+    tenant_id?: string;
+  } = {}) {
+    const qs = new URLSearchParams({
+      order_value:           String(params.order_value          ?? 0),
+      contract_type:         params.contract_type               ?? 'standard',
+      customer_tier:         params.customer_tier               ?? 'standard',
+      predicted_delay_days:  String(params.predicted_delay_days ?? 0),
+      otif_threshold_pct:    '95',
+      use_llm:               String(params.use_llm              ?? false),
+      tenant_id:             params.tenant_id                   ?? 'default_tenant',
+      ...(params.otif_actual_pct != null ? { otif_actual_pct: String(params.otif_actual_pct) } : {}),
+    });
+    const fd = new FormData();
+    fd.append('file', file);
+    const response = await fetch(`${API_BASE_URL}/sla/analyze?${qs}`, {
+      method: 'POST',
+      headers: getAuthHeader(),
+      body: fd,
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ detail: 'SLA analysis failed' }));
+      throw new Error(err.detail || 'SLA analysis failed');
+    }
+    return await response.json();
+  },
+
+  /** POST /sla/parse — extract clauses only (no penalty calculation) */
+  async parseSLAContract(file: File, useLlm = false, tenantId = 'default_tenant') {
+    const fd = new FormData();
+    fd.append('file', file);
+    const response = await fetch(
+      `${API_BASE_URL}/sla/parse?use_llm=${useLlm}&tenant_id=${tenantId}`,
+      { method: 'POST', headers: getAuthHeader(), body: fd }
+    );
+    if (!response.ok) throw new Error('SLA parse failed');
+    return await response.json();
+  },
+
+  /** POST /sla/negotiate — LLM negotiation strategy from supplier data + clauses */
+  async generateSLANegotiation(supplierData: Record<string, any>, contractClauses?: any[], tenantId = 'default_tenant') {
+    const response = await fetch(`${API_BASE_URL}/sla/negotiate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify({ supplier_data: supplierData, contract_clauses: contractClauses, tenant_id: tenantId }),
+    });
+    if (!response.ok) throw new Error('SLA negotiate failed');
+    return await response.json();
+  },
+
   /** POST /api/v1/documents/upload — multipart document upload for vision analysis */
   async uploadDocument(file: File, shipmentId?: number) {
     const formData = new FormData();

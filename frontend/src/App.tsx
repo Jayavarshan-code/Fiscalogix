@@ -20,12 +20,13 @@ import { AlertsPage } from './components/alerts/AlertsPage';
 import { ReportsPage } from './components/reports/ReportsPage';
 import { ShipmentDataWarehouse } from './components/warehouse/ShipmentDataWarehouse';
 import { GSTDashboard } from './components/india/GSTDashboard';
+import { SLAPage } from './components/sla/SLAPage';
 
 const MainApp = () => {
   const [activeView, setActiveView] = useState<
     'dashboard' | 'matrix' | 'admin' | 'ingest' | 'warehouse' |
     'cashflow' | 'shield' | 'recovery' | 'enterprise' | 'optimization' | 'realtime' |
-    'alerts' | 'reports' | 'gst'
+    'alerts' | 'reports' | 'gst' | 'sla'
   >('dashboard');
   const { currentUser } = useAuth();
 
@@ -68,6 +69,7 @@ const MainApp = () => {
         {activeView === 'reports' && <ReportsPage />}
         {activeView === 'gst' && <GSTDashboard />}
 
+        {activeView === 'sla' && <SLAPage />}
         {activeView === 'admin' && <AdminDashboard />}
         {activeView === 'shield' && <GovernanceDashboardMatrix />}
       </Shell>

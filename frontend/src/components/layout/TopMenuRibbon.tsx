@@ -1,9 +1,9 @@
 import React from 'react';
-import { 
-  BarChart3, 
-  Activity, 
-  Wallet, 
-  Shield, 
+import {
+  BarChart3,
+  Activity,
+  Wallet,
+  Shield,
   Database,
   UploadCloud,
   Settings,
@@ -11,7 +11,8 @@ import {
   Layers,
   Zap,
   Bell,
-  FileText
+  FileText,
+  ScrollText
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import './TopMenuRibbon.css';
@@ -78,6 +79,10 @@ export const TopMenuRibbon: React.FC<TopMenuRibbonProps> = ({ activeView = 'dash
             <a href="#" className={`ribbon-tab ${activeView === 'warehouse' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'warehouse')}>
               <Database size={20} />
               <span>Warehouse</span>
+            </a>
+            <a href="#" className={`ribbon-tab ${activeView === 'sla' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'sla')}>
+              <ScrollText size={20} />
+              <span>SLA</span>
             </a>
           </div>
         </div>

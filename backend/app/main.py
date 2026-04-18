@@ -24,6 +24,7 @@ from app.routes.optimization import router as opt_router
 from app.routes.india import router as india_router
 from app.routes.reports import router as reports_router
 from app.routes.alerts import router as alerts_router
+from app.routes.sla import router as sla_router
 from app.connectors.sandbox_router import router as sandbox_router
 
 # --- Enterprise v1 Hub (API-First Architecture) ---
@@ -128,6 +129,7 @@ app.include_router(sandbox_router)
 app.include_router(india_router)
 app.include_router(reports_router)
 app.include_router(alerts_router)
+app.include_router(sla_router)
 
 # Enterprise API Layer (v1)
 app.include_router(v1_predict, prefix="/api/v1/predict", tags=["Enterprise Prediction"])
