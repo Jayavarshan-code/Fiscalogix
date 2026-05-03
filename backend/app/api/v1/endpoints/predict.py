@@ -1,8 +1,10 @@
+from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from app.Db.connections import get_db
 from app.rate_limiter import limiter
+from app.financial_system.dependencies import get_current_user
 from app.financial_system.dw_schema import DWShipmentFact
 from app.financial_system.delay_model import DelayPredictionModel
 from app.financial_system.risk_engine import RiskEngine
@@ -14,17 +16,50 @@ from app.financial_system.executive.scenario_engine import ScenarioSimulationEng
 from app.financial_system.sla_model import SLAPenaltyModel
 
 router = APIRouter()
-delay_model = DelayPredictionModel()
-risk_engine = RiskEngine()
-mc_engine = MonteCarloEngine()
-time_model = TimeValueModel()
-future_model = FutureImpactModel()
-sla_model = SLAPenaltyModel()
-cashflow_orch = CashflowPredictorOrchestrator()
-scenario_engine = ScenarioSimulationEngine(risk_engine, time_model, future_model, cashflow_orch)
+
+
+# ── Engine factories (lru_cache = one instance per process; overridable in tests) ──
+
+@lru_cache(maxsize=None)
+def get_delay_model() -> DelayPredictionModel:
+    return DelayPredictionModel()
+
+@lru_cache(maxsize=None)
+def get_risk_engine() -> RiskEngine:
+    return RiskEngine()
+
+@lru_cache(maxsize=None)
+def get_mc_engine() -> MonteCarloEngine:
+    return MonteCarloEngine()
+
+@lru_cache(maxsize=None)
+def get_time_model() -> TimeValueModel:
+    return TimeValueModel()
+
+@lru_cache(maxsize=None)
+def get_future_model() -> FutureImpactModel:
+    return FutureImpactModel()
+
+@lru_cache(maxsize=None)
+def get_sla_model() -> SLAPenaltyModel:
+    return SLAPenaltyModel()
+
+@lru_cache(maxsize=None)
+def get_cashflow_orch() -> CashflowPredictorOrchestrator:
+    return CashflowPredictorOrchestrator()
+
+@lru_cache(maxsize=None)
+def get_scenario_engine() -> ScenarioSimulationEngine:
+    return ScenarioSimulationEngine(
+        get_risk_engine(), get_time_model(), get_future_model(), get_cashflow_orch()
+    )
 
 @router.post("/delay")
-async def predict_delay(payload: List[Dict[str, Any]]):
+async def predict_delay(
+    payload: List[Dict[str, Any]],
+    _user: dict = Depends(get_current_user),
+    delay_model: DelayPredictionModel = Depends(get_delay_model),
+):
     """
     Enterprise Prediction API:
     Input: List of shipment/route JSON objects.
@@ -45,32 +80,59 @@ async def predict_delay(payload: List[Dict[str, Any]]):
 
 @router.get("/shipment/{shipment_id}/insights")
 @limiter.limit("15/minute")
-async def get_shipment_insights(request: Request, shipment_id: str, db: Session = Depends(get_db)):
+async def get_shipment_insights(
+    request: Request,  # noqa: ARG001 — consumed by @limiter.limit, not the function body
+    shipment_id: str,
+    db: Session = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+    risk_engine: RiskEngine = Depends(get_risk_engine),
+    sla_model: SLAPenaltyModel = Depends(get_sla_model),
+    mc_engine: MonteCarloEngine = Depends(get_mc_engine),
+    scenario_engine: ScenarioSimulationEngine = Depends(get_scenario_engine),
+):
     """
     Live Executive Cockpit API.
     Provides SHAP value drivers and Monte Carlo stochastic arrays for dynamic UI rendering.
     """
-    # 1. Fetch Shipment
+    tenant_id = _user.get("tenant_id", "default_tenant")
+
+    # 1. Fetch Shipment — always scope to caller's tenant to prevent cross-tenant data leakage
     if shipment_id.startswith("SYS-"):
         db_id = int(shipment_id.replace("SYS-", ""))
-        shipment = db.query(DWShipmentFact).filter(DWShipmentFact.id == db_id).first()
+        shipment = db.query(DWShipmentFact).filter(
+            DWShipmentFact.id == db_id,
+            DWShipmentFact.tenant_id == tenant_id,
+        ).first()
     else:
-        shipment = db.query(DWShipmentFact).filter(DWShipmentFact.raw_source_uuid == shipment_id).first()
+        shipment = db.query(DWShipmentFact).filter(
+            DWShipmentFact.raw_source_uuid == shipment_id,
+            DWShipmentFact.tenant_id == tenant_id,
+        ).first()
 
     if not shipment:
         raise HTTPException(status_code=404, detail="Shipment not found")
 
     # 2. Extract specific drivers (SHAP)
+    order_value = shipment.total_value_usd or 10000
     row_data = {
-        "route": f"{shipment.origin_node or 'UNKNOWN'} -> {shipment.destination_node or 'UNKNOWN'}",
-        "order_value": shipment.total_value_usd or 10000,
-        "total_cost": (shipment.total_value_usd or 10000) * 0.85,
+        "route": shipment.route or f"{shipment.origin_node or 'UNKNOWN'} -> {shipment.destination_node or 'UNKNOWN'}",
+        "carrier": shipment.carrier or "unknown",
+        "cargo_type": shipment.cargo_type or "general_cargo",
+        "industry_vertical": shipment.industry_vertical or "default",
+        "customer_tier": shipment.customer_tier or "standard",
+        "contract_type": shipment.contract_type or "standard",
+        "order_value": order_value,
+        "total_cost": shipment.total_cost_usd or order_value * 0.85,
+        "shipment_cost": (shipment.total_cost_usd or order_value * 0.85) * 0.12,
         "contribution_profit": shipment.margin_usd or 1500,
-        "credit_days": 30
+        "credit_days": shipment.credit_days or 30,
+        "supplier_payment_terms": shipment.credit_days or 30,
+        "nlp_extracted_penalty_rate": shipment.nlp_extracted_penalty_rate,
     }
-    
+
     predicted_delay = shipment.delay_days_calculated or 2
     risk_output = risk_engine.compute(row_data, predicted_delay)
+    sla_penalty = sla_model.compute(row_data, predicted_delay)
     
     # Example SHAP drivers (or fallback heuristic drivers) from the risk engine
     drivers_list = risk_output.get("drivers", [])
@@ -80,13 +142,16 @@ async def get_shipment_insights(request: Request, shipment_id: str, db: Session 
     )
 
     # 3. Simulate Monte Carlo Scenarios for the Chart
+    risk_score = risk_output.get("score", 0.05)
+    sla_penalty_amount = sla_penalty if isinstance(sla_penalty, (int, float)) else (sla_penalty or {}).get("penalty_amount", 0.0)
     enriched_record = {
         **row_data,
         "predicted_delay": predicted_delay,
-        "risk_score": risk_output.get("score", 0.05),
+        "risk_score": risk_score,
         "wacc": 0.08,
         "fx_cost": 0.0,
-        "revm": (shipment.margin_usd or 1500) - ((shipment.total_value_usd or 10000) * risk_output.get("score", 0.05))
+        "sla_penalty": sla_penalty_amount,
+        "revm": (shipment.margin_usd or 1500) - (order_value * risk_score) - sla_penalty_amount,
     }
     
     mc_output = mc_engine.simulate_var([enriched_record], iterations=1000)
@@ -138,7 +203,6 @@ async def get_shipment_insights(request: Request, shipment_id: str, db: Session 
         scenarios_complete = False
 
     # ── Constraint Snapshot ───────────────────────────────────────────────────
-    risk_score = risk_output.get("score", 0.05)
     capacity_utilization = min(99, int(70 + risk_score * 40))
     budget_utilization   = min(99, int(65 + risk_score * 35))
     sla_health           = max(50, int(100 - risk_score * 60))
@@ -167,9 +231,9 @@ async def get_shipment_insights(request: Request, shipment_id: str, db: Session 
             "messages":             constraint_messages,
         },
         "components": {
-            "avg_revenue": shipment.total_value_usd or 10000,
-            "avg_cost": (shipment.total_value_usd or 10000) - (shipment.margin_usd or 1500),
-            "avg_penalty": (shipment.total_value_usd or 10000) * 0.02 * predicted_delay,
+            "avg_revenue": order_value,
+            "avg_cost": order_value - (shipment.margin_usd or 1500),
+            "avg_penalty": sla_penalty_amount,
             "avg_loss": 5000
         },
         "granular_breakdown": {
@@ -181,12 +245,13 @@ async def get_shipment_insights(request: Request, shipment_id: str, db: Session 
 from app.financial_system.executive.cashflow import PredictiveCashflowEngine
 
 @router.get("/cashflow/trajectory")
-async def get_cashflow_trajectory(tenant_id: str = "default_tenant", db: Session = Depends(get_db)):
+async def get_cashflow_trajectory(db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)):
     """
     Enterprise API overriding static timelines with AR-driven ML models.
     Returns probabilistic cashflow expectations.
     """
     try:
+        tenant_id = current_user.get("tenant_id", "default_tenant")
         payload = PredictiveCashflowEngine.simulate_trajectory(db, tenant_id)
         return payload
     except Exception as e:

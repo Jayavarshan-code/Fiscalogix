@@ -326,3 +326,53 @@ async def get_job_status(
         "status": task_result.state,  # PENDING, STARTED, SUCCESS, FAILURE
         "result": result
     }
+
+
+@router.get("/status-stream/{job_id}")
+async def stream_job_status(
+    job_id: str,
+    _current_user: dict = Depends(get_current_user),
+):
+    """
+    SSE stream for job status — replaces the 2s client-side polling loop.
+
+    Pushes one event per second internally until the job reaches a terminal
+    state (SUCCESS, FAILURE, REVOKED), then closes the stream.
+
+    The client connects once with a normal fetch() + Authorization header
+    and reads the stream incrementally — no repeated HTTP requests.
+
+    Event shape: data: {"status": "...", "result": {...} | null, "error": "..." | null}
+    """
+    import json as _json
+    from fastapi.responses import StreamingResponse
+
+    async def _generator():
+        try:
+            from app.celery_app import celery_app      # noqa: PLC0415
+            from celery.result import AsyncResult       # noqa: PLC0415
+        except Exception as exc:
+            yield f"data: {_json.dumps({'status': 'ERROR', 'result': None, 'error': str(exc)})}\n\n"
+            return
+
+        while True:
+            task = AsyncResult(job_id, app=celery_app)
+            state = task.state
+            result = task.result if state == "SUCCESS" else None
+            error  = str(task.result) if state == "FAILURE" else None
+
+            yield f"data: {_json.dumps({'status': state, 'result': result, 'error': error})}\n\n"
+
+            if state in ("SUCCESS", "FAILURE", "REVOKED"):
+                break
+
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        _generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",   # disable nginx proxy buffering
+        },
+    )

@@ -147,3 +147,29 @@ export const useMapERPFieldsMutation = () =>
   useMutation({
     mutationFn: (headers: string[]) => apiService.mapERPFields(headers),
   });
+
+// ── Financial Analytics (demand / tariff / fx) ────────────────────────────────
+
+export const useDemandForecast = (rows: Record<string, any>[], enabled = true) =>
+  useQuery<any, Error>({
+    queryKey:  ['demandForecast', rows.map(r => r.shipment_id).join(',')],
+    queryFn:   () => apiService.getDemandForecast(rows),
+    staleTime: STALE.medium,
+    enabled:   enabled && rows.length > 0,
+  });
+
+export const useTariffAnalysis = (rows: Record<string, any>[], enabled = true) =>
+  useQuery<any, Error>({
+    queryKey:  ['tariffAnalysis', rows.map(r => r.shipment_id).join(',')],
+    queryFn:   () => apiService.getTariffAnalysis(rows),
+    staleTime: STALE.medium,
+    enabled:   enabled && rows.length > 0,
+  });
+
+export const useFXExposure = (rows: Record<string, any>[], enabled = true) =>
+  useQuery<any, Error>({
+    queryKey:  ['fxExposure', rows.map(r => r.shipment_id).join(',')],
+    queryFn:   () => apiService.getFXExposure(rows),
+    staleTime: STALE.medium,
+    enabled:   enabled && rows.length > 0,
+  });

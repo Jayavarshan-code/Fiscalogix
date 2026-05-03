@@ -30,13 +30,15 @@ else:
     SQLALCHEMY_DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # FIX K: Conservative pool config for shared Postgres tiers
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    pool_size=5,           # Steady-state connections held open
-    max_overflow=5,        # Burst headroom (total max = 10 connections)
-    pool_timeout=30,       # Raise error instead of waiting forever
-    pool_pre_ping=True,    # Verify connection health before use (catches dropped sockets)
+# Pool args (pool_size, max_overflow, pool_timeout) are Postgres-only;
+# SQLite (used in tests via DATABASE_URL=sqlite://) rejects them.
+_is_sqlite = SQLALCHEMY_DATABASE_URL.startswith("sqlite")
+_pool_kwargs = (
+    {}
+    if _is_sqlite
+    else dict(pool_size=5, max_overflow=5, pool_timeout=30, pool_pre_ping=True)
 )
+engine = create_engine(SQLALCHEMY_DATABASE_URL, **_pool_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

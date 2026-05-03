@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Dict, Any
+from app.financial_system.dependencies import get_current_user
 from app.financial_system.optimization.stochastic_mip_optimizer import StochasticMIPOptimizer
 
 router = APIRouter()
@@ -7,9 +8,10 @@ optimizer = StochasticMIPOptimizer()
 
 @router.post("/efi")
 async def optimize_efi(
-    candidate_matrix: List[List[Dict[str, Any]]], 
+    candidate_matrix: List[List[Dict[str, Any]]],
     available_cash: float = 1000000.0,
-    risk_appetite: str = "BALANCED"
+    risk_appetite: str = "BALANCED",
+    _user: dict = Depends(get_current_user),
 ):
     """
     Enterprise Optimization API:

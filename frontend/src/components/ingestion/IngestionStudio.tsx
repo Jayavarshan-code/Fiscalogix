@@ -109,29 +109,53 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
     setError(null);
 
     const t0 = Date.now();
-    const interval = setInterval(async () => {
-      try {
-        const resp = await fetch(`${API_BASE_URL}/ingestion/status/${jobId}`, {
-          headers: authHeader(),
-        });
-        const jobStatus = await resp.json();
 
-        if (jobStatus.status === 'SUCCESS') {
-          clearInterval(interval);
-          setElapsedSec(Math.round((Date.now() - t0) / 1000));
-          setIngestResult(jobStatus.result as IngestionResult);
-          setIsIngesting(false);
-        } else if (jobStatus.status === 'FAILURE') {
-          clearInterval(interval);
-          setError('ETL pipeline failed. Check worker logs for details.');
-          setIsIngesting(false);
-        }
-      } catch (e) {
-        clearInterval(interval);
-        setError('Status poll failed. Check your connection.');
-        setIsIngesting(false);
+    try {
+      // SSE via fetch — EventSource doesn't support Authorization headers,
+      // so we read the stream manually with a ReadableStream reader.
+      const resp = await fetch(`${API_BASE_URL}/ingestion/status-stream/${jobId}`, {
+        headers: authHeader(),
+      });
+
+      if (!resp.ok || !resp.body) {
+        throw new Error(`Stream failed (${resp.status})`);
       }
-    }, 2000);
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';   // keep any incomplete trailing line
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const payload = JSON.parse(line.slice(6));
+
+          if (payload.status === 'SUCCESS') {
+            setElapsedSec(Math.round((Date.now() - t0) / 1000));
+            setIngestResult(payload.result as IngestionResult);
+            setIsIngesting(false);
+            reader.cancel();
+            return;
+          }
+          if (payload.status === 'FAILURE' || payload.status === 'ERROR') {
+            setError(payload.error || 'ETL pipeline failed. Check worker logs.');
+            setIsIngesting(false);
+            reader.cancel();
+            return;
+          }
+        }
+      }
+    } catch (e: any) {
+      setError(e.message || 'Connection failed. Check your network.');
+      setIsIngesting(false);
+    }
   };
 
   const fmtCurrency = (n: number) =>

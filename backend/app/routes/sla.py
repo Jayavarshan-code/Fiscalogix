@@ -137,6 +137,24 @@ def _score_extraction(extraction: Dict[str, Any]) -> tuple[int, Dict[str, int], 
     return risk_score, dist, top_bottlenecks
 
 
+def _to_parse_response(extraction: Dict[str, Any]) -> "SLAParseResponse":
+    """Map extractor dict keys → SLAParseResponse (handles total_clauses_found rename)."""
+    return SLAParseResponse(
+        total_clauses=extraction.get("total_clauses_found", 0),
+        critical_count=extraction.get("critical_count", 0),
+        high_risk_count=extraction.get("high_risk_count", 0),
+        overall_confidence=extraction.get("overall_confidence", "LOW"),
+        penalty_rate=extraction.get("penalty_rate"),
+        flat_fee_per_day=extraction.get("flat_fee_per_day"),
+        force_majeure_applies=extraction.get("force_majeure_applies", False),
+        cap_limit=extraction.get("cap_limit"),
+        clauses=extraction.get("clauses", []),
+        bottleneck_clauses=extraction.get("bottleneck_clauses", []),
+        llm_assisted=extraction.get("llm_assisted", False),
+        llm_analysis=extraction.get("llm_analysis"),
+    )
+
+
 def _run_penalty(extraction: Dict[str, Any], ctx: ShipmentContext) -> Optional[Dict[str, Any]]:
     """Run SLAPenaltyModel with the NLP-extracted rate if found, else fallback to tier heuristic."""
     if ctx.predicted_delay_days <= 0:
@@ -181,7 +199,7 @@ async def parse_contract(
     else:
         extraction = SLAContractExtractor.extract(raw_text)
 
-    return SLAParseResponse(**{k: extraction[k] for k in SLAParseResponse.model_fields if k in extraction})
+    return _to_parse_response(extraction)
 
 
 @router.post("/text", response_model=SLAParseResponse, summary="Stage 2 only: Extract clauses from raw text")
@@ -198,7 +216,7 @@ async def parse_text(
     else:
         extraction = SLAContractExtractor.extract(body.text)
 
-    return SLAParseResponse(**{k: extraction[k] for k in SLAParseResponse.model_fields if k in extraction})
+    return _to_parse_response(extraction)
 
 
 @router.post(
@@ -264,7 +282,7 @@ async def analyze_contract(
 
     # Stage 5 — Build response
     pipeline.append("output")
-    parse_resp = SLAParseResponse(**{k: extraction[k] for k in SLAParseResponse.model_fields if k in extraction})
+    parse_resp = _to_parse_response(extraction)
 
     return SLAAnalysisResult(
         contract_text_preview=raw_text[:400],

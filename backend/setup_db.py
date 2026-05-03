@@ -628,6 +628,11 @@ class DWShipmentFact(Base):
     __table_args__ = (
         Index('idx_dw_shipment_tenant_status', 'tenant_id', 'current_status'),
         Index('idx_dw_shipment_tenant_created', 'tenant_id', 'created_at'),  # trend queries
+        # Tenant-scoped UUID lookup: predict.py /shipment/{id}/insights filters by raw_source_uuid
+        # without a tenant scope guard — composite index serves both perf and future tenant isolation
+        Index('idx_dw_shipment_tenant_uuid', 'tenant_id', 'raw_source_uuid'),
+        # ML training queries in tasks.py filter active shipments by tenant + delay threshold
+        Index('idx_dw_shipment_tenant_delay', 'tenant_id', 'delay_days_calculated'),
     )
 
 

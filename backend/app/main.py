@@ -33,6 +33,7 @@ from app.api.v1.endpoints.optimize import router as v1_optimize
 from app.api.v1.endpoints.mapping import router as v1_mapping
 from app.api.v1.endpoints.documents import router as v1_documents
 from app.api.v1.endpoints.realtime import router as v1_realtime
+from app.api.v1.endpoints.financial_analytics import router as v1_financial
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,7 @@ app.include_router(v1_optimize, prefix="/api/v1/optimize", tags=["Enterprise Opt
 app.include_router(v1_mapping, prefix="/api/v1/mapping", tags=["Enterprise Mapping"])
 app.include_router(v1_documents, prefix="/api/v1/documents", tags=["Document Intelligence"])
 app.include_router(v1_realtime, tags=["Enterprise Real-Time"])
+app.include_router(v1_financial, prefix="/api/v1/financial", tags=["Financial Analytics"])
 
 
 @app.get("/health")

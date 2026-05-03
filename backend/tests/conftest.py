@@ -5,9 +5,37 @@ All unit tests run WITHOUT Redis, WITHOUT Postgres, WITHOUT ML model files.
 We mock external dependencies at the module level BEFORE importing app code.
 """
 
+import os
 import sys
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Redirect DB to SQLite before connections.py is imported.
+# connections.py calls create_engine() at module level; without this the test
+# runner would require a live Postgres connection on every run, including CI.
+# The env var must be set BEFORE any app module is imported.
+# ─────────────────────────────────────────────────────────────────────────────
+os.environ.setdefault("DATABASE_URL", "sqlite://")
+os.environ.setdefault("ALLOW_INSECURE_JWT", "true")
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-not-for-production")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Stub out optional heavy dependencies that are not installed in the test venv.
+# These modules are only needed at runtime (Celery worker, not in unit/integration
+# tests), so a MagicMock stub is safe here.
+# ─────────────────────────────────────────────────────────────────────────────
+_mock_celery_app = MagicMock()
+_mock_celery_module = MagicMock()
+_mock_celery_module.Celery = MagicMock(return_value=_mock_celery_app)
+sys.modules.setdefault("celery", _mock_celery_module)
+sys.modules.setdefault("celery.utils", MagicMock())
+sys.modules.setdefault("celery.utils.log", MagicMock())
+
+_stub_celery_app = MagicMock()
+_stub_tasks = MagicMock()
+sys.modules.setdefault("app.celery_app", _stub_celery_app)
+sys.modules.setdefault("app.tasks", _stub_tasks)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -41,14 +41,14 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
     );
   }
 
-  const handleExecute = async () => {
+  const handleExecute = async (mode = 'STANDARD') => {
     try {
       const result = await executeMutation.mutateAsync({
-        action_type: 'REROUTE_AIR_FREIGHT',
+        action_type: `REROUTE_${mode}`,
         shipment_id: shipmentId,
         erp_target: 'SAP',
         confidence_score: decisionData?.confidence_score ?? 0.942,
-        parameters: { risk_posture: riskAppetite },
+        parameters: { risk_posture: riskAppetite, transport_mode: mode },
       });
       setExecutionResult(result.erp_receipt);
     } catch (err) {
@@ -94,26 +94,47 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
         {/* Tech Giant Upgrade: Interactive Risk Appetite Control */}
         <RiskAppetiteSlider value={riskAppetite} onChange={setRiskAppetite} />
 
-        {/* Tech Giant Upgrade: Temporal Risk Radar — markers derived from confidence-studio key_drivers */}
-        <TemporalRiskTimeline markers={
-          explainData?.key_drivers?.length > 0
-            ? explainData.key_drivers.slice(0, 5).map((driver: string, i: number) => ({
-                time_hours: i * 18,
-                score: explainData.risk_probability ?? 0.5,
-                label: driver.split('_')[0].toUpperCase(),
+        {/* Temporal Risk Radar — markers derived from live scenario_analysis stress-test results */}
+        <TemporalRiskTimeline markers={(() => {
+          // Fixed time slots spread across the 72h horizon (one per scenario)
+          const TIME_SLOTS = [0, 14, 28, 48, 72];
+          const live = decisionData?.scenario_analysis;
+          if (live && live.length > 0) {
+            return live.slice(0, 5).map((s: any, i: number) => {
+              const changePct = Math.abs(s?.impact?.revm_change_pct ?? 0);
+              const score = Math.min(1, Math.max(0.05, changePct / 60));
+              const shocks = s?.shocks_applied ?? {};
+              const signals: { type: string; message: string }[] = [];
+              if (shocks.delay_shift_days > 0)
+                signals.push({ type: 'AIS',     message: `+${shocks.delay_shift_days}d delay` });
+              if (shocks.fx_shock_pct > 0)
+                signals.push({ type: 'NEWS',    message: `FX shock +${(shocks.fx_shock_pct * 100).toFixed(0)}%` });
+              if (shocks.cost_shock_pct > 0)
+                signals.push({ type: 'WEATHER', message: `Cost +${(shocks.cost_shock_pct * 100).toFixed(0)}%` });
+              if (signals.length === 0)
+                signals.push({ type: 'AIS', message: s?.scenario ?? 'Base condition' });
+              return {
+                time_hours: TIME_SLOTS[i] ?? i * 14,
+                score,
+                label: (s?.scenario ?? '').split(' ')[0].toUpperCase() || `T${i}`,
                 bands: [
-                  Math.max(0, (explainData.risk_probability ?? 0.5) - 0.2),
-                  explainData.risk_probability ?? 0.5,
-                  Math.min(1, (explainData.risk_probability ?? 0.5) + 0.15),
+                  Math.max(0, score - 0.15),
+                  score,
+                  Math.min(1, score + 0.20),
                 ] as [number, number, number],
-                signals: [{ type: 'NEWS', message: driver }],
-              }))
-            : [
-                { time_hours: 0,  score: 0.15, label: 'START',  bands: [0.10, 0.15, 0.25] as [number, number, number], signals: [{ type: 'AIS',  message: 'Vessel Queue: 12 ships' }] },
-                { time_hours: 24, score: 0.87, label: 'HUB_B',  bands: [0.65, 0.87, 0.95] as [number, number, number], signals: [{ type: 'NEWS', message: 'Strike Alert: industrial terminal' }] },
-                { time_hours: 48, score: 0.92, label: 'DEST_C', bands: [0.70, 0.92, 0.99] as [number, number, number], signals: [{ type: 'WEATHER', message: 'Heavy Squall Warning' }] },
-              ]
-        } />
+                signals,
+              };
+            });
+          }
+          // Static fallback when scenario data not yet loaded
+          return [
+            { time_hours: 0,  score: 0.15, label: 'BASE',   bands: [0.05, 0.15, 0.25] as [number, number, number], signals: [{ type: 'AIS',     message: 'Nominal conditions' }] },
+            { time_hours: 14, score: 0.30, label: 'STRIKE', bands: [0.20, 0.30, 0.45] as [number, number, number], signals: [{ type: 'NEWS',    message: 'Port disruption risk' }] },
+            { time_hours: 28, score: 0.25, label: 'FX',     bands: [0.15, 0.25, 0.40] as [number, number, number], signals: [{ type: 'NEWS',    message: 'FX devaluation signal' }] },
+            { time_hours: 48, score: 0.40, label: 'FREIGHT', bands: [0.25, 0.40, 0.55] as [number, number, number], signals: [{ type: 'WEATHER', message: 'Freight spike detected' }] },
+            { time_hours: 72, score: 0.60, label: 'REROUTE', bands: [0.40, 0.60, 0.80] as [number, number, number], signals: [{ type: 'AIS',     message: 'Red Sea reroute risk' }] },
+          ];
+        })()} />
 
         <div className="drivers-section">
           <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Hardened EFI Breakdown (Formula 2.0)</h3>
@@ -257,13 +278,13 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
       </div>
 
       {isRerouteStudioOpen && (
-        <RerouteStudio 
-          shipmentId={shipmentId} 
-          onClose={() => setIsRerouteStudioOpen(false)} 
+        <RerouteStudio
+          shipmentId={shipmentId}
+          insightsData={decisionData}
+          onClose={() => setIsRerouteStudioOpen(false)}
           onConfirm={(mode) => {
-             console.log(`Executing ${mode} Reroute...`);
-             handleExecute();
-             setIsRerouteStudioOpen(false);
+            handleExecute(mode);
+            setIsRerouteStudioOpen(false);
           }}
         />
       )}

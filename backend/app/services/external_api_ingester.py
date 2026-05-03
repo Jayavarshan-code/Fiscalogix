@@ -1,16 +1,7 @@
 import json
 import logging
-from typing import List, Dict, Any
-from datetime import datetime
-from sqlalchemy.orm import Session
-from app.models.external_events import ExternalSpatialEvent
-
-logger = logging.getLogger(__name__)
-
-import json
-import logging
 import os
-import requests
+import httpx
 from typing import List, Dict, Any
 from datetime import datetime
 from dotenv import load_dotenv
@@ -52,9 +43,9 @@ class ExternalApiIngester:
 
         try:
             url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={self.weather_key}"
-            response = requests.get(url, timeout=10)
+            response = httpx.get(url, timeout=10)
             data = response.json()
-            
+
             # Simple normalization logic: if weather ID < 600 (Storms/Rain), calculate severity
             weather_id = data.get("weather", [{}])[0].get("id", 800)
             severity = 0.8 if weather_id < 600 else 0.1
@@ -89,7 +80,7 @@ class ExternalApiIngester:
         try:
             # ACLED API typically requires key and email as parameters
             url = f"https://api.acleddata.com/acled/read/?key={self.acled_key}&email={os.getenv('ACLED_EMAIL')}&limit=1"
-            response = requests.get(url, timeout=10)
+            response = httpx.get(url, timeout=10)
             data = response.json().get("data", [])
             
             if not data: return []
@@ -124,9 +115,9 @@ class ExternalApiIngester:
 
         try:
             url = f"https://services.marinetraffic.com/api/exportvessel/v:5/{self.marinetraffic_key}/mmsi:{mmsi}/protocol:json"
-            response = requests.get(url, timeout=10)
+            response = httpx.get(url, timeout=10)
             data = response.json()
-            
+
             return [{
                 "h3_index": "8829a1d749fffff", 
                 "event_type": "PORT_CONGESTION",

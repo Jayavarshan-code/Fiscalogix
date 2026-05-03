@@ -1,4 +1,5 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// Empty string = same-origin (nginx proxy in prod). Explicit URL in dev via .env.development
+export const API_BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
 export interface DashboardData {
   summary: {
@@ -575,6 +576,36 @@ export const apiService = {
       const err = await response.json().catch(() => ({ detail: 'Upload failed' }));
       throw new Error(err.detail || 'Document upload failed');
     }
+    return await response.json();
+  },
+
+  async getDemandForecast(rows: Record<string, any>[]) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/financial/demand`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(rows),
+    });
+    if (!response.ok) throw new Error('Demand forecast failed');
+    return await response.json();
+  },
+
+  async getTariffAnalysis(rows: Record<string, any>[]) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/financial/tariff`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(rows),
+    });
+    if (!response.ok) throw new Error('Tariff analysis failed');
+    return await response.json();
+  },
+
+  async getFXExposure(rows: Record<string, any>[]) {
+    const response = await fetch(`${API_BASE_URL}/api/v1/financial/fx`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...getAuthHeader() },
+      body: JSON.stringify(rows),
+    });
+    if (!response.ok) throw new Error('FX exposure calculation failed');
     return await response.json();
   },
 };
