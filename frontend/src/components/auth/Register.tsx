@@ -70,7 +70,7 @@ export const Register: React.FC<RegisterProps> = ({ onSwitchToLogin }) => {
         <div className="login-header">
           <div className="logo-placeholder">F</div>
           <h2>Create Your Account</h2>
-          <p>Start your 30-minute TTFV onboarding</p>
+          <p>Know your exact financial exposure in minutes</p>
         </div>
 
         {error && (

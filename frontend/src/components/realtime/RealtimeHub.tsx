@@ -123,9 +123,9 @@ const RiskHubPanel: React.FC = () => {
         <div>
           <h3 className="text-sm font-black text-primary uppercase tracking-tight flex items-center gap-2">
             <Radio size={14} className={connected ? 'text-safe animate-pulse' : 'text-muted'} />
-            Real-Time Risk Hub
+            Risk Event Stream
           </h3>
-          <p className="text-[10px] text-muted mt-0.5">WS /ws/risk-hub — Live risk + EFI stream from backend engine</p>
+          <p className="text-[10px] text-muted mt-0.5">WS /ws/risk-hub — Push notifications from the Financial Risk Engine</p>
         </div>
         <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-[9px] font-black uppercase ${
           connected ? 'bg-safe/10 border-safe text-safe' : 'bg-subtle border-subtle text-muted'
@@ -173,7 +173,7 @@ const RiskHubPanel: React.FC = () => {
 
       <div className="mt-3 p-2.5 bg-brand-primary/5 border border-brand-primary/20 rounded-xl text-[10px] text-secondary">
         <strong className="text-brand-primary">How it works:</strong> In production, the backend pushes RISK_ALERT and EFI_UPDATE
-        events here when the Pillar 2/5 engines detect anomalies. Connect to see live ACK responses from the hub.
+        events here when the Pillar 2/5 engines detect anomalies. Connect to receive push notifications from the risk engine.
       </div>
     </div>
   );
@@ -183,9 +183,9 @@ const RiskHubPanel: React.FC = () => {
 export const RealtimeHubPage: React.FC = () => (
   <div className="p-8 max-w-4xl mx-auto">
     <div className="mb-6">
-      <h2 className="text-2xl font-black text-primary tracking-tighter">Real-Time & Integration Hub</h2>
+      <h2 className="text-2xl font-black text-primary tracking-tighter">Integration & Connectivity Hub</h2>
       <p className="text-sm text-secondary mt-1">
-        Live WebSocket risk stream + AI ERP field mapping.
+        WebSocket risk event stream + heuristic ERP field mapping to Fiscalogix 13-Pillar Schema.
       </p>
     </div>
     <ERPMappingPanel />

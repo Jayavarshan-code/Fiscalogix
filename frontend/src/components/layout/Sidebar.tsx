@@ -118,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView = 'dashboard', onNa
           </a>
           <a href="#" className={`nav-item ${activeView === 'realtime' ? 'active' : ''}`} onClick={(e) => handleClick(e, 'realtime')}>
             <Radio size={18} />
-            Real-Time & Integrations
+            Integrations & API
           </a>
         </div>
       </nav>

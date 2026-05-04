@@ -11,7 +11,6 @@ All amounts stored internally as USD; converted at display/report time.
 """
 
 import logging
-from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -72,12 +71,9 @@ def convert_from_usd(amount_usd: float, target_currency: str) -> float:
     if target_currency == "USD":
         return amount_usd
     try:
-        if target_currency == "INR":
-            from app.utils.fx import get_usd_to_inr
-            return amount_usd * get_usd_to_inr()
-        # For other currencies use exchangerate-api fallback rates
-        _FALLBACK_RATES = {"EUR": 0.92, "GBP": 0.79, "SGD": 1.34, "AED": 3.67}
-        return amount_usd * _FALLBACK_RATES.get(target_currency, 1.0)
+        from app.utils.fx import get_usd_rates
+        rates = get_usd_rates()
+        return amount_usd * rates.get(target_currency, 1.0)
     except Exception:
         return amount_usd
 

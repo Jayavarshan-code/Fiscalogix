@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, UploadFile, File, status
 from app.financial_system.ai_mapper import AIFieldMapper
 from app.financial_system.dependencies import get_current_user
 from app.rate_limiter import limiter
+from collections import Counter
+from typing import List
 import pandas as pd
 import io
 import os
@@ -307,6 +309,174 @@ def freight_simple_template(_current_user: dict = Depends(get_current_user)):
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="fiscalogix_freight_template.csv"'},
     )
+
+
+@router.post("/preview_join")
+@limiter.limit("10/minute")
+async def preview_join(
+    _request: Request,
+    files: List[UploadFile] = File(...),
+    _current_user: dict = Depends(get_current_user),
+):
+    """
+    Step 1 of multi-file join. Accepts 2–5 CSVs and returns per-file headers
+    plus join key candidates (columns that appear in 2+ files).
+    """
+    if len(files) < 2:
+        raise HTTPException(status_code=422, detail="At least 2 CSV files are required for a join.")
+    if len(files) > 5:
+        raise HTTPException(status_code=422, detail="Maximum 5 files per join operation.")
+
+    file_summaries = []
+    all_col_names: List[str] = []
+
+    for f in files:
+        if not f.filename.endswith(".csv"):
+            raise HTTPException(status_code=400, detail=f"'{f.filename}' is not a CSV file.")
+        content = await f.read()
+        _validate_file_size(content, f.filename)
+        try:
+            df = pd.read_csv(io.BytesIO(content))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not parse '{f.filename}': {exc}")
+
+        headers = list(df.columns)
+        all_col_names.extend(h.lower().strip() for h in headers)
+        file_summaries.append({
+            "filename": f.filename,
+            "headers": headers,
+            "row_count": len(df),
+        })
+
+    # Columns that appear in 2+ files are join candidates
+    counts = Counter(all_col_names)
+    candidates = [col for col, n in counts.items() if n >= 2]
+
+    # Rank: prefer columns whose name suggests an identifier
+    id_signals = ["id", "number", "no", "num", "code", "ref", "key", "po", "awb"]
+    candidates.sort(key=lambda c: not any(sig in c for sig in id_signals))
+
+    return {
+        "files": file_summaries,
+        "join_candidates": candidates,
+        "recommended_join_key": candidates[0] if candidates else None,
+        "message": (
+            f"Found {len(candidates)} potential join column(s) across {len(files)} files."
+            if candidates
+            else "No common columns found. Check that all files share at least one identifier column."
+        ),
+    }
+
+
+@router.post("/upload_multi", status_code=202)
+async def upload_multi(
+    files: List[UploadFile] = File(...),
+    pdf_file: UploadFile = File(None),
+    join_key: str = Form(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Multi-file join ingestion. Merges 2–5 CSVs on the specified join key
+    (left join from the first file), then runs the merged result through the
+    standard ETL pipeline. Optionally accepts a carrier PDF for SLA extraction.
+    """
+    if len(files) < 2:
+        raise HTTPException(status_code=422, detail="At least 2 CSV files are required.")
+    if len(files) > 5:
+        raise HTTPException(status_code=422, detail="Maximum 5 files per join operation.")
+
+    tenant_id = current_user.get("tenant_id", "default_tenant")
+    temp_dir = os.path.join(os.getcwd(), "tmp_uploads")
+    os.makedirs(temp_dir, exist_ok=True)
+
+    dataframes: List[pd.DataFrame] = []
+    for f in files:
+        if not f.filename.endswith(".csv"):
+            raise HTTPException(status_code=400, detail=f"'{f.filename}' must be a CSV file.")
+        content = await f.read()
+        _validate_file_size(content, f.filename)
+        try:
+            df = pd.read_csv(io.BytesIO(content))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not parse '{f.filename}': {exc}")
+
+        # Normalise join key column name (case-insensitive lookup)
+        col_map = {c.lower().strip(): c for c in df.columns}
+        actual = col_map.get(join_key.lower().strip())
+        if actual is None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Join key '{join_key}' not found in '{f.filename}'. Available columns: {list(df.columns)}",
+            )
+        df = df.rename(columns={actual: join_key})
+        dataframes.append(df)
+
+    # Left join all frames onto the first (primary = shipment data)
+    merged = dataframes[0]
+    for right in dataframes[1:]:
+        new_cols = [join_key] + [c for c in right.columns if c not in merged.columns]
+        merged = merged.merge(right[new_cols], on=join_key, how="left")
+
+    # Coalesce any _x / _y duplicates — prefer left (primary) file values
+    for col in list(merged.columns):
+        if col.endswith("_x"):
+            base = col[:-2]
+            y_col = f"{base}_y"
+            if y_col in merged.columns:
+                merged[base] = merged[col].combine_first(merged[y_col])
+                merged.drop(columns=[col, y_col], inplace=True)
+
+    merged_path = os.path.join(temp_dir, f"{uuid.uuid4()}_multi_join.csv")
+    merged.to_csv(merged_path, index=False)
+
+    # Optional PDF
+    pdf_path = None
+    if pdf_file:
+        if not pdf_file.filename.endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="Only .pdf files are accepted for contracts.")
+        pdf_content = await pdf_file.read()
+        _validate_file_size(pdf_content, pdf_file.filename)
+        pdf_path = os.path.join(temp_dir, f"{uuid.uuid4()}_{pdf_file.filename}")
+        with open(pdf_path, "wb") as buf:
+            buf.write(pdf_content)
+
+    detected_domain, heuristic_mapping = "Unknown", {}
+    try:
+        detected_domain, heuristic_mapping = AIFieldMapper.classify_and_map(list(merged.columns))
+    except Exception:
+        pass
+
+    try:
+        from app.tasks import task_process_etl_pipeline
+        job = task_process_etl_pipeline.delay(merged_path, pdf_path, tenant_id)
+        return {
+            "status": "processing",
+            "message": f"Merged {len(files)} files on '{join_key}'. {len(merged):,} rows queued.",
+            "job_id": job.id,
+            "tenant_id": tenant_id,
+            "rows_merged": len(merged),
+            "files_joined": len(files),
+            "join_key": join_key,
+            "detected_domain": detected_domain,
+            "heuristic_mapping": heuristic_mapping,
+        }
+    except Exception:
+        loop = asyncio.get_event_loop()
+        from app.tasks import task_process_etl_pipeline
+        result = await loop.run_in_executor(
+            None, task_process_etl_pipeline.run, merged_path, pdf_path, tenant_id
+        )
+        return {
+            "status": "completed",
+            "message": f"Merged and processed {len(merged):,} rows synchronously.",
+            "job_id": None,
+            "rows_merged": len(merged),
+            "files_joined": len(files),
+            "join_key": join_key,
+            "detected_domain": detected_domain,
+            "heuristic_mapping": heuristic_mapping,
+            "result": result,
+        }
 
 
 @router.get("/status/{job_id}")

@@ -191,9 +191,9 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
                   <RefreshCw size={14} className="text-brand-primary" />
                </div>
                <div>
-                  <span className="block text-[8px] font-bold text-brand-primary uppercase">Autonomous Learning Insight</span>
+                  <span className="block text-[8px] font-bold text-brand-primary uppercase">Stochastic Model Insight</span>
                   <p className="text-[10px] font-black text-secondary">
-                     System improved delay prediction by 15% on this route based on recent Feedback Loop data.
+                     Delay prediction confidence improved 15% on this corridor based on recent outcome feedback.
                   </p>
                </div>
             </div>

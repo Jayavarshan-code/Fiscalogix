@@ -23,12 +23,16 @@ import os
 )
 def task_warm_fx_cache():
     """
-    Periodic FX cache warmer. Pre-populates Redis with live volatility rates
-    for all known trade routes so the inference path never makes network calls.
+    Periodic FX cache warmer. Pre-populates Redis with:
+      - Live volatility indices per trade route (open.er-api.com)
+      - Live USD→X spot rates for all display currencies (Frankfurter/ECB)
     Schedule: every 55 minutes via celery_app beat_schedule.
     """
     from app.financial_system.fx_model import fetch_and_warm_fx_cache
-    return fetch_and_warm_fx_cache()
+    from app.utils.fx import warm_fx_cache
+    vol_result = fetch_and_warm_fx_cache()
+    rate_result = warm_fx_cache()
+    return {"volatility": vol_result, "spot_rates": rate_result}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

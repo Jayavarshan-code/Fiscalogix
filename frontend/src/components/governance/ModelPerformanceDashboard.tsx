@@ -45,7 +45,7 @@ export const ModelPerformanceDashboard: React.FC = () => {
         <div>
           <h2 className="text-xl font-black text-primary tracking-tighter">AI Governance Hub</h2>
           <p className="text-xs text-muted">
-            Autonomous Feedback & Drift Monitoring ·
+            Model Drift Monitoring & Feedback ·
             <span className="ml-1 font-mono text-brand-primary">Trust Score: {perf.trust_score}</span>
           </p>
         </div>
@@ -58,7 +58,7 @@ export const ModelPerformanceDashboard: React.FC = () => {
           </button>
           <div className="flex items-center gap-2 px-3 py-1 bg-safe/10 text-safe rounded-full border border-safe/30 animate-pulse">
             <Activity size={14} />
-            <span className="text-[10px] font-black uppercase">Live Learning Loop Active</span>
+            <span className="text-[10px] font-black uppercase">Drift Monitor Active</span>
           </div>
         </div>
       </div>

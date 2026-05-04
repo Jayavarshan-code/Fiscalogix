@@ -62,7 +62,7 @@ export const GovernanceDashboardMatrix: React.FC = () => {
           </div>
           <div>
             <h3 className="text-lg font-black text-primary tracking-tighter uppercase">AI Governance Shield</h3>
-            <p className="text-[10px] text-muted font-bold tracking-widest uppercase">Autonomous Model Lifecycle Control</p>
+            <p className="text-[10px] text-muted font-bold tracking-widest uppercase">Model Performance & Drift Control</p>
           </div>
         </div>
 
