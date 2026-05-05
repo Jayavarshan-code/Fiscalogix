@@ -166,8 +166,10 @@ class AIFieldMapper:
 
     SCHEMAS = {
         "dw_shipment_facts": [
-            "po_number", "origin_node", "destination_node",
-            "current_status", "total_value_usd", "expected_arrival_utc"
+            "raw_source_uuid", "po_number", "origin_node", "destination_node",
+            "current_status", "total_value_usd", "total_cost_usd",
+            "expected_arrival_utc", "carrier", "route", "cargo_type",
+            "industry_vertical", "customer_tier", "credit_days",
         ],
         "dw_inventory_facts": [
             "node_id", "sku_id", "quantity_on_hand",
@@ -180,12 +182,28 @@ class AIFieldMapper:
     }
 
     SYNONYM_BRAIN = {
-        "po_number": ["po#", "purchase order", "order id", "po number", "order_num"],
-        "origin_node": ["ship from", "origin", "sender", "source facility", "start location"],
-        "destination_node": ["ship to", "destination", "receiver", "target dc", "end location"],
-        "current_status": ["status", "state", "shipping status", "tracking status", "condition"],
-        "total_value_usd": ["value", "cost", "total amount", "amount usd", "price", "gross value"],
-        "expected_arrival_utc": ["eta", "expected arrival", "arrival date", "delivery date", "due date"],
+        # Tracking / reference identifiers — all map to raw_source_uuid
+        "raw_source_uuid": [
+            "shipment_id", "shipment id", "shipment no", "shipment number",
+            "bol_number", "bol number", "bol", "bill of lading",
+            "awb", "awb number", "air waybill",
+            "tracking id", "tracking number", "tracking_number",
+            "reference id", "reference number", "ref number", "ref no",
+            "waybill", "lading number",
+        ],
+        "po_number": ["po#", "purchase order", "order id", "po number", "order_num", "purchase_order_number"],
+        "origin_node": ["ship from", "origin", "sender", "source facility", "start location", "from location"],
+        "destination_node": ["ship to", "destination", "receiver", "target dc", "end location", "to location"],
+        "current_status": ["status", "state", "shipping status", "tracking status", "condition", "shipment status"],
+        "total_value_usd": ["value", "total amount", "amount usd", "gross value", "invoice value", "declared value"],
+        "total_cost_usd": ["landed cost", "total cost", "cost usd", "freight cost", "cost", "landed_cost"],
+        "expected_arrival_utc": ["eta", "expected arrival", "arrival date", "delivery date", "due date", "est delivery"],
+        "carrier": ["carrier name", "shipping carrier", "forwarder", "freight carrier", "3pl", "logistics provider"],
+        "route": ["trade lane", "lane", "trade route", "shipping lane", "corridor"],
+        "cargo_type": ["goods type", "commodity", "cargo", "freight type", "product type", "material type"],
+        "industry_vertical": ["industry", "vertical", "sector", "business unit", "segment"],
+        "customer_tier": ["customer type", "account tier", "tier", "customer segment", "client type"],
+        "credit_days": ["payment terms", "net days", "credit terms", "payment period", "net terms"],
         "node_id": ["warehouse id", "plant id", "location_id", "facility id", "site id"],
         "sku_id": ["item number", "part number", "upc", "material id", "product code"],
         "quantity_on_hand": ["stock limit", "qoh", "inventory level", "current stock", "balance"],
@@ -195,7 +213,7 @@ class AIFieldMapper:
         "supplier_name": ["vendor name", "company name", "manufacturer"],
         "financial_health_score": ["d&b score", "credit rating", "financial stability"],
         "on_time_delivery_rate": ["otif", "service level", "delivery metrics"],
-        "geopolitical_risk_index": ["geo risk", "country risk", "political stability"]
+        "geopolitical_risk_index": ["geo risk", "country risk", "political stability"],
     }
 
     @classmethod
