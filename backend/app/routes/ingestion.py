@@ -314,7 +314,7 @@ def freight_simple_template(_current_user: dict = Depends(get_current_user)):
 @router.post("/preview_join")
 @limiter.limit("10/minute")
 async def preview_join(
-    _request: Request,
+    request: Request,
     files: List[UploadFile] = File(...),
     _current_user: dict = Depends(get_current_user),
 ):
