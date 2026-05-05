@@ -196,7 +196,12 @@ class AIFieldMapper:
         "destination_node": ["ship to", "destination", "receiver", "target dc", "end location", "to location"],
         "current_status": ["status", "state", "shipping status", "tracking status", "condition", "shipment status"],
         "total_value_usd": ["value", "total amount", "amount usd", "gross value", "invoice value", "declared value"],
-        "total_cost_usd": ["landed cost", "total cost", "cost usd", "freight cost", "cost", "landed_cost"],
+        "total_cost_usd": [
+            "landed cost", "total cost", "cost usd", "freight cost", "cost", "landed_cost",
+            "freight_charges", "freight charges", "freight amount", "freight_amount",
+            "shipping cost", "shipping charges", "transport cost", "logistics cost",
+            "unit_cost", "unit cost",
+        ],
         "expected_arrival_utc": ["eta", "expected arrival", "arrival date", "delivery date", "due date", "est delivery"],
         "carrier": ["carrier name", "shipping carrier", "forwarder", "freight carrier", "3pl", "logistics provider"],
         "route": ["trade lane", "lane", "trade route", "shipping lane", "corridor"],
@@ -267,7 +272,7 @@ class AIFieldMapper:
                         syn_score = difflib.SequenceMatcher(None, raw_clean, synonym).ratio()
                         if syn_score > score:
                             score = syn_score
-                    if score > highest_score and score > 0.6:
+                    if score > highest_score and score > 0.72:
                         highest_score = score
                         best_match = target_field
 
