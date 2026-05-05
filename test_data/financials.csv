@@ -1,0 +1,16 @@
+PO Number,Landed Cost,Credit Days,Cargo Type,Industry Vertical,Customer Tier,Payment Terms
+PO-2025-0001,97100,90,FMCG,FMCG,Spot,Net 90
+PO-2025-0002,94662,30,Automotive,General,Tier 3,Net 60
+PO-2025-0003,100066,0,Textile,Electronics,Tier 3,Net 60
+PO-2025-0004,73979,90,Textile,General,Tier 2,Prepaid
+PO-2025-0005,114602,30,General,Automotive OEM,Tier 2,Prepaid
+PO-2025-0006,97710,90,Textile,General,Tier 2,Net 90
+PO-2025-0007,14004,60,General,Electronics,Tier 2,Net 30
+PO-2025-0008,104753,90,Pharma-Cold,Apparel,Spot,Net 60
+PO-2025-0009,38045,30,Automotive,FMCG,Tier 2,Net 90
+PO-2025-0010,20774,60,FMCG,General,Spot,Net 90
+PO-2025-0011,78890,0,FMCG,Automotive OEM,Tier 3,Net 90
+PO-2025-0012,112977,30,Pharma-Cold,Life Sciences,Tier 1,Net 30
+PO-2025-0013,35471,60,Textile,Electronics,Tier 1,Net 90
+PO-2025-0014,24433,90,Electronics,Life Sciences,Tier 2,Prepaid
+PO-2025-0015,9462,0,General,Electronics,Tier 2,Net 30

@@ -344,28 +344,44 @@ def export_summary(current_user: dict = Depends(get_current_user)):
         from app.Db.connections import engine
         import sqlalchemy
 
-        row = pd.read_sql(
-            sqlalchemy.text("""
-                SELECT
-                    COUNT(*)                                                     AS shipment_count,
-                    COALESCE(SUM(o.order_value), 0)                             AS total_revenue,
-                    COALESCE(SUM(s.shipment_cost), 0)                           AS total_cost,
-                    COALESCE(AVG(s.delay_days), 0)                              AS avg_delay,
-                    COALESCE(SUM(
-                        o.order_value - s.shipment_cost
-                        - (COALESCE(sk.holding_cost_per_day,0) * s.delay_days)
-                        - (s.delay_days * fp.penalty_rate * o.order_value)
-                        - (o.order_value * fp.wacc)
-                    ), 0)                                                        AS total_revm
-                FROM orders o
-                JOIN shipments s ON o.order_id = s.order_id AND s.tenant_id = o.tenant_id
-                LEFT JOIN sku sk ON o.sku_id = sk.sku_id AND sk.tenant_id = o.tenant_id
-                JOIN financial_parameters fp ON fp.tenant_id = o.tenant_id
-                WHERE o.tenant_id = :tid
-            """),
-            engine,
-            params={"tid": tenant_id},
-        ).iloc[0]
+        _OLTP_SUMMARY = sqlalchemy.text("""
+            SELECT
+                COUNT(*)                                                     AS shipment_count,
+                COALESCE(SUM(o.order_value), 0)                             AS total_revenue,
+                COALESCE(SUM(s.shipment_cost), 0)                           AS total_cost,
+                COALESCE(AVG(s.delay_days), 0)                              AS avg_delay,
+                COALESCE(SUM(
+                    o.order_value - s.shipment_cost
+                    - (COALESCE(sk.holding_cost_per_day,0) * s.delay_days)
+                    - (s.delay_days * fp.penalty_rate * o.order_value)
+                    - (o.order_value * fp.wacc)
+                ), 0)                                                        AS total_revm
+            FROM orders o
+            JOIN shipments s ON o.order_id = s.order_id AND s.tenant_id = o.tenant_id
+            LEFT JOIN sku sk ON o.sku_id = sk.sku_id AND sk.tenant_id = o.tenant_id
+            JOIN financial_parameters fp ON fp.tenant_id = o.tenant_id
+            WHERE o.tenant_id = :tid
+        """)
+
+        _DW_SUMMARY = sqlalchemy.text("""
+            SELECT
+                COUNT(*)                                                        AS shipment_count,
+                COALESCE(SUM(dw.total_value_usd), 0)                           AS total_revenue,
+                COALESCE(SUM(COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15)), 0) AS total_cost,
+                COALESCE(AVG(dw.delay_days_calculated), 0)                     AS avg_delay,
+                COALESCE(SUM(COALESCE(dw.margin_usd,
+                    dw.total_value_usd - COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15)
+                )), 0)                                                          AS total_revm
+            FROM dw_shipment_facts dw
+            WHERE dw.tenant_id = :tid
+        """)
+
+        row = pd.read_sql(_OLTP_SUMMARY, engine, params={"tid": tenant_id}).iloc[0]
+
+        # Fall back to DW if OLTP has no shipments (bulk CSV tenants)
+        if int(row["shipment_count"]) == 0:
+            logger.info("export_summary: OLTP empty for tenant=%s, reading from dw_shipment_facts", tenant_id)
+            row = pd.read_sql(_DW_SUMMARY, engine, params={"tid": tenant_id}).iloc[0]
 
         return {
             "tenant_id":       tenant_id,

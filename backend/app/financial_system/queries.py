@@ -93,6 +93,70 @@ def get_financial_twin_query():
     """
 
 
+def get_dw_fallback_query():
+    """
+    Fallback query for tenants who uploaded data via bulk CSV ingestion.
+    CSV data lands in dw_shipment_facts, not in the OLTP orders/shipments tables.
+    This query projects dw_shipment_facts into the same column shape as
+    get_financial_twin_query() so all downstream pipeline stages work unchanged.
+    Uses COALESCE(fp.wacc, 0.085) / COALESCE(fp.penalty_rate, 0.02) so the
+    query works even when financial_parameters has no row for the tenant.
+    """
+    return """
+    SELECT
+        COALESCE(dw.raw_source_uuid, CAST(dw.id AS TEXT))             AS order_id,
+        dw.tenant_id,
+        EXTRACT(MONTH FROM dw.created_at)                              AS order_month,
+        COALESCE(dw.raw_source_uuid, CAST(dw.id AS TEXT))             AS shipment_id,
+        'CSV-Import'                                                   AS customer_id,
+        COALESCE(dw.total_value_usd, 0)                               AS order_value,
+        COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15, 0)    AS shipment_cost,
+        COALESCE(dw.delay_days_calculated, 0)                         AS delay_days,
+        COALESCE(dw.carrier, 'unknown')                               AS carrier,
+        COALESCE(dw.route, 'domestic')                                AS route,
+        dw.origin_node,
+        dw.destination_node,
+        dw.expected_arrival_utc,
+        COALESCE(dw.contract_type, 'standard')                        AS contract_type,
+        0.003                                                         AS holding_cost_per_day,
+        COALESCE(dw.cargo_type, 'general_cargo')                      AS cargo_type,
+        FALSE                                                         AS is_critical,
+        COALESCE(dw.total_value_usd, 0)                               AS unit_value,
+        COALESCE(fp.wacc, 0.085)                                      AS wacc,
+        COALESCE(fp.penalty_rate, 0.02)                               AS penalty_rate,
+        COALESCE(dw.credit_days, 30)                                  AS credit_days,
+        0                                                             AS payment_delay_days,
+        COALESCE(dw.customer_tier, 'standard')                        AS customer_tier,
+        COALESCE(dw.industry_vertical, 'default')                     AS industry_vertical,
+        NULL                                                          AS hs_code,
+
+        0.003 * COALESCE(dw.delay_days_calculated, 0)                                                                          AS holding_cost,
+        COALESCE(dw.delay_days_calculated, 0) * COALESCE(fp.penalty_rate, 0.02) * COALESCE(dw.total_value_usd, 0)             AS delay_cost,
+        COALESCE(dw.total_value_usd, 0) * COALESCE(fp.wacc, 0.085)                                                            AS opportunity_cost,
+        COALESCE(dw.total_value_usd, 0) * COALESCE(fp.wacc, 0.085) * COALESCE(dw.credit_days, 30) / 365.0                    AS ar_cost,
+
+        (
+            COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15, 0)
+            + 0.003 * COALESCE(dw.delay_days_calculated, 0)
+            + COALESCE(dw.delay_days_calculated, 0) * COALESCE(fp.penalty_rate, 0.02) * COALESCE(dw.total_value_usd, 0)
+            + COALESCE(dw.total_value_usd, 0) * COALESCE(fp.wacc, 0.085)
+            + COALESCE(dw.total_value_usd, 0) * COALESCE(fp.wacc, 0.085) * COALESCE(dw.credit_days, 30) / 365.0
+        )                                                             AS total_cost,
+
+        COALESCE(
+            dw.margin_usd,
+            dw.total_value_usd - COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15, 0)
+        )                                                             AS contribution_profit
+
+    FROM dw_shipment_facts dw
+    LEFT JOIN financial_parameters fp ON fp.tenant_id = dw.tenant_id
+    WHERE dw.tenant_id = :tenant_id
+      AND (:shipment_id IS NULL OR dw.raw_source_uuid = CAST(:shipment_id AS TEXT))
+    ORDER BY dw.created_at DESC
+    LIMIT 5000
+    """
+
+
 def get_inventory_twin_query():
     """
     FIX C: Same CROSS JOIN fix applied. Replaced with explicit tenant-scoped JOIN.
