@@ -56,7 +56,8 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Dockerfile.worker
+      dockerfile: Dockerfile
+    command: celery -A app.tasks worker --loglevel=info --concurrency=2 --max-tasks-per-child=50
     restart: unless-stopped
     env_file: /etc/fiscalogix.env
     depends_on:
