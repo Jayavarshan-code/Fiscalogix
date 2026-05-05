@@ -109,6 +109,32 @@ class CarrierGapEngine:
             if per_shipment else 0
         )
 
+        # Aggregate by carrier for the frontend
+        carrier_groups: Dict[str, Dict[str, Any]] = {}
+        for s in per_shipment:
+            c = s.get("carrier") or "Unknown Carrier"
+            if c not in carrier_groups:
+                carrier_groups[c] = {
+                    "carrier": c,
+                    "total_gap_days": 0,
+                    "shipment_count": 0,
+                    "cash_tied_up": 0.0,
+                }
+            carrier_groups[c]["total_gap_days"] += s["gap_days"]
+            carrier_groups[c]["shipment_count"] += 1
+            carrier_groups[c]["cash_tied_up"] += s["cash_tied_up"]
+            
+        carriers_list = []
+        for c, g in carrier_groups.items():
+            avg = g["total_gap_days"] / g["shipment_count"]
+            risk = "HIGH" if avg > 45 else ("MEDIUM" if avg > 30 else "LOW")
+            g["avg_gap_days"] = round(avg, 1)
+            g["risk_level"] = risk
+            g["cash_tied_up"] = round(g["cash_tied_up"], 2)
+            carriers_list.append(g)
+            
+        carriers_list.sort(key=lambda x: x["cash_tied_up"], reverse=True)
+
         # Plain-English recommendation
         if avg_gap > 45:
             rec = (
@@ -136,6 +162,7 @@ class CarrierGapEngine:
             "gap_days":             avg_gap,
             "peak_gap_date":        peak_date.isoformat() if peak_date else None,
             "per_shipment":         per_shipment[:10],   # top 10 most exposed
+            "carriers":             carriers_list,
             "recommendation":       rec,
         }
 

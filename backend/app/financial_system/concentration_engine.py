@@ -36,13 +36,20 @@ class ConcentrationEngine:
     def compute(self, enriched_records: List[Dict[str, Any]]) -> Dict[str, Any]:
         if not enriched_records:
             return {
-                "client_concentration": {"status": "ok", "breakdown": [], "alerts": []},
-                "port_concentration":   {"status": "ok", "breakdown": [], "alerts": []},
+                "client_concentration": {"status": "ok", "breakdown": []},
+                "port_concentration":   {"status": "ok", "breakdown": []},
+                "alerts": []
             }
 
+        client_data = self._client_concentration(enriched_records)
+        port_data = self._port_concentration(enriched_records)
+        
+        alerts = client_data.get("alerts", []) + port_data.get("alerts", [])
+
         return {
-            "client_concentration": self._client_concentration(enriched_records),
-            "port_concentration":   self._port_concentration(enriched_records),
+            "client_concentration": client_data,
+            "port_concentration":   port_data,
+            "alerts": alerts
         }
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -52,7 +59,7 @@ class ConcentrationEngine:
     def _client_concentration(
         self, records: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
-        total_revenue = sum(r.get("order_value", 0) for r in records) or 1.0
+        total_revenue = sum(float(r.get("order_value", 0) or 0) for r in records) or 1.0
 
         # Aggregate revenue per client
         client_rev: Dict[str, float] = {}
@@ -65,7 +72,7 @@ class ConcentrationEngine:
                 or "Unknown"
             )
             name = str(name)
-            client_rev[name]    = client_rev.get(name, 0.0) + float(r.get("order_value", 0))
+            client_rev[name]    = client_rev.get(name, 0.0) + float(r.get("order_value", 0) or 0)
             client_credit[name] = max(
                 client_credit.get(name, 0), int(r.get("credit_days", 30))
             )
@@ -94,9 +101,12 @@ class ConcentrationEngine:
             if share >= self.CLIENT_CRITICAL:
                 status = "critical"
                 alerts.append({
+                    "type": "client",
+                    "entity": entry["client"],
+                    "share_pct": share,
+                    "cash_impact_30d_delay": entry["delay_30d_impact"],
                     "severity": "critical",
-                    "client":   entry["client"],
-                    "message": (
+                    "recommendation": (
                         f"{entry['client']} represents {entry['share_pct']}% of your revenue. "
                         f"A 30-day payment delay from them locks up an extra "
                         f"{_fmt(entry['delay_30d_impact'])} in working capital. "
@@ -107,9 +117,12 @@ class ConcentrationEngine:
                 if status != "critical":
                     status = "warning"
                 alerts.append({
+                    "type": "client",
+                    "entity": entry["client"],
+                    "share_pct": share,
+                    "cash_impact_30d_delay": entry["delay_30d_impact"],
                     "severity": "warning",
-                    "client":   entry["client"],
-                    "message": (
+                    "recommendation": (
                         f"{entry['client']} is {entry['share_pct']}% of revenue — "
                         f"above the 30% safe concentration limit. "
                         f"Start building 2-3 additional accounts in this segment."
@@ -141,7 +154,7 @@ class ConcentrationEngine:
                 port = str(r.get(field) or "Unknown").strip()
                 if port and port != "Unknown":
                     port_counts[port] = port_counts.get(port, 0) + 1
-                    port_value[port]  = port_value.get(port, 0.0) + float(r.get("order_value", 0))
+                    port_value[port]  = port_value.get(port, 0.0) + float(r.get("order_value", 0) or 0)
 
         breakdown = sorted(
             [
@@ -168,9 +181,12 @@ class ConcentrationEngine:
             if share >= self.PORT_CRITICAL:
                 status = "critical"
                 alerts.append({
+                    "type": "port",
+                    "entity": entry["port"],
+                    "share_pct": share,
+                    "cash_impact_30d_delay": entry["disruption_3d_cost"],
                     "severity": "critical",
-                    "port":     entry["port"],
-                    "message": (
+                    "recommendation": (
                         f"{entry['port']} handles {entry['share_pct']}% of your shipment volume "
                         f"({_fmt(entry['total_value'])} in freight value). "
                         f"A 3-day disruption here would cost ~{_fmt(entry['disruption_3d_cost'])}. "
@@ -181,9 +197,12 @@ class ConcentrationEngine:
                 if status != "critical":
                     status = "warning"
                 alerts.append({
+                    "type": "port",
+                    "entity": entry["port"],
+                    "share_pct": share,
+                    "cash_impact_30d_delay": entry["disruption_3d_cost"],
                     "severity": "warning",
-                    "port":     entry["port"],
-                    "message": (
+                    "recommendation": (
                         f"{entry['port']} is {entry['share_pct']}% of your volume. "
                         f"Identify and pre-qualify a secondary port to reduce disruption exposure."
                     ),
