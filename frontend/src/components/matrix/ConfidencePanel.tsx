@@ -25,7 +25,7 @@ export const ConfidencePanel: React.FC<ConfidencePanelProps> = ({ shipmentId, on
   const { hasPermission } = useAuth();
 
   const { data: decisionData, isLoading: isLoadingInsights } = useShipmentInsights(shipmentId);
-  const { data: explainData } = useConfidenceExplain(shipmentId);
+  useConfidenceExplain(shipmentId);
   const executeMutation = useExecuteActionMutation();
 
   if (!shipmentId) return null;
