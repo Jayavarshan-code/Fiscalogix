@@ -504,20 +504,20 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
           <div className="grid grid-cols-3 gap-4 my-6 text-left">
             <div className="p-4 rounded-xl bg-surface border border-subtle">
               <div className="text-[10px] text-muted uppercase font-bold mb-1">Shipments Processed</div>
-              <div className="text-2xl font-black text-primary">{ingestResult.rows_ingested.toLocaleString()}</div>
+              <div className="text-2xl font-black text-primary">{(ingestResult.rows_ingested || 0).toLocaleString()}</div>
             </div>
             <div className="p-4 rounded-xl bg-surface border border-subtle">
               <div className="text-[10px] text-muted uppercase font-bold mb-1">SLA Penalty Rate</div>
               <div className="text-2xl font-black text-warning">
-                {ingestResult.calculated_rate > 0
-                  ? `${(ingestResult.calculated_rate * 100).toFixed(1)}%/day`
+                {(ingestResult.calculated_rate || 0) > 0
+                  ? `${((ingestResult.calculated_rate || 0) * 100).toFixed(1)}%/day`
                   : 'Force Majeure — Waived'}
               </div>
             </div>
             <div className="p-4 rounded-xl" style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid #f87171' }}>
               <div className="text-[10px] text-red-400 uppercase font-bold mb-1">Capital at Risk</div>
               <div className="text-2xl font-black text-red-500">
-                {ingestResult.financial_impact > 0 ? fmtCurrency(ingestResult.financial_impact) : 'Calculating...'}
+                {(ingestResult.financial_impact || 0) > 0 ? fmtCurrency(ingestResult.financial_impact || 0) : 'Calculating...'}
               </div>
             </div>
           </div>
