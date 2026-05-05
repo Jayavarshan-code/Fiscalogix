@@ -5,7 +5,7 @@ from app.Db.connections import get_db, engine
 from sqlalchemy import text
 import uuid
 import random
-import time
+import asyncio
 
 router = APIRouter(prefix="/sandbox/sap/v1", tags=["SAP Enterprise Sandbox"])
 
@@ -38,11 +38,11 @@ async def execute_mock_sap_action(action: str, payload: Dict[str, Any], db: Sess
     # 2. Chaos Monkey - 5% of requests randomly fail to test Fiscalogix resilience
     if random.random() < 0.05:
         # Simulate network latency before rejecting
-        time.sleep(1)
+        await asyncio.sleep(1)
         raise HTTPException(status_code=409, detail="SAP Error 409: Delivery already in process. Record locked.")
-    
+
     # 3. Simulate heavy ERP transaction latency
-    time.sleep(0.5) 
+    await asyncio.sleep(0.5)
     
     tenant_id = payload.get("tenant_id", "default_tenant")
     doc_number = f"SAP-DOC-{uuid.uuid4().hex[:8].upper()}"

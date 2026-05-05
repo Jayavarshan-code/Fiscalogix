@@ -368,6 +368,37 @@ async def preview_join(
     }
 
 
+@router.get("/data-quality")
+async def get_data_quality(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Returns the real shipment row count for the current tenant.
+    Used by the frontend to show a synthetic-data disclosure banner
+    when the tenant has fewer than 500 rows (below ML training threshold).
+    """
+    from app.Db.connections import engine
+    from sqlalchemy import text
+
+    tenant_id = current_user.get("tenant_id", "default_tenant")
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("SELECT COUNT(*) FROM dw_shipment_facts WHERE tenant_id = :tid"),
+                {"tid": tenant_id},
+            )
+            row_count = result.scalar() or 0
+    except Exception:
+        row_count = 0
+
+    return {
+        "tenant_id": tenant_id,
+        "shipment_row_count": row_count,
+        "is_synthetic": row_count < 500,
+        "threshold": 500,
+    }
+
+
 @router.post("/upload_multi", status_code=202)
 async def upload_multi(
     files: List[UploadFile] = File(...),

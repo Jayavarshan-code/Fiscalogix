@@ -5,11 +5,15 @@ import shap
 from pathlib import Path
 import math
 from app.routes.admin import register_model_status
+from app.financial_system import feature_builder
+from app.financial_system.spatial_risk_injector import get_route_severity
 
 logger = logging.getLogger(__name__)
 
-MODELS_DIR = Path(__file__).parent / "ml_pipeline" / "models"
-PIPELINE_PATH = MODELS_DIR / "risk_pipeline.pkl"
+MODELS_DIR        = Path(__file__).parent / "ml_pipeline" / "models"
+PIPELINE_PATH     = MODELS_DIR / "risk_pipeline.pkl"
+FALLBACK_PATH     = MODELS_DIR / "risk_fallback.pkl"
+FALLBACK_COL_PATH = MODELS_DIR / "risk_fallback_columns.pkl"
 
 # GNN blend weight: how much the GNN score influences the final risk_probability.
 # 0.35 = GNN contributes up to 35% of the final score when the node is directly in path.
@@ -41,6 +45,25 @@ class RiskEngine:
             self.model = None
             self.explainer = None
             register_model_status("RiskEngine", "fallback", f"{type(e).__name__}: {str(e)}")
+
+        # --- GBM Fallback (interaction-feature, numeric-only) ---
+        # Trained by train_models.py alongside XGBoost.
+        # Used when XGBoost pipeline is unavailable — replaces the old logistic formula.
+        try:
+            self._gbm_fallback = joblib.load(FALLBACK_PATH)
+            self._gbm_columns  = joblib.load(FALLBACK_COL_PATH)
+            logger.info("RiskEngine: GBM fallback model loaded.")
+            register_model_status("RiskFallback", "ok")
+        except FileNotFoundError:
+            self._gbm_fallback = None
+            self._gbm_columns  = []
+            logger.warning("RiskEngine: risk_fallback.pkl not found. Run train_models.py first.")
+            register_model_status("RiskFallback", "unavailable", "risk_fallback.pkl missing")
+        except Exception as e:
+            self._gbm_fallback = None
+            self._gbm_columns  = []
+            logger.warning(f"RiskEngine: GBM fallback load failed — {e}")
+            register_model_status("RiskFallback", "unavailable", str(e))
 
         # --- GNN Integration ---
         try:
@@ -266,42 +289,96 @@ class RiskEngine:
         """
         Calculates probability this shipment defaults/fails.
 
-        Risk signal priority (highest wins, proximity-weighted blend):
-          1. XGBoost classifier (or logistic fallback)
-          2. GNN GraphSAGE forward pass  ← GAP 13 FIX: now actually runs
-          3. TemporalContagionPredictor (rule + graph hybrid)
+        Risk signal priority (proximity-weighted blend):
+          1. XGBoost classifier (primary — SHAP-explained)
+          2. GBM fallback on interaction features (replaces old logistic formula)
+          3. Last-resort logistic guard (only if no model is available at all)
+          4. GNN GraphSAGE forward pass (additive spatial contagion signal)
+          5. TemporalContagionPredictor (rule + graph hybrid, additive)
 
-        GNN and contagion are blended, NOT raw MAX-overridden, to avoid
-        false alarms on shipments that share a region but not a route.
+        Spatial severity from live external events is injected into every
+        feature vector via SpatialRiskInjector before any model sees it.
+        This makes disruption events (port strikes, geopolitical shocks)
+        affect risk scores proportionally to route proximity, not uniformly.
         """
+        # ── 0. Resolve spatial severity for this route ────────────────────────
+        route         = row.get("route", "LOCAL")
+        cargo_type    = row.get("cargo_type", "general_cargo")
+        spatial_severity = 0.0
+        try:
+            spatial_severity = get_route_severity(route, cargo_type)
+        except Exception as _se:
+            logger.debug("RiskEngine: spatial injector failed — %s", _se)
+
+        # ── Build enriched feature row (training/serving parity) ─────────────
+        enriched = feature_builder.build(
+            {**row, "delay_days": predicted_delay},
+            spatial_severity=spatial_severity,
+        )
+
         df_raw = pd.DataFrame([{
-            "route": row.get("route", "LOCAL"),
-            "carrier": row.get("carrier", "LocalTransit"),
-            "order_value": row.get("order_value", 10000),
-            "total_cost": row.get("total_cost", 7000),
-            "credit_days": row.get("credit_days", 0),
-            "delay_days": predicted_delay
+            "route":       enriched.get("route", "LOCAL"),
+            "carrier":     enriched.get("carrier", "LocalTransit"),
+            "order_value": enriched.get("order_value", 10000),
+            "total_cost":  enriched.get("total_cost", 7000),
+            "credit_days": enriched.get("credit_days", 0),
+            "delay_days":  predicted_delay,
         }])
 
         risk_probability = 0.05
-        drivers = []
-        confidence = 0.95
+        drivers          = []
+        confidence       = 0.95
 
-        # ── 1. XGBoost pipeline (or logistic heuristic) ───────────────────────
+        # ── 1. XGBoost pipeline ───────────────────────────────────────────────
         if self.pipeline:
-            probs = self.pipeline.predict_proba(df_raw)[0]
+            probs            = self.pipeline.predict_proba(df_raw)[0]
             risk_probability = float(probs[1])
-            confidence = round(float(max(probs[0], probs[1])), 2)
-            drivers = self._extract_shap_drivers(df_raw)
+            confidence       = round(float(max(probs[0], probs[1])), 2)
+            drivers          = self._extract_shap_drivers(df_raw)
+
+            # Spatial severity nudge on top of XGBoost score.
+            # XGBoost was trained with spatial_severity=0 baseline; at inference
+            # we additively shift the score by the live disruption contribution.
+            if spatial_severity > 0.05:
+                spatial_lift     = spatial_severity * 0.25 * (1.0 - risk_probability)
+                risk_probability = min(risk_probability + spatial_lift, 0.97)
+                drivers.append(
+                    f"Spatial disruption ({route}): severity {spatial_severity:.2f} "
+                    f"→ +{spatial_lift:.1%} risk lift."
+                )
+
+        # ── 2. GBM fallback (interaction-feature, non-linear) ────────────────
+        elif self._gbm_fallback is not None:
+            gbm_row = {col: enriched.get(col, 0.0) for col in self._gbm_columns}
+            gbm_df  = pd.DataFrame([gbm_row]).fillna(0.0)
+            probs            = self._gbm_fallback.predict_proba(gbm_df)[0]
+            risk_probability = float(probs[1])
+            confidence       = round(float(max(probs[0], probs[1])), 2)
+            drivers = [
+                "⚠ Fallback Mode: GBM model active (XGBoost pipeline unavailable).",
+                f"Interaction features: risk_pressure={enriched.get('risk_pressure', 0):.3f}, "
+                f"cost_x_delay={enriched.get('cost_x_delay', 0):.3f}, "
+                f"spatial_x_route={enriched.get('spatial_x_route', 0):.3f}.",
+            ]
+            if spatial_severity > 0.05:
+                drivers.append(
+                    f"Spatial disruption ({route}): severity {spatial_severity:.2f} "
+                    "captured in spatial_x_route interaction feature."
+                )
+
+        # ── 3. Last-resort logistic guard (no model at all) ───────────────────
         else:
-            margin = row.get("contribution_profit", 0)
-            order_value = max(row.get("order_value", 1), 1)
-            margin_pct = margin / order_value
-            cost_ratio = row.get("total_cost", 0) / order_value
-            logit = (cost_ratio * 2.0) - (margin_pct * 4.0) + (predicted_delay * 0.5)
+            order_value      = max(enriched.get("order_value", 1), 1)
+            cost_ratio       = enriched.get("cost_ratio", 0)
+            margin_pct       = enriched.get("margin_pct", 0)
+            risk_pressure    = enriched.get("risk_pressure", 0)
+            logit            = (cost_ratio * 2.0) - (margin_pct * 4.0) + (predicted_delay * 0.5) + (risk_pressure * 1.5)
             risk_probability = 1.0 / (1.0 + math.exp(-logit))
-            confidence = 0.70
-            drivers = ["⚠ Heuristic Mode: XGBoost model not loaded. Logistic fallback active."]
+            confidence       = 0.55
+            drivers = [
+                "⚠ Degraded Mode: No trained model available. Logistic guard active.",
+                "Run train_models.py to restore full non-linear risk scoring.",
+            ]
 
         # ── 2. GAP 13 FIX — GNN forward pass (proximity-weighted blend) ───────
         # The GNN sees the full supply-chain graph structure.

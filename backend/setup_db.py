@@ -426,6 +426,58 @@ class PortRegistry(Base):
 # SECTION 3: AUDIT & COMPLIANCE TABLES
 # ============================================================================
 
+class ApprovalQueue(Base):
+    """
+    HITL (Human-in-the-Loop) approval queue.
+    Every AI-recommended action lands here as PENDING before any ERP write-back occurs.
+    An authorized approver (can_approve permission) must explicitly APPROVE or REJECT.
+    Only on APPROVED does the system route the action to the ERP connector.
+
+    Lifecycle:
+      Pipeline → PENDING → [approver] → APPROVED → ERP execute → AuditLog
+                                       → REJECTED → AuditLog (no ERP call)
+                         → EXPIRED  (expires_at passed, no action taken)
+    """
+    __tablename__ = 'approval_queue'
+    id                = Column(Integer, primary_key=True, autoincrement=True)
+    tenant_id         = Column(String(50), nullable=False, index=True)
+
+    # What action the AI is recommending
+    shipment_id       = Column(Integer, ForeignKey('shipments.shipment_id'), nullable=True, index=True)
+    action_type       = Column(String(50), nullable=False)   # REROUTE | EXPEDITE | CANCEL
+    erp_target        = Column(String(20), default='SAP')    # SAP | NETSUITE | SANDBOX
+    confidence_score  = Column(Float, nullable=False)
+    predicted_efi_usd = Column(Float, default=0.0)           # financial impact of acting
+    parameters        = Column(JSON, default=dict)           # erp action payload
+
+    # Why the AI made this recommendation (surfaces in approval UI)
+    ai_rationale      = Column(String(1000), nullable=True)
+
+    # Workflow state
+    status            = Column(String(20), nullable=False, default='PENDING')
+    # PENDING | APPROVED | REJECTED | EXPIRED
+
+    # Who submitted it (user_id string or "system" for pipeline-generated)
+    submitted_by      = Column(String(100), nullable=False, default='system')
+    submitted_at      = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
+
+    # Approval / rejection fields
+    approved_by       = Column(Integer, ForeignKey('users.id'), nullable=True)
+    approved_at       = Column(DateTime(timezone=True), nullable=True)
+    rejection_reason  = Column(String(500), nullable=True)
+
+    # Auto-expire: actions not actioned within this window are marked EXPIRED
+    expires_at        = Column(DateTime(timezone=True), nullable=True)
+
+    # ERP receipt stored after successful execution (populated on APPROVED)
+    erp_receipt       = Column(JSON, nullable=True)
+
+    __table_args__ = (
+        Index('idx_approval_queue_tenant_status', 'tenant_id', 'status'),
+        Index('idx_approval_queue_shipment',      'shipment_id'),
+    )
+
+
 class AuditLog(Base):
     """
     FIX D (M4 continuation): audit_logger.py's log_execution() now has a
@@ -831,6 +883,7 @@ def initialize_db():
                     "can_view_revm": True, "can_view_liquidity": True,
                     "can_view_recovery": True, "can_view_governance": True,
                     "can_view_warehouse": True, "can_execute_actions": True,
+                    "can_approve": True,   # HITL: can approve pending AI actions
                 },
             },
             {
@@ -838,6 +891,7 @@ def initialize_db():
                 "permissions": {
                     "can_view_dashboard": True, "can_view_liquidity": True,
                     "can_view_recovery": True, "can_execute_actions": True,
+                    "can_approve": True,   # HITL: executives are the primary approvers
                 },
             },
             {
@@ -845,6 +899,7 @@ def initialize_db():
                 "permissions": {
                     "can_view_dashboard": True, "can_view_revm": True,
                     "can_view_recovery": True,
+                    "can_approve": False,  # analysts submit for approval; cannot approve
                 },
             },
             {
@@ -852,6 +907,7 @@ def initialize_db():
                 "permissions": {
                     "can_view_dashboard": True, "can_view_matrix": True,
                     "can_view_revm": True,
+                    "can_approve": False,
                 },
             },
             {
@@ -859,6 +915,7 @@ def initialize_db():
                 "permissions": {
                     "can_view_governance": True, "can_view_warehouse": True,
                     "can_view_dashboard": True,
+                    "can_approve": False,  # auditors observe; cannot approve
                 },
             },
         ]

@@ -12,13 +12,14 @@ import numpy as np
 import joblib
 import logging
 from pathlib import Path
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, accuracy_score
 import xgboost as xgb
+from app.financial_system import feature_builder
 
 logger = logging.getLogger(__name__)
 
@@ -67,33 +68,47 @@ def _generate_synthetic(n: int = 10000) -> pd.DataFrame:
     """
     Generates a realistic synthetic supply chain dataset as a cold-start fallback.
     All assumptions are documented and deterministic (seed=42).
+    Includes cargo_type and industry_vertical so interaction features are populated.
     """
     np.random.seed(42)
-    routes = np.random.choice(["US-CN", "EU-US", "US-MX", "CN-EU", "LOCAL"], n)
-    carriers = np.random.choice(["Maersk", "DHL", "FedEx", "LocalTransit"], n)
+    routes   = np.random.choice(["US-CN", "EU-US", "US-MX", "CN-EU", "LOCAL"], n)
+    carriers = np.random.choice(["maersk", "dhl_express", "fedex", "local_transit"], n)
+    cargo_types = np.random.choice(
+        ["general_cargo", "electronics", "automotive", "pharma", "perishable"], n,
+        p=[0.40, 0.25, 0.15, 0.10, 0.10],
+    )
+    verticals = np.random.choice(
+        ["default", "fmcg", "automotive", "electronics", "pharma"], n,
+        p=[0.35, 0.25, 0.15, 0.15, 0.10],
+    )
 
     order_values = np.random.uniform(5000, 150000, n)
-    total_costs = order_values * np.random.uniform(0.3, 0.8, n)
-    credit_days = np.random.choice([0, 15, 30, 60, 90], n)
+    total_costs  = order_values * np.random.uniform(0.3, 0.8, n)
+    credit_days  = np.random.choice([0, 15, 30, 60, 90], n)
 
-    # Delay: carrier + route dependent, Gaussian noise
+    # Delay: carrier + route dependent + cargo penalty, Gaussian noise
     delay_days = np.zeros(n)
+    cargo_delay_penalty = {"perishable": 3, "pharma": 2, "electronics": 1,
+                           "automotive": 1, "general_cargo": 0}
     for i in range(n):
-        base = 0 if carriers[i] in ["FedEx", "DHL"] else np.random.randint(2, 10)
+        base = 0 if carriers[i] in ["fedex", "dhl_express"] else np.random.randint(2, 10)
         if routes[i] == "US-CN":  base += 14
         if routes[i] == "CN-EU":  base += 20
+        base += cargo_delay_penalty.get(cargo_types[i], 0)
         delay_days[i] = max(0, base + np.random.normal(0, 3))
 
     contribution_profit = order_values - total_costs
 
     return pd.DataFrame({
-        "route": routes,
-        "carrier": carriers,
-        "order_value": order_values,
-        "total_cost": total_costs,
-        "credit_days": credit_days,
-        "delay_days": delay_days,
+        "route":               routes,
+        "carrier":             carriers,
+        "order_value":         order_values,
+        "total_cost":          total_costs,
+        "credit_days":         credit_days,
+        "delay_days":          delay_days,
         "contribution_profit": contribution_profit,
+        "cargo_type":          cargo_types,
+        "industry_vertical":   verticals,
     })
 
 
@@ -172,7 +187,8 @@ def _build_dataset() -> pd.DataFrame:
 # STEP 2: FEATURE ENGINEERING
 # ─────────────────────────────────────────────────────────────────────────────
 
-NUMERIC_FEATURES = ["order_value", "total_cost", "credit_days", "delay_days"]
+# Legacy flat features kept for the XGBoost pipeline (backward-compatible).
+NUMERIC_FEATURES     = ["order_value", "total_cost", "credit_days", "delay_days"]
 CATEGORICAL_FEATURES = ["route", "carrier"]
 
 
@@ -183,12 +199,31 @@ def _build_preprocessor():
     ])
 
 
+def _apply_feature_builder(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Runs every row through feature_builder.build() and appends all derived
+    and interaction columns to the DataFrame.
+    spatial_severity=0.0 during training — we have no historical event tags.
+    The model learns that spatial_severity=0 is the baseline; at inference
+    the real value from SpatialRiskInjector shifts predictions accordingly.
+    """
+    enriched_rows = [
+        feature_builder.build(row, spatial_severity=0.0)
+        for row in df.to_dict("records")
+    ]
+    return pd.DataFrame(enriched_rows)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 3: MODEL TRAINING
 # ─────────────────────────────────────────────────────────────────────────────
 
 def train_all():
     df = _build_dataset()
+
+    # ── Enrich with interaction features (used by GBM fallback + future models) ──
+    logger.info("Applying FeatureBuilder — adding cross-term interaction features...")
+    df_enriched = _apply_feature_builder(df)
 
     # ── Delay Model ──────────────────────────────────────────────────────────
     logger.info("Training Delay Model (XGBoost Regressor)...")
@@ -237,6 +272,39 @@ def train_all():
     train_columns = NUMERIC_FEATURES + CATEGORICAL_FEATURES
     joblib.dump(train_columns, MODELS_DIR / "train_columns.pkl")
 
+    # ── GBM Fallback Risk Model (interaction-feature numeric-only) ───────────
+    # Trained on the full enriched feature set from FeatureBuilder.
+    # Used by RiskEngine when the XGBoost pipeline fails to load.
+    # Numeric-only (no OHE) — works with any route/carrier string at inference.
+    # GradientBoostingClassifier captures non-linear interactions between the
+    # cross-term features that the old logistic formula cannot represent.
+    logger.info("Training GBM Fallback Risk Model (interaction features, numeric-only)...")
+    gbm_features = feature_builder.NUMERIC_FEATURES  # 23 numeric + interaction cols
+    # Only keep columns that exist after enrichment
+    gbm_cols_available = [c for c in gbm_features if c in df_enriched.columns]
+
+    X_gbm = df_enriched[gbm_cols_available].fillna(0.0)
+    y_gbm = df_enriched["risk_label"]
+    Xtr_g, Xte_g, ytr_g, yte_g = train_test_split(
+        X_gbm, y_gbm, test_size=0.2, random_state=42
+    )
+    gbm_clf = GradientBoostingClassifier(
+        n_estimators=120,
+        max_depth=4,
+        learning_rate=0.08,
+        subsample=0.8,
+        min_samples_leaf=20,
+        random_state=42,
+    )
+    gbm_clf.fit(Xtr_g, ytr_g)
+    gbm_acc = accuracy_score(yte_g, gbm_clf.predict(Xte_g))
+    logger.info(f"GBM Fallback Accuracy: {gbm_acc * 100:.2f}%")
+
+    # Persist: model + the ordered column list it was trained on
+    joblib.dump(gbm_clf,           MODELS_DIR / "risk_fallback.pkl")
+    joblib.dump(gbm_cols_available, MODELS_DIR / "risk_fallback_columns.pkl")
+    logger.info("GBM fallback saved → risk_fallback.pkl")
+
     # ── Demand Model ─────────────────────────────────────────────────────────
     # GAP 3 FIX: Demand model is trained WITHOUT delay_days in the feature set.
     # Delay is not a causal driver of CLV — it's an outcome. Including it as
@@ -261,10 +329,11 @@ def train_all():
     joblib.dump(demand_pipe, MODELS_DIR / "demand_model.pkl")
     logger.info("ML Pipeline complete. All models saved.")
     return {
-        "status": "success",
-        "delay_rmse": delay_rmse,
-        "risk_accuracy": acc,
-        "demand_rmse": demand_rmse,
+        "status":              "success",
+        "delay_rmse":          delay_rmse,
+        "risk_accuracy":       acc,
+        "gbm_fallback_accuracy": gbm_acc,
+        "demand_rmse":         demand_rmse,
         **_last_build_meta,
     }
 

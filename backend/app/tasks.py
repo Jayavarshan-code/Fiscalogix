@@ -156,6 +156,13 @@ def task_warm_spatial_events():
     try:
         ingester = ExternalApiIngester(db)
         count = ingester.execute_ingestion_cycle()
+        # Expire the spatial injector's Redis cache so the next risk
+        # computation immediately picks up the freshly ingested events.
+        try:
+            from app.financial_system.spatial_risk_injector import invalidate_cache
+            invalidate_cache()
+        except Exception:
+            pass
         return {"status": "success", "events_stored": count}
     finally:
         db.close()
