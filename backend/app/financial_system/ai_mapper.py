@@ -254,6 +254,8 @@ class AIFieldMapper:
                 semantic_metadata[header] = {"is_id": is_id_pattern, "is_numeric": is_numeric}
 
         global_mapping = {}
+        target_scores = {}  # target_field -> (raw_clean, highest_score)
+        
         for raw in raw_headers:
             raw_clean    = raw.lower().strip()
             best_match   = None
@@ -281,7 +283,22 @@ class AIFieldMapper:
                         highest_score = score
                         best_match = target_field
 
-            global_mapping[raw] = best_match
+            # Enforce 1-to-1 mapping: if this target was already mapped by another column,
+            # only keep the one with the higher score.
+            if best_match:
+                if best_match in target_scores:
+                    prev_raw, prev_score = target_scores[best_match]
+                    if highest_score > prev_score:
+                        global_mapping[prev_raw] = None
+                        target_scores[best_match] = (raw, highest_score)
+                        global_mapping[raw] = best_match
+                    else:
+                        global_mapping[raw] = None
+                else:
+                    target_scores[best_match] = (raw, highest_score)
+                    global_mapping[raw] = best_match
+            else:
+                global_mapping[raw] = None
 
         schema_scores = {k: 0 for k in cls.SCHEMAS.keys()}
         for raw, mapped_target in global_mapping.items():
