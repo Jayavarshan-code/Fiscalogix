@@ -254,8 +254,8 @@ class MonteCarloEngine:
         sim_revm_matrix    = base_profits - risk_penalties - time_costs - fx_costs - sim_sla
         simulated_outcomes = np.sum(sim_revm_matrix, axis=1)
 
-        var_95     = np.percentile(simulated_outcomes, 5)
-        worst_case = np.min(simulated_outcomes)
+        var_95     = float(np.percentile(simulated_outcomes, 5))
+        worst_case = float(np.min(simulated_outcomes))
 
         # Compute baseline SLA total with grace applied (consistent with sla_model.py)
         baseline_effective_delays = np.maximum(0.0, base_delays - grace_days)
