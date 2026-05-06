@@ -51,11 +51,14 @@ const MainApp = () => {
         {activeView === 'warehouse' && <ShipmentDataWarehouse />}
         
         {activeView === 'cashflow' && (
-          <div className="p-8">
-            <h2 className="text-2xl font-bold mb-4">Cashflow & Optimization (POE)</h2>
+          <div className="p-8" style={{ maxWidth: 860 }}>
+            <h2 className="text-2xl font-bold mb-1">Cashflow & Optimization (POE)</h2>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+              90-day AR liquidity trajectory. Click any data point to see what drives that horizon's projection.
+            </p>
             <div className="glass-panel p-6 mb-6">
-               <h3 className="text-lg font-bold mb-4">Projected Capital Flight</h3>
-               <CashflowChart />
+              <h3 className="text-lg font-bold mb-4">Projected Capital Flight</h3>
+              <CashflowChart />
             </div>
           </div>
         )}
