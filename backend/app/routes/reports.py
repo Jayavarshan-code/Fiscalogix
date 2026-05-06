@@ -46,40 +46,69 @@ def export_excel(current_user: dict = Depends(get_current_user)):
         import sqlalchemy
 
         # ── Sheet 1: Shipment detail ──────────────────────────────────────────
-        df_ships = pd.read_sql(
-            sqlalchemy.text("""
-                SELECT
-                    s.shipment_id,
-                    o.order_id,
-                    COALESCE(o.customer_id, 'Unknown')                          AS client,
-                    o.order_value,
-                    s.shipment_cost,
-                    s.delay_days,
-                    s.carrier,
-                    s.route,
-                    s.origin_node,
-                    s.destination_node,
-                    COALESCE(o.credit_days, 30)                                 AS credit_days,
-                    COALESCE(o.payment_delay_days, 0)                           AS payment_delay_days,
-                    (COALESCE(sk.holding_cost_per_day,0) * s.delay_days)        AS holding_cost,
-                    (s.delay_days * fp.penalty_rate * o.order_value)            AS delay_penalty,
-                    (o.order_value * fp.wacc)                                   AS wacc_cost,
-                    (o.order_value - s.shipment_cost
-                       - (COALESCE(sk.holding_cost_per_day,0) * s.delay_days)
-                       - (s.delay_days * fp.penalty_rate * o.order_value)
-                       - (o.order_value * fp.wacc))                             AS revm,
-                    s.created_at                                                AS shipment_date
-                FROM orders o
-                JOIN shipments s ON o.order_id = s.order_id AND s.tenant_id = o.tenant_id
-                LEFT JOIN sku sk ON o.sku_id = sk.sku_id AND sk.tenant_id = o.tenant_id
-                JOIN financial_parameters fp ON fp.tenant_id = o.tenant_id
-                WHERE o.tenant_id = :tid
-                ORDER BY s.created_at DESC
-                LIMIT 5000
-            """),
-            engine,
-            params={"tid": tenant_id},
-        )
+        _OLTP_DETAIL = sqlalchemy.text("""
+            SELECT
+                s.shipment_id,
+                o.order_id,
+                COALESCE(o.customer_id, 'Unknown')                          AS client,
+                o.order_value,
+                s.shipment_cost,
+                s.delay_days,
+                s.carrier,
+                s.route,
+                s.origin_node,
+                s.destination_node,
+                COALESCE(o.credit_days, 30)                                 AS credit_days,
+                COALESCE(o.payment_delay_days, 0)                           AS payment_delay_days,
+                (COALESCE(sk.holding_cost_per_day,0) * s.delay_days)        AS holding_cost,
+                (s.delay_days * fp.penalty_rate * o.order_value)            AS delay_penalty,
+                (o.order_value * fp.wacc)                                   AS wacc_cost,
+                (o.order_value - s.shipment_cost
+                   - (COALESCE(sk.holding_cost_per_day,0) * s.delay_days)
+                   - (s.delay_days * fp.penalty_rate * o.order_value)
+                   - (o.order_value * fp.wacc))                             AS revm,
+                s.created_at                                                AS shipment_date
+            FROM orders o
+            JOIN shipments s ON o.order_id = s.order_id AND s.tenant_id = o.tenant_id
+            LEFT JOIN sku sk ON o.sku_id = sk.sku_id AND sk.tenant_id = o.tenant_id
+            JOIN financial_parameters fp ON fp.tenant_id = o.tenant_id
+            WHERE o.tenant_id = :tid
+            ORDER BY s.created_at DESC
+            LIMIT 5000
+        """)
+
+        _DW_DETAIL = sqlalchemy.text("""
+            SELECT
+                COALESCE(dw.raw_source_uuid, CAST(dw.id AS TEXT))             AS shipment_id,
+                COALESCE(dw.po_number, dw.raw_source_uuid)                     AS order_id,
+                'CSV-Import'                                                   AS client,
+                COALESCE(dw.total_value_usd, 0)                               AS order_value,
+                COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15, 0)    AS shipment_cost,
+                COALESCE(dw.delay_days_calculated, 0)                         AS delay_days,
+                COALESCE(dw.carrier, 'unknown')                               AS carrier,
+                COALESCE(dw.route, 'domestic')                                AS route,
+                dw.origin_node,
+                dw.destination_node,
+                COALESCE(dw.credit_days, 30)                                  AS credit_days,
+                0                                                             AS payment_delay_days,
+                0.003 * COALESCE(dw.delay_days_calculated, 0)                AS holding_cost,
+                COALESCE(dw.delay_days_calculated,0) * COALESCE(fp.penalty_rate,0.02) * COALESCE(dw.total_value_usd,0) AS delay_penalty,
+                COALESCE(dw.total_value_usd,0) * COALESCE(fp.wacc,0.085)     AS wacc_cost,
+                COALESCE(dw.margin_usd,
+                    dw.total_value_usd - COALESCE(dw.total_cost_usd, dw.total_value_usd*0.15, 0)
+                )                                                             AS revm,
+                dw.created_at                                                 AS shipment_date
+            FROM dw_shipment_facts dw
+            LEFT JOIN financial_parameters fp ON fp.tenant_id = dw.tenant_id
+            WHERE dw.tenant_id = :tid
+            ORDER BY dw.created_at DESC
+            LIMIT 5000
+        """)
+
+        df_ships = pd.read_sql(_OLTP_DETAIL, engine, params={"tid": tenant_id})
+        if df_ships.empty:
+            logger.info("export_excel: OLTP empty for tenant=%s, reading detail from dw_shipment_facts", tenant_id)
+            df_ships = pd.read_sql(_DW_DETAIL, engine, params={"tid": tenant_id})
 
         # Convert monetary columns to tenant currency
         for col in ["order_value", "shipment_cost", "holding_cost",
@@ -273,35 +302,54 @@ def _build_carrier_gap(engine, tenant_id: str, currency: str, sym: str):
     """
     import pandas as pd
     import sqlalchemy
-    import datetime
 
-    today = datetime.date.today()
+    _OLTP_GAP = sqlalchemy.text("""
+        SELECT
+            s.shipment_id,
+            COALESCE(o.customer_id, 'Unknown')          AS client,
+            s.carrier,
+            o.order_value,
+            COALESCE(s.shipment_cost, o.order_value * 0.15) AS carrier_cost,
+            COALESCE(o.credit_days, 30)                 AS credit_days,
+            COALESCE(s.delay_days, 0)                   AS delay_days,
+            COALESCE(o.payment_delay_days, 0)           AS payment_delay_days,
+            COALESCE(s.supplier_payment_terms, 7)       AS carrier_payment_days
+        FROM orders o
+        JOIN shipments s ON o.order_id = s.order_id AND s.tenant_id = o.tenant_id
+        WHERE o.tenant_id = :tid
+        ORDER BY s.created_at DESC
+        LIMIT 1000
+    """)
+
+    _DW_GAP = sqlalchemy.text("""
+        SELECT
+            COALESCE(dw.raw_source_uuid, CAST(dw.id AS TEXT)) AS shipment_id,
+            'CSV-Import'                                        AS client,
+            COALESCE(dw.carrier, 'unknown')                    AS carrier,
+            COALESCE(dw.total_value_usd, 0)                    AS order_value,
+            COALESCE(dw.total_cost_usd, dw.total_value_usd * 0.15, 0) AS carrier_cost,
+            COALESCE(dw.credit_days, 30)                       AS credit_days,
+            COALESCE(dw.delay_days_calculated, 0)              AS delay_days,
+            0                                                  AS payment_delay_days,
+            7                                                  AS carrier_payment_days
+        FROM dw_shipment_facts dw
+        WHERE dw.tenant_id = :tid
+        ORDER BY dw.created_at DESC
+        LIMIT 1000
+    """)
 
     try:
-        df = pd.read_sql(
-            sqlalchemy.text("""
-                SELECT
-                    s.shipment_id,
-                    COALESCE(o.customer_id, 'Unknown')          AS client,
-                    s.carrier,
-                    o.order_value,
-                    COALESCE(s.shipment_cost, o.order_value * 0.15) AS carrier_cost,
-                    COALESCE(o.credit_days, 30)                 AS credit_days,
-                    COALESCE(s.delay_days, 0)                   AS delay_days,
-                    COALESCE(o.payment_delay_days, 0)           AS payment_delay_days,
-                    COALESCE(s.supplier_payment_terms, 7)       AS carrier_payment_days
-                FROM orders o
-                JOIN shipments s ON o.order_id = s.order_id AND s.tenant_id = o.tenant_id
-                WHERE o.tenant_id = :tid
-                ORDER BY s.created_at DESC
-                LIMIT 1000
-            """),
-            engine,
-            params={"tid": tenant_id},
-        )
+        df = pd.read_sql(_OLTP_GAP, engine, params={"tid": tenant_id})
     except Exception as e:
-        logger.warning(f"Carrier gap query failed: {e}")
-        return pd.DataFrame({"Note": ["Carrier gap data unavailable — check shipments table schema."]})
+        logger.warning(f"Carrier gap OLTP query failed: {e}")
+        df = pd.DataFrame()
+
+    if df.empty:
+        try:
+            df = pd.read_sql(_DW_GAP, engine, params={"tid": tenant_id})
+        except Exception as e:
+            logger.warning(f"Carrier gap DW fallback failed: {e}")
+            return pd.DataFrame({"Note": ["Carrier gap data unavailable."]})
 
     if df.empty:
         return pd.DataFrame({"Note": ["No shipment data found."]})
