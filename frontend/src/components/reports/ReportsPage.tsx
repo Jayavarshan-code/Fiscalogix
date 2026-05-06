@@ -51,8 +51,9 @@ const riskColor = (r: string) =>
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export const ReportsPage: React.FC = () => {
-  const [exporting, setExporting] = useState(false);
-  const [summary, setSummary]     = useState<ReportSummary | null>(null);
+  const [exporting, setExporting]       = useState(false);
+  const [exportError, setExportError]   = useState<string | null>(null);
+  const [summary, setSummary]           = useState<ReportSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [summaryError, setSummaryError]     = useState<string | null>(null);
 
@@ -64,9 +65,18 @@ export const ReportsPage: React.FC = () => {
 
   const handleExcelExport = async () => {
     setExporting(true);
+    setExportError(null);
     try {
       const resp = await apiService.downloadExcel();
-      if (!resp.ok) throw new Error('Export failed');
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`Export failed (${resp.status})${text ? ': ' + text.slice(0, 120) : ''}`);
+      }
+      const contentType = resp.headers.get('content-type') ?? '';
+      if (!contentType.includes('spreadsheet') && !contentType.includes('octet-stream')) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`Unexpected response type: ${contentType}. ${text.slice(0, 120)}`);
+      }
       const blob = await resp.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -75,7 +85,7 @@ export const ReportsPage: React.FC = () => {
       a.click();
       URL.revokeObjectURL(url);
     } catch (e: any) {
-      console.error('Excel export failed:', e);
+      setExportError(e.message || 'Excel export failed.');
     } finally {
       setExporting(false);
     }
@@ -128,6 +138,12 @@ export const ReportsPage: React.FC = () => {
         </div>
       </header>
 
+      {exportError && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: 13 }}>
+          <strong>Export failed:</strong> {exportError}
+        </div>
+      )}
+
       {/* Excel Export Info */}
       <section className="glass-panel" style={{ padding: 24, marginBottom: 24 }}>
         <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Excel Workbook Contents</h2>
@@ -167,17 +183,17 @@ export const ReportsPage: React.FC = () => {
 
         {summary ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-            <KPITile label="Shipments Processed" value={summary.shipment_count.toLocaleString()} icon={<Package size={16} />} />
-            <KPITile label="Total Revenue" value={fmt(summary.total_revenue)} icon={<TrendingUp size={16} />} />
-            <KPITile label="Total Cost" value={fmt(summary.total_cost)} icon={<TrendingDown size={16} />} />
+            <KPITile label="Shipments Processed" value={(summary.shipment_count ?? 0).toLocaleString()} icon={<Package size={16} />} />
+            <KPITile label="Total Revenue" value={fmt(summary.total_revenue ?? 0)} icon={<TrendingUp size={16} />} />
+            <KPITile label="Total Cost" value={fmt(summary.total_cost ?? 0)} icon={<TrendingDown size={16} />} />
             <KPITile
               label="Total ReVM"
-              value={fmt(summary.total_revm)}
-              icon={summary.total_revm >= 0 ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
-              status={summary.total_revm >= 0 ? 'safe' : 'critical'}
+              value={fmt(summary.total_revm ?? 0)}
+              icon={(summary.total_revm ?? 0) >= 0 ? <CheckCircle size={16} /> : <AlertTriangle size={16} />}
+              status={(summary.total_revm ?? 0) >= 0 ? 'safe' : 'critical'}
             />
-            <KPITile label="Avg Delay" value={`${summary.avg_delay_days.toFixed(1)} days`} icon={<RefreshCw size={16} />} />
-            <KPITile label="Generated" value={new Date(summary.generated_at).toLocaleDateString('en-IN')} icon={<FileSpreadsheet size={16} />} />
+            <KPITile label="Avg Delay" value={`${(summary.avg_delay_days ?? 0).toFixed(1)} days`} icon={<RefreshCw size={16} />} />
+            <KPITile label="Generated" value={summary.generated_at ? new Date(summary.generated_at).toLocaleDateString('en-IN') : '—'} icon={<FileSpreadsheet size={16} />} />
           </div>
         ) : (
           <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>

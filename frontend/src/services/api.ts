@@ -400,8 +400,10 @@ export const apiService = {
   /** GET /reports/export/summary — JSON summary for print-to-PDF */
   async getReportSummary() {
     const response = await fetch(`${API_BASE_URL}/reports/export/summary`, { headers: getAuthHeader() });
-    if (!response.ok) throw new Error('Report summary fetch failed');
-    return await response.json();
+    if (!response.ok) throw new Error(`Report summary fetch failed (${response.status})`);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data;
   },
 
   /** GET /alerts/thresholds — current alert thresholds */

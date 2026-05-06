@@ -175,15 +175,8 @@ def export_excel(current_user: dict = Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Excel export failed for tenant={tenant_id}: {e}", exc_info=True)
-        import pandas as pd
-        output = io.BytesIO()
-        pd.DataFrame({"Error": [str(e)]}).to_excel(output, index=False)
-        output.seek(0)
-        return StreamingResponse(
-            output,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": 'attachment; filename="fiscalogix_error_report.xlsx"'},
-        )
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 def _build_ar_aging(engine, tenant_id: str, currency: str, sym: str):

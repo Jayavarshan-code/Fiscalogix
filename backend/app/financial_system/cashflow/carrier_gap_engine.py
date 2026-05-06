@@ -49,6 +49,8 @@ class CarrierGapEngine:
                 "gap_days": 0,
                 "peak_gap_date": None,
                 "per_shipment": [],
+                "carriers": [],
+                "total_cash_tied_up": 0.0,
                 "recommendation": "No shipment data to analyse.",
             }
 
@@ -78,6 +80,7 @@ class CarrierGapEngine:
             per_shipment.append({
                 "shipment_id":    row.get("shipment_id", "unknown"),
                 "client":         row.get("client_name", row.get("customer_name", "—")),
+                "carrier":        row.get("carrier", "Unknown Carrier"),
                 "carrier_payment_due": outflow_date.isoformat(),
                 "client_payment_expected": inflow_date.isoformat(),
                 "gap_days":       gap_days_this,
