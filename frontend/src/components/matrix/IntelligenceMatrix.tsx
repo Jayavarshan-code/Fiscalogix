@@ -143,23 +143,23 @@ export const IntelligenceMatrix: React.FC = () => {
                         </td>
                         <td className="font-medium text-brand-primary">{row.po_number}</td>
                         <td className="text-sm">{row.route}</td>
-                        <td className="font-medium">${row.total_value_usd.toLocaleString()}</td>
+                        <td className="font-medium">${(row.total_value_usd || 0).toLocaleString()}</td>
                         <td className={row.expected_efi < 0 ? 'text-critical' : 'text-safe'}>
-                          ${row.expected_efi.toLocaleString()}
+                          ${(row.expected_efi || 0).toLocaleString()}
                         </td>
                         <td className="text-brand-secondary font-semibold">
-                          ${row.robust_revm_floor.toLocaleString()}
+                          ${(row.robust_revm_floor || 0).toLocaleString()}
                         </td>
                         <td>
-                          <div className="risk-badge" data-level={row.ml_confidence_score > 0.8 ? 'high' : row.ml_confidence_score > 0.4 ? 'medium' : 'low'}>
-                            {row.ml_confidence_score > 0.8 && <AlertTriangle size={12} />}
-                            {(row.ml_confidence_score * 100).toFixed(0)}%
+                          <div className="risk-badge" data-level={(row.ml_confidence_score || 0) > 0.8 ? 'high' : (row.ml_confidence_score || 0) > 0.4 ? 'medium' : 'low'}>
+                            {(row.ml_confidence_score || 0) > 0.8 && <AlertTriangle size={12} />}
+                            {((row.ml_confidence_score || 0) * 100).toFixed(0)}%
                           </div>
                         </td>
                         <td>
-                          <div className="risk-badge" data-level={row.contagion_score_t48 > 0.8 ? 'high' : row.contagion_score_t48 > 0.4 ? 'medium' : 'low'}>
-                            {(row.contagion_score_t48 * 100).toFixed(0)}%
-                            {row.contagion_score_t48 > row.ml_confidence_score && <ArrowUp size={10} className="ml-0.5" />}
+                          <div className="risk-badge" data-level={(row.contagion_score_t48 || 0) > 0.8 ? 'high' : (row.contagion_score_t48 || 0) > 0.4 ? 'medium' : 'low'}>
+                            {((row.contagion_score_t48 || 0) * 100).toFixed(0)}%
+                            {(row.contagion_score_t48 || 0) > (row.ml_confidence_score || 0) && <ArrowUp size={10} className="ml-0.5" />}
                           </div>
                         </td>
                         <td>

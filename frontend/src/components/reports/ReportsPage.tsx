@@ -40,7 +40,7 @@ interface ConcentrationAlert {
 // ── Helper ─────────────────────────────────────────────────────────────────────
 
 const fmt = (v: number | null | undefined, prefix = '₹') => {
-  const n = (v !== null && v !== undefined && Number.isFinite(v as number)) ? (v as number) : 0;
+  const n = (v !== null && v !== undefined && Number.isFinite(Number(v))) ? Number(v) : 0;
   if (Math.abs(n) >= 1e7) return `${prefix}${(n / 1e7).toFixed(2)}Cr`;
   if (Math.abs(n) >= 1e5) return `${prefix}${(n / 1e5).toFixed(2)}L`;
   return `${prefix}${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
