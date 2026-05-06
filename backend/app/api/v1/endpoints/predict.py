@@ -251,8 +251,11 @@ async def get_cashflow_trajectory(db: Session = Depends(get_db), current_user: d
     Returns probabilistic cashflow expectations.
     """
     try:
-        tenant_id = current_user.get("tenant_id", "default_tenant")
+        tenant_id = str(current_user.get("tenant_id", "default_tenant"))
         payload = PredictiveCashflowEngine.simulate_trajectory(db, tenant_id)
         return payload
     except Exception as e:
+        import traceback
+        import logging
+        logging.error(f"Cashflow trajectory error: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
