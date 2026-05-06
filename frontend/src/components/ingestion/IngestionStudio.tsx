@@ -44,7 +44,8 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
   // ── Single-file state ────────────────────────────────────────────────────
-  const [file, setFile] = useState<File | null>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [mappingData, setMappingData] = useState<MappingResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isIngesting, setIsIngesting] = useState(false);
@@ -62,7 +63,7 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
   const [isMerging, setIsMerging] = useState(false);
 
   const resetAll = () => {
-    setFile(null); setMappingData(null); setIngestResult(null);
+    setCsvFile(null); setPdfFile(null); setMappingData(null); setIngestResult(null);
     setJobId(null); setError(null); setElapsedSec(null);
     setMultiFiles([]); setMultiPdf(null); setPreviewData(null);
     setSelectedJoinKey(''); setIsAnalyzing(false); setIsIngesting(false);
@@ -104,19 +105,29 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
   // ── Single-file handlers ─────────────────────────────────────────────────
   const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (e.dataTransfer.files?.[0]) {
-      setFile(e.dataTransfer.files[0]);
-      setMappingData(null); setIngestResult(null); setError(null);
-    }
+    const dropped = Array.from(e.dataTransfer.files);
+    const csv = dropped.find(f => f.name.toLowerCase().endsWith('.csv'));
+    const pdf = dropped.find(f => f.name.toLowerCase().endsWith('.pdf'));
+    if (csv) setCsvFile(csv);
+    if (pdf) setPdfFile(pdf);
+    if (csv || pdf) { setMappingData(null); setIngestResult(null); setError(null); }
+  };
+
+  const handleSingleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files ?? []);
+    const csv = picked.find(f => f.name.toLowerCase().endsWith('.csv'));
+    const pdf = picked.find(f => f.name.toLowerCase().endsWith('.pdf'));
+    if (csv) setCsvFile(csv);
+    if (pdf) setPdfFile(pdf);
+    setMappingData(null); setIngestResult(null); setError(null);
   };
 
   const handleAnalyze = async () => {
-    if (!file) return;
+    if (!csvFile && !pdfFile) return;
     setIsAnalyzing(true); setError(null);
     const formData = new FormData();
-    file.name.toLowerCase().endsWith('.pdf')
-      ? formData.append('pdf_file', file)
-      : formData.append('csv_file', file);
+    if (csvFile) formData.append('csv_file', csvFile);
+    if (pdfFile) formData.append('pdf_file', pdfFile);
 
     try {
       const resp = await fetch(`${API_BASE_URL}/ingestion/upload`, {
@@ -131,7 +142,7 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
         const result = data.result as IngestionResult;
         setIngestResult(result);
         setMappingData({
-          filename: file.name,
+          filename: csvFile?.name ?? pdfFile?.name ?? 'upload',
           detected_domain: data.detected_domain || 'Supply Chain',
           raw_headers: data.heuristic_mapping ? Object.keys(data.heuristic_mapping) : [],
           ai_mapping_suggestions: data.heuristic_mapping || {},
@@ -208,7 +219,7 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
   };
 
   const handleMergeIngest = async () => {
-    if (!selectedJoinKey) { setError('Select a join key first.'); return; }
+    if (multiFiles.length >= 2 && !selectedJoinKey) { setError('Select a join key first.'); return; }
     setIsMerging(true); setError(null);
     const formData = new FormData();
     multiFiles.forEach(f => formData.append('files', f));
@@ -294,18 +305,58 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
               <h2 className="step-title font-bold text-lg mb-4">Step 1: Drop Your Data</h2>
               <div className="upload-dropzone" onDragOver={e => e.preventDefault()} onDrop={handleFileDrop}>
                 <Upload size={48} className="text-tertiary mb-4" />
-                <h3>Drag & Drop SAP/Oracle CSV or Carrier PDF</h3>
-                <p>No ETL configuration required.</p>
-                <input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
-                {file && (
-                  <div className="selected-file mt-4">
-                    <FileText size={16} /> <strong>{file.name}</strong>
-                    <button className="btn-primary mt-4 w-full pulse" onClick={handleAnalyze} disabled={isAnalyzing}>
-                      {isAnalyzing ? 'Parsing & Mapping Fields...' : 'Run Field Mapping & NLP Parse'}
-                    </button>
-                  </div>
-                )}
+                <h3>Drag & Drop CSV + SLA PDF Together</h3>
+                <p>Drop both files at once, or pick them from the file picker below.</p>
+                <input
+                  type="file"
+                  multiple
+                  accept=".csv,.pdf"
+                  onChange={handleSingleFileChange}
+                />
               </div>
+
+              {/* Selected file badges */}
+              {(csvFile || pdfFile) && (
+                <div className="mt-4 space-y-2">
+                  {csvFile && (
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-surface border border-subtle">
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText size={14} className="text-brand-primary" />
+                        <span className="font-mono">{csvFile.name}</span>
+                        <span className="text-xs text-muted">({(csvFile.size / 1024).toFixed(0)} KB) — Shipment Data</span>
+                      </div>
+                      <button onClick={() => setCsvFile(null)} className="text-muted hover:text-critical transition-colors">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                  {pdfFile && (
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-brand-primary/5 border border-brand-primary/20">
+                      <div className="flex items-center gap-2 text-sm">
+                        <FileText size={14} className="text-brand-primary" />
+                        <span className="font-mono">{pdfFile.name}</span>
+                        <span className="text-xs text-muted">({(pdfFile.size / 1024).toFixed(0)} KB) — SLA Contract</span>
+                      </div>
+                      <button onClick={() => setPdfFile(null)} className="text-muted hover:text-critical transition-colors">
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    className="btn-primary mt-2 w-full pulse"
+                    onClick={handleAnalyze}
+                    disabled={isAnalyzing}
+                  >
+                    {isAnalyzing
+                      ? 'Parsing & Mapping Fields...'
+                      : csvFile && pdfFile
+                        ? 'Run Field Mapping + NLP SLA Parse'
+                        : csvFile
+                          ? 'Run Field Mapping'
+                          : 'Extract SLA Penalty Clauses'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -425,6 +476,15 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
               </div>
             )}
 
+            {multiFiles.length === 1 && multiPdf && (
+              <button
+                className="btn-primary w-full mt-4"
+                onClick={() => { setSelectedJoinKey('__none__'); handleMergeIngest(); }}
+                disabled={isMerging}
+              >
+                {isMerging ? 'Processing...' : 'Run Engine (CSV + SLA Contract)'}
+              </button>
+            )}
             {multiFiles.length >= 2 && (
               <button
                 className="btn-primary w-full mt-4"
