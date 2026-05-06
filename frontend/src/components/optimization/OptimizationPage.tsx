@@ -482,10 +482,9 @@ const NETWORK_PAYLOAD = {
 const NetworkResult: React.FC<{ result: any }> = ({ result }) => {
   const plan: any[] = result?.routing_plan ?? [];
 
-  // Naïve cost: cheapest lane per destination without capacity aware routing
   const naiveCost = Object.keys(NETWORK_PAYLOAD.demand).reduce((sum, dest) => {
     const cheapest = Object.keys(NETWORK_PAYLOAD.costs).reduce((best, orig) => {
-      const c = NETWORK_PAYLOAD.costs[orig as 'Shanghai' | 'Rotterdam'][dest];
+      const c = NETWORK_PAYLOAD.costs[orig as 'Shanghai' | 'Rotterdam'][dest as 'Los Angeles' | 'New York'];
       return c < best ? c : best;
     }, Infinity);
     return sum + cheapest * NETWORK_PAYLOAD.demand[dest as 'Los Angeles' | 'New York'];
@@ -496,7 +495,7 @@ const NetworkResult: React.FC<{ result: any }> = ({ result }) => {
   const utilChart = plan.map(r => ({
     lane: `${r.origin.split(' ')[0]}→${r.destination.split(' ')[0]}`,
     shipped: r.quantity,
-    capacity: NETWORK_PAYLOAD.capacities[r.origin as 'Shanghai' | 'Rotterdam']?.[r.destination] ?? r.quantity,
+    capacity: NETWORK_PAYLOAD.capacities[r.origin as 'Shanghai' | 'Rotterdam']?.[r.destination as 'Los Angeles' | 'New York'] ?? r.quantity,
     cost: r.total_lane_cost,
   })).map(r => ({ ...r, utilPct: Math.round((r.shipped / r.capacity) * 100) }));
 
@@ -733,7 +732,7 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
             <YAxis hide />
             <Tooltip
               contentStyle={{ fontSize: 9, borderRadius: 6 }}
-              formatter={(v: any, name: string) => [Number(v).toFixed(4), name === 'onTime' ? 'On-Time' : 'Late']}
+              formatter={(v: any, name: any) => [Number(v).toFixed(4), name === 'onTime' ? 'On-Time' : 'Late']}
               labelFormatter={l => `Arrival: ${l}d`}
             />
             <ReferenceLine x={targetDays} stroke="#94a3b8" strokeDasharray="4 2"

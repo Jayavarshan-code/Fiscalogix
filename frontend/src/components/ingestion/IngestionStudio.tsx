@@ -152,7 +152,7 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
       }
       setJobId(data.job_id);
       setMappingData({
-        filename: file.name,
+        filename: csvFile?.name ?? pdfFile?.name ?? 'upload',
         detected_domain: data.detected_domain || 'Supply Chain',
         raw_headers: data.heuristic_mapping ? Object.keys(data.heuristic_mapping) : [],
         ai_mapping_suggestions: data.heuristic_mapping || {},
