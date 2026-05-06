@@ -44,8 +44,8 @@ export const SyntheticDataBanner: React.FC = () => {
       <AlertTriangle size={15} style={{ color: '#fbbf24', flexShrink: 0 }} />
       <span>
         <strong style={{ color: '#fcd34d' }}>Synthetic data active</strong>
-        {' '}— your tenant has {quality.shipment_row_count.toLocaleString()} shipment
-        {quality.shipment_row_count !== 1 ? 's' : ''} (threshold: {quality.threshold.toLocaleString()}).
+        {' '}— your tenant has {(quality.shipment_row_count ?? 0).toLocaleString()} shipment
+        {(quality.shipment_row_count ?? 0) !== 1 ? 's' : ''} (threshold: {(quality.threshold ?? 0).toLocaleString()}).
         ML model predictions are trained on generated data. Upload real shipment data via{' '}
         <strong>Ingestion Studio</strong> to activate live models.
       </span>

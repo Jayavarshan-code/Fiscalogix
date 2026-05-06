@@ -48,27 +48,27 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const { data, isLoading: loading } = useExecutiveOverview();
+  const { data, isLoading: loading, error: overviewError } = useExecutiveOverview();
 
   // Derive KPI values from live data when available, else show safe placeholders
   const summary = data?.summary;
   const confidence = data?.confidence?.global_score;
   const shocks = data?.shocks ?? [];
   const waccBurn = data?.financial_impact?.wacc_cost;
-  const tlcExposure = summary ? Math.abs(summary.total_cost - summary.total_revm) : null;
+  const tlcExposure = summary ? Math.abs((summary.total_cost ?? 0) - (summary.total_revm ?? 0)) : null;
 
   // EFI copilot block: use real breakdown from FinancialAggregator when available
   const bd = summary?.breakdown;
   const efiPayload = summary
     ? {
-        headline: `Estimated Financial Impact: ${summary.total_revm < 0 ? formatCurrency(summary.total_revm, currency, fxRate) + ' loss' : formatCurrency(summary.total_revm, currency, fxRate) + ' protected'}`,
+        headline: `Estimated Financial Impact: ${(summary.total_revm ?? 0) < 0 ? formatCurrency(summary.total_revm ?? 0, currency, fxRate) + ' loss' : formatCurrency(summary.total_revm ?? 0, currency, fxRate) + ' protected'}`,
         breakdown: {
           delay_cost:       bd?.delay_cost        ?? 0,
           penalty:          bd?.penalty_cost       ?? 0,
           inventory_cost:   bd?.inventory_holding  ?? 0,
           opportunity_cost: bd?.opportunity_cost   ?? 0,
         },
-        recommended_action: summary.loss_shipments > 0
+        recommended_action: (summary.loss_shipments ?? 0) > 0
           ? `${summary.loss_shipments} shipment(s) at negative ReVM — review reroute options in Intelligence Matrix.`
           : 'All shipments operating at positive ReVM. No immediate rerouting required.',
         roi_improvement: '',
@@ -121,6 +121,15 @@ export const Dashboard: React.FC = () => {
 
       {showVision && <VisionDiagnosticModal onClose={() => setShowVision(false)} />}
 
+      {/* API error banner */}
+      {overviewError && !loading && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 8,
+          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+          color: '#ef4444', fontSize: 13 }}>
+          <strong>Dashboard data unavailable:</strong> {overviewError.message}
+        </div>
+      )}
+
       {/* Live alert banner — shown after manual check */}
       {alertsChecked && alerts.length > 0 && (
         <section style={{ marginBottom: 16 }}>
@@ -148,11 +157,11 @@ export const Dashboard: React.FC = () => {
       <section className="kpi-grid">
         <KPICard
           title="Protected EBITDA"
-          value={loading ? '—' : summary ? formatCurrency(summary.total_profit, currency, fxRate) : '₹4.2Cr'}
+          value={loading ? '—' : summary ? formatCurrency(summary.total_profit ?? 0, currency, fxRate) : '₹4.2Cr'}
           trend={12}
           trendLabel="recovery active"
           icon={<ShieldCheck size={20} />}
-          status={summary && summary.total_profit < 0 ? 'critical' : 'safe'}
+          status={summary && (summary.total_profit ?? 0) < 0 ? 'critical' : 'safe'}
         />
         <KPICard
           title="Capital Burn (WACC)"

@@ -103,7 +103,11 @@ class FinancialAgent(BaseAgent):
             })
 
         # Aggregated portfolio summary
+        # NOTE: rows don't have "revm" stamped yet (fan-in happens after all agents return).
+        # Patch total_revm and loss_shipments from the values we already computed above.
         summary        = self._aggregator.summarize(enriched_data)
+        summary["total_revm"]     = round(total_revm, 2)
+        summary["loss_shipments"] = sum(1 for e in row_enrichments if e.get("revm", 0) < 0)
         cashflow_report = self._cashflow.run(enriched_data)
         ending_cash    = cashflow_report.get("cash_position", {}).get("ending_cash", 50_000.0)
 
