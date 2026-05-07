@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
-  FileText, Shield, TrendingDown, Upload, Zap, BookOpen, Info
+  FileText, Shield, TrendingDown, Upload, Zap, BookOpen, Info, BarChart2, Table2
 } from 'lucide-react';
 import { API_BASE_URL } from '../../services/api';
 import './SLAPage.css';
@@ -62,6 +62,39 @@ interface NegotiateResult {
   leverage_clauses: SLAClause[];
   penalty_summary:  any[];
   status:           string;
+}
+
+interface ShipmentFinding {
+  shipment_id:    string;
+  order_value:    number;
+  delay_days:     number;
+  otif_actual:    number | null;
+  in_full_pct:    number;
+  contract_type:  string;
+  customer_tier:  string;
+  route:          string;
+  carrier:        string;
+  breach_level:   'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+  penalty_amount: number;
+}
+
+interface CsvInsight {
+  severity: string;
+  message:  string;
+}
+
+interface CsvFindingsResult {
+  total_shipments:     number;
+  on_time_count:       number;
+  breach_count:        number;
+  avg_otif_pct:        number | null;
+  avg_delay_days:      number;
+  total_penalty_usd:   number;
+  breach_distribution: Record<string, number>;
+  otif_threshold_used: number;
+  detected_columns:    string[];
+  insights:            CsvInsight[];
+  shipments:           ShipmentFinding[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -458,7 +491,7 @@ const ContractViewer: React.FC = () => {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export const SLAPage: React.FC = () => {
-  const [tab, setTab] = useState<'analyze' | 'negotiate' | 'contract'>('analyze');
+  const [tab, setTab] = useState<'analyze' | 'negotiate' | 'contract' | 'csv'>('analyze');
 
   // Analyze state
   const fileRef         = useRef<HTMLInputElement>(null);
@@ -477,9 +510,22 @@ export const SLAPage: React.FC = () => {
   const [useLlm, setUseLlm]             = useState(false);
   const [showAllClauses, setShowAllClauses] = useState(false);
 
+  // CSV Findings state
+  const csvFileRef                              = useRef<HTMLInputElement>(null);
+  const [csvFile, setCsvFile]                   = useState<File | null>(null);
+  const [csvDragging, setCsvDragging]           = useState(false);
+  const [csvLoading, setCsvLoading]             = useState(false);
+  const [csvError, setCsvError]                 = useState<string | null>(null);
+  const [csvResult, setCsvResult]               = useState<CsvFindingsResult | null>(null);
+  const [csvOtifThreshold, setCsvOtifThreshold] = useState('94.5');
+  const [csvContractType, setCsvContractType]   = useState('standard');
+  const [csvCustomerTier, setCsvCustomerTier]   = useState('standard');
+  const [csvDefaultValue, setCsvDefaultValue]   = useState('');
+  const [csvPenaltyRate, setCsvPenaltyRate]     = useState('');
+  const [csvShowAll, setCsvShowAll]             = useState(false);
+
   // Negotiate state
   const [supplierId, setSupplierId]         = useState('');
-  const [delayVariance, setDelayVariance]   = useState('');
   const [currentTerms, setCurrentTerms]     = useState('30');
   const [targetTerms, setTargetTerms]       = useState('60');
   const [waccCost, setWaccCost]             = useState('');
@@ -539,6 +585,46 @@ export const SLAPage: React.FC = () => {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── CSV Findings handler ────────────────────────────────────────────────────
+
+  const handleCsvDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setCsvDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f?.name.endsWith('.csv') || f?.type === 'text/csv') { setCsvFile(f); setCsvResult(null); setCsvError(null); }
+    else setCsvError('Only CSV files are accepted.');
+  };
+
+  const handleCsvAnalyze = async () => {
+    if (!csvFile) return;
+    setCsvLoading(true); setCsvError(null); setCsvResult(null);
+    try {
+      const params = new URLSearchParams({
+        otif_threshold:      csvOtifThreshold || '94.5',
+        contract_type:       csvContractType,
+        customer_tier:       csvCustomerTier,
+        default_order_value: csvDefaultValue || '0',
+        ...(csvPenaltyRate ? { penalty_rate: csvPenaltyRate } : {}),
+      });
+      const fd = new FormData();
+      fd.append('file', csvFile);
+      const resp = await fetch(`${API_BASE_URL}/sla/analyze-csv?${params}`, {
+        method: 'POST',
+        headers: authHeader() as Record<string, string>,
+        body: fd,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.detail || `CSV analysis failed (${resp.status})`);
+      }
+      setCsvResult(await resp.json());
+    } catch (e: any) {
+      setCsvError(e.message);
+    } finally {
+      setCsvLoading(false);
     }
   };
 
@@ -620,6 +706,10 @@ export const SLAPage: React.FC = () => {
         </button>
         <button className={`sla-tab-btn ${tab === 'contract' ? 'active' : ''}`} onClick={() => setTab('contract')}>
           <BookOpen size={16} /> Live Contract
+        </button>
+        <button className={`sla-tab-btn ${tab === 'csv' ? 'active' : ''}`} onClick={() => setTab('csv')}>
+          <Table2 size={16} /> CSV Findings
+          {csvResult && <span className="sla-tab-badge">{csvResult.total_shipments}</span>}
         </button>
       </div>
 
@@ -852,6 +942,205 @@ export const SLAPage: React.FC = () => {
                   </React.Fragment>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── CSV Findings Tab ── */}
+      {tab === 'csv' && (
+        <div className={`sla-analyze-layout ${csvResult ? 'has-result' : ''}`}>
+
+          {/* Upload + config panel */}
+          <div className="sla-upload-panel glass-panel">
+            <h3 className="sla-panel-title">Shipment CSV Upload</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 14 }}>
+              Upload a shipment data CSV. Columns are auto-detected by name — supported headers include{' '}
+              <code>delay_days</code>, <code>order_value</code>, <code>otif_actual</code>, <code>carrier</code>, <code>route</code>, and more.
+            </p>
+
+            {/* Drop zone */}
+            <div
+              className={`sla-dropzone ${csvDragging ? 'dragging' : ''} ${csvFile ? 'has-file' : ''}`}
+              onDragOver={e => { e.preventDefault(); setCsvDragging(true); }}
+              onDragLeave={() => setCsvDragging(false)}
+              onDrop={handleCsvDrop}
+              onClick={() => csvFileRef.current?.click()}
+            >
+              <input ref={csvFileRef} type="file" accept=".csv,text/csv" hidden
+                onChange={e => { const f = e.target.files?.[0]; if (f) { setCsvFile(f); setCsvResult(null); setCsvError(null); } }} />
+              {csvFile ? (
+                <>
+                  <CheckCircle size={28} color="#059669" />
+                  <div className="sla-dropzone-filename">{csvFile.name}</div>
+                  <div className="sla-dropzone-size">{(csvFile.size / 1024).toFixed(1)} KB — click to replace</div>
+                </>
+              ) : (
+                <>
+                  <Upload size={28} />
+                  <div className="sla-dropzone-label">Drop shipment CSV here</div>
+                  <div className="sla-dropzone-sub">or click to browse · UTF-8 or Latin-1</div>
+                </>
+              )}
+            </div>
+
+            {/* SLA parameters */}
+            <div className="sla-form-section">
+              <div className="sla-form-label">SLA Parameters <span className="sla-form-hint">(applied to rows missing those columns)</span></div>
+              <div className="sla-form-row">
+                <div className="sla-field">
+                  <label>OTIF Threshold (%)</label>
+                  <input type="number" placeholder="94.5" value={csvOtifThreshold}
+                    onChange={e => setCsvOtifThreshold(e.target.value)} className="sla-input" />
+                </div>
+                <div className="sla-field">
+                  <label>Default Order Value (USD)</label>
+                  <input type="number" placeholder="e.g. 100000" value={csvDefaultValue}
+                    onChange={e => setCsvDefaultValue(e.target.value)} className="sla-input" />
+                </div>
+              </div>
+              <div className="sla-form-row">
+                <div className="sla-field">
+                  <label>Contract Type</label>
+                  <select value={csvContractType} onChange={e => setCsvContractType(e.target.value)} className="sla-input">
+                    <option value="standard">Standard</option>
+                    <option value="strict">Strict</option>
+                    <option value="lenient">Lenient</option>
+                    <option value="full_rejection">Full Rejection</option>
+                  </select>
+                </div>
+                <div className="sla-field">
+                  <label>Customer Tier</label>
+                  <select value={csvCustomerTier} onChange={e => setCsvCustomerTier(e.target.value)} className="sla-input">
+                    <option value="enterprise">Enterprise</option>
+                    <option value="strategic">Strategic</option>
+                    <option value="growth">Growth</option>
+                    <option value="standard">Standard</option>
+                    <option value="spot">Spot</option>
+                  </select>
+                </div>
+              </div>
+              <div className="sla-form-row">
+                <div className="sla-field">
+                  <label>Override Penalty Rate (fraction/day)</label>
+                  <input type="number" step="0.001" placeholder="e.g. 0.005 = 0.5%/day"
+                    value={csvPenaltyRate} onChange={e => setCsvPenaltyRate(e.target.value)} className="sla-input" />
+                </div>
+              </div>
+            </div>
+
+            {csvError && <div className="sla-error"><AlertTriangle size={14} /> {csvError}</div>}
+
+            <button className="sla-analyze-btn" onClick={handleCsvAnalyze} disabled={!csvFile || csvLoading}>
+              {csvLoading
+                ? <><span className="sla-spinner" /> Interpreting…</>
+                : <><BarChart2 size={16} /> Interpret CSV</>}
+            </button>
+          </div>
+
+          {/* Results */}
+          {csvResult && (
+            <div className="sla-results-panel">
+
+              {/* Summary KPIs */}
+              <div className="sla-csv-kpi-grid glass-panel">
+                {[
+                  { label: 'Total Shipments', val: csvResult.total_shipments, color: '#94a3b8' },
+                  { label: 'On-Time', val: csvResult.on_time_count, color: '#059669' },
+                  { label: 'In Breach', val: csvResult.breach_count, color: csvResult.breach_count > 0 ? '#f97316' : '#94a3b8' },
+                  { label: 'Avg OTIF', val: csvResult.avg_otif_pct != null ? `${csvResult.avg_otif_pct}%` : '—', color: csvResult.avg_otif_pct != null && csvResult.avg_otif_pct < csvResult.otif_threshold_used ? '#dc2626' : '#059669' },
+                  { label: 'Avg Delay', val: `${csvResult.avg_delay_days}d`, color: csvResult.avg_delay_days > 3 ? '#f97316' : '#94a3b8' },
+                  { label: 'Total Penalty', val: `$${csvResult.total_penalty_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}`, color: csvResult.total_penalty_usd > 0 ? '#dc2626' : '#059669' },
+                ].map(kpi => (
+                  <div key={kpi.label} className="sla-csv-kpi">
+                    <div className="sla-csv-kpi-val" style={{ color: kpi.color }}>{kpi.val}</div>
+                    <div className="sla-csv-kpi-label">{kpi.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Breach distribution */}
+              <div className="sla-section glass-panel">
+                <h4 className="sla-section-title"><BarChart2 size={15} /> Breach Distribution</h4>
+                <div className="sla-csv-breach-row">
+                  {(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'NONE'] as const).map(s => {
+                    const cnt = csvResult.breach_distribution[s] ?? 0;
+                    const pct = csvResult.total_shipments ? (cnt / csvResult.total_shipments) * 100 : 0;
+                    return (
+                      <div key={s} className="sla-csv-breach-col">
+                        <div className="sla-csv-breach-bar">
+                          <div className="sla-csv-breach-fill" style={{ height: `${pct}%`, background: severityColor(s) }} />
+                        </div>
+                        <div className="sla-csv-breach-cnt" style={{ color: severityColor(s) }}>{cnt}</div>
+                        <div className="sla-csv-breach-lbl">{s}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Insights */}
+              {csvResult.insights.length > 0 && (
+                <div className="sla-section glass-panel">
+                  <h4 className="sla-section-title"><AlertTriangle size={15} /> Key Findings</h4>
+                  <div className="sla-csv-insights">
+                    {csvResult.insights.map((ins, i) => (
+                      <div key={i} className="sla-csv-insight-row" style={{ borderLeft: `3px solid ${severityColor(ins.severity)}` }}>
+                        <SeverityBadge sev={ins.severity} />
+                        <span className="sla-csv-insight-msg">{ins.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Detected columns */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, opacity: 0.5 }}>Detected columns:</span>
+                {csvResult.detected_columns.map(c => (
+                  <span key={c} style={{ fontSize: 11, background: 'rgba(99,102,241,0.12)', color: '#818cf8', padding: '2px 7px', borderRadius: 4 }}>{c}</span>
+                ))}
+              </div>
+
+              {/* Per-shipment table */}
+              <div className="sla-section glass-panel">
+                <h4 className="sla-section-title"><Table2 size={15} /> Per-Shipment Findings ({csvResult.total_shipments})</h4>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="sla-csv-table">
+                    <thead>
+                      <tr>
+                        {['Shipment ID', 'Delay (d)', 'OTIF %', 'In-Full %', 'Breach', 'Penalty (USD)', 'Carrier', 'Route'].map(h => (
+                          <th key={h}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(csvShowAll ? csvResult.shipments : csvResult.shipments.slice(0, 20)).map((s, i) => (
+                        <tr key={i} style={{ background: s.breach_level === 'CRITICAL' ? 'rgba(220,38,38,0.05)' : s.breach_level === 'HIGH' ? 'rgba(249,115,22,0.04)' : undefined }}>
+                          <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{s.shipment_id}</td>
+                          <td style={{ color: s.delay_days > 0 ? severityColor(s.breach_level) : 'inherit' }}>{s.delay_days}</td>
+                          <td style={{ color: s.otif_actual != null && s.otif_actual < csvResult.otif_threshold_used ? '#f97316' : 'inherit' }}>
+                            {s.otif_actual != null ? `${s.otif_actual}%` : '—'}
+                          </td>
+                          <td>{s.in_full_pct != null ? `${s.in_full_pct}%` : '—'}</td>
+                          <td><SeverityBadge sev={s.breach_level} /></td>
+                          <td style={{ color: s.penalty_amount > 0 ? '#f97316' : 'inherit', fontWeight: s.penalty_amount > 0 ? 600 : 400 }}>
+                            {s.penalty_amount > 0 ? `$${s.penalty_amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}
+                          </td>
+                          <td style={{ fontSize: 12 }}>{s.carrier || '—'}</td>
+                          <td style={{ fontSize: 12 }}>{s.route || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {csvResult.shipments.length > 20 && (
+                  <button className="sla-show-more-btn" onClick={() => setCsvShowAll(v => !v)}>
+                    {csvShowAll ? <><ChevronUp size={14} /> Show less</> : <><ChevronDown size={14} /> Show all {csvResult.shipments.length} rows</>}
+                  </button>
+                )}
+              </div>
+
             </div>
           )}
         </div>

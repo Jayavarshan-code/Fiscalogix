@@ -1241,3 +1241,152 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── CSV Findings Tab ──────────────────────────────────────────────────────── */
+
+.sla-csv-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  padding: 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sla-csv-kpi {
+  padding: 18px 14px;
+  text-align: center;
+  border-right: 1px solid rgba(148,163,184,0.1);
+}
+
+.sla-csv-kpi:last-child {
+  border-right: none;
+}
+
+.sla-csv-kpi-val {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.sla-csv-kpi-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+}
+
+/* Breach bar chart */
+.sla-csv-breach-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 120px;
+  padding: 4px 0 0;
+}
+
+.sla-csv-breach-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+
+.sla-csv-breach-bar {
+  flex: 1;
+  width: 100%;
+  background: rgba(148,163,184,0.08);
+  border-radius: 4px 4px 0 0;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.sla-csv-breach-fill {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.4s ease;
+  min-height: 2px;
+}
+
+.sla-csv-breach-cnt {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sla-csv-breach-lbl {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.55;
+}
+
+/* Insights */
+.sla-csv-insights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sla-csv-insight-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.sla-csv-insight-msg {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+/* Per-shipment table */
+.sla-csv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.sla-csv-table th {
+  padding: 9px 12px;
+  text-align: left;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.5;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(148,163,184,0.12);
+  white-space: nowrap;
+}
+
+.sla-csv-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148,163,184,0.06);
+  white-space: nowrap;
+}
+
+.sla-csv-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.sla-csv-table tbody tr:hover {
+  background: rgba(255,255,255,0.025);
+}
+
+@media (max-width: 900px) {
+  .sla-csv-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .sla-csv-kpi {
+    border-bottom: 1px solid rgba(148,163,184,0.1);
+  }
+}
