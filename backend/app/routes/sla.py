@@ -17,6 +17,7 @@ Routes
   POST /sla/negotiate      Supplier data → LLM negotiation strategy
 """
 
+import csv
 import io
 import logging
 from typing import Any, Dict, List, Optional

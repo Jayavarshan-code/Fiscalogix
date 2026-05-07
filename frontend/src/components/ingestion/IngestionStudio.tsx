@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileText, CheckCircle, Database, AlertTriangle, GitMerge, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL } from '../../services/api';
 import './IngestionStudio.css';
 
@@ -41,6 +42,7 @@ function authHeader(): HeadersInit {
 }
 
 export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) => {
+  const queryClient = useQueryClient();
   const [mode, setMode] = useState<'single' | 'multi'>('single');
 
   // ── Single-file state ────────────────────────────────────────────────────
@@ -141,6 +143,8 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
       if (data.status === 'completed' && data.result) {
         const result = data.result as IngestionResult;
         setIngestResult(result);
+        queryClient.invalidateQueries({ queryKey: ['executiveOverview'] });
+        queryClient.invalidateQueries({ queryKey: ['predictiveCashflow'] });
         setMappingData({
           filename: csvFile?.name ?? pdfFile?.name ?? 'upload',
           detected_domain: data.detected_domain || 'Supply Chain',
@@ -172,6 +176,8 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
       const result = await pollStream(jobId);
       setElapsedSec(Math.round((Date.now() - t0) / 1000));
       setIngestResult(result);
+      queryClient.invalidateQueries({ queryKey: ['executiveOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['predictiveCashflow'] });
     } catch (e: any) {
       setError(e.message || 'Connection failed.');
     } finally {
@@ -238,11 +244,15 @@ export const IngestionStudio: React.FC<IngestionStudioProps> = ({ onNavigate }) 
       if (data.status === 'completed' && data.result) {
         setElapsedSec(Math.round((Date.now() - t0) / 1000));
         setIngestResult(data.result as IngestionResult);
+        queryClient.invalidateQueries({ queryKey: ['executiveOverview'] });
+        queryClient.invalidateQueries({ queryKey: ['predictiveCashflow'] });
         return;
       }
       const result = await pollStream(data.job_id);
       setElapsedSec(Math.round((Date.now() - t0) / 1000));
       setIngestResult(result);
+      queryClient.invalidateQueries({ queryKey: ['executiveOverview'] });
+      queryClient.invalidateQueries({ queryKey: ['predictiveCashflow'] });
     } catch (e: any) {
       setError(e.message);
     } finally {
