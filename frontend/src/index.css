@@ -1,82 +1,101 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Surface Colors - Light Mode (Default) */
-  --bg-canvas: #f8fafc;
-  --bg-surface: #ffffff;
+  /* ── Surfaces ─────────────────────────────────────────── */
+  --bg-canvas:           #f8fafc;
+  --bg-body:             #f8fafc;          /* alias */
+  --bg-surface:          #ffffff;
   --bg-surface-elevated: #f1f5f9;
-  --bg-surface-hover: #e2e8f0;
+  --bg-surface-hover:    #e2e8f0;
 
-  /* Typography - Light Mode */
-  --text-primary: #0f172a;
+  /* ── Typography ───────────────────────────────────────── */
+  --text-primary:   #0f172a;
   --text-secondary: #475569;
-  --text-tertiary: #64748b;
+  --text-tertiary:  #64748b;
 
-  /* Brand Colors */
-  --brand-primary: #2563eb;
-  --brand-secondary: #4f46e5;
-  --brand-accent: #d97706;
+  /* Type scale (rem) */
+  --text-xs:   0.75rem;    /* 12px – labels, caps */
+  --text-sm:   0.875rem;   /* 14px – body, inputs */
+  --text-base: 1rem;       /* 16px – card headers */
+  --text-lg:   1.125rem;   /* 18px – sub-headings */
+  --text-xl:   1.25rem;    /* 20px – section titles */
+  --text-2xl:  1.5rem;     /* 24px – page sub-titles */
+  --text-3xl:  1.875rem;   /* 30px – page titles */
 
-  /* Semantic / Action Colors */
-  --semantic-safe: #059669;
-  --semantic-warning: #d97706;
-  --semantic-critical: #dc2626;
-  
-  /* Borders & Dividers */
-  --border-subtle: rgba(0, 0, 0, 0.1);
-  --border-strong: rgba(0, 0, 0, 0.2);
+  /* ── Brand ────────────────────────────────────────────── */
+  --brand-primary:       #2563eb;
+  --brand-primary-light: rgba(37, 99, 235, 0.10);
+  --brand-secondary:     #4f46e5;
+  --brand-accent:        #d97706;
+
+  /* ── Semantic / Status ────────────────────────────────── */
+  --semantic-safe:         #059669;
+  --semantic-safe-bg:      rgba(5, 150, 105, 0.08);
+  --semantic-warning:      #d97706;
+  --semantic-warning-bg:   rgba(217, 119, 6, 0.08);
+  --semantic-critical:     #dc2626;
+  --semantic-critical-bg:  rgba(220, 38, 38, 0.08);
+  --semantic-neutral-bg:   rgba(148, 163, 184, 0.08);
+
+  /* ── Borders ──────────────────────────────────────────── */
+  --border-subtle: rgba(0, 0, 0, 0.10);
+  --border-strong: rgba(0, 0, 0, 0.20);
   --border-radius-sm: 6px;
   --border-radius-md: 12px;
   --border-radius-lg: 20px;
 
-  /* Glassmorphism Effect */
-  --glass-blur: blur(12px);
+  /* ── Glass / Depth ────────────────────────────────────── */
+  --glass-blur:   blur(12px);
   --glass-border: 1px solid rgba(0, 0, 0, 0.05);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
-
-  /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
-  
-  --sidebar-width: 280px;
-  --topbar-height: 72px;
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.10);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.10);
+
+  /* ── Layout ───────────────────────────────────────────── */
+  --sidebar-width:  280px;
+  --topbar-height:  72px;
+  --ribbon-height:  80px;
 }
 
 .dark {
-  /* Surface Colors - Deep Premium Motif */
-  --bg-canvas: #0b0f19;       /* Deep space blue */
-  --bg-surface: rgba(23, 28, 41, 0.8);      /* Semi-transparent slate */
-  --bg-surface-elevated: rgba(30, 37, 54, 0.9);
-  --bg-surface-hover: rgba(45, 55, 80, 1);
+  /* ── Surfaces ─────────────────────────────────────────── */
+  --bg-canvas:           #0b0f19;
+  --bg-body:             #0b0f19;
+  --bg-surface:          rgba(23, 28, 41, 0.80);
+  --bg-surface-elevated: rgba(30, 37, 54, 0.90);
+  --bg-surface-hover:    rgba(45, 55, 80, 1);
 
-  /* Typography */
-  --text-primary: #f8fafc;    /* Off-white */
-  --text-secondary: #94a3b8;  /* Muted slate */
-  --text-tertiary: #64748b;   /* Darker slate */
+  /* ── Typography ───────────────────────────────────────── */
+  --text-primary:   #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary:  #64748b;
 
-  /* Brand Colors - High Contrast */
-  --brand-primary: #3b82f6;   /* Vibrant Blue */
-  --brand-secondary: #6366f1; /* Indigo */
-  --brand-accent: #f59e0b;    /* Amber (Decision Wealth) */
+  /* ── Brand ────────────────────────────────────────────── */
+  --brand-primary:       #3b82f6;
+  --brand-primary-light: rgba(59, 130, 246, 0.15);
+  --brand-secondary:     #6366f1;
+  --brand-accent:        #f59e0b;
 
-  /* Semantic / Action Colors */
-  --semantic-safe: #10b981;    /* Emerald Green */
-  --semantic-warning: #f59e0b; /* Amber */
-  --semantic-critical: #ef4444; /* Red */
-  
-  /* Borders & Dividers */
-  --border-subtle: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.2);
+  /* ── Semantic / Status ────────────────────────────────── */
+  --semantic-safe:        #10b981;
+  --semantic-safe-bg:     rgba(16, 185, 129, 0.10);
+  --semantic-warning:     #f59e0b;
+  --semantic-warning-bg:  rgba(245, 158, 11, 0.10);
+  --semantic-critical:    #ef4444;
+  --semantic-critical-bg: rgba(239, 68, 68, 0.10);
+  --semantic-neutral-bg:  rgba(148, 163, 184, 0.10);
 
-  /* Glassmorphism Effect */
-  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  /* ── Borders ──────────────────────────────────────────── */
+  --border-subtle: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.20);
+
+  /* ── Glass / Depth ────────────────────────────────────── */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.10);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-
-  /* Shadows (Premium Depth) */
-  --shadow-sm: 0 2px 4px 0 rgba(0,0,0,0.1);
-  --shadow-md: 0 8px 16px -4px rgba(0,0,0,0.2);
-  --shadow-lg: 0 24px 48px -12px rgba(0,0,0,0.3);
+  --shadow-sm: 0 2px 4px 0 rgba(0,0,0,0.10);
+  --shadow-md: 0 8px 16px -4px rgba(0,0,0,0.20);
+  --shadow-lg: 0 24px 48px -12px rgba(0,0,0,0.30);
 }
 
 * {
@@ -149,4 +168,96 @@ body {
 
 .kpi-card:hover::after {
   left: 200%;
+}
+
+/* ── Unified Button System ───────────────────────────────────────────────────
+   Defined globally so any page can use .btn-primary / .btn-secondary / .btn-outline
+   without importing Dashboard.css. Dashboard.css re-uses these via cascade.       */
+
+.btn-primary,
+.btn-secondary,
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: inherit;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  border-radius: var(--border-radius-md);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+  border: none;
+}
+
+.btn-primary {
+  background-color: var(--brand-primary);
+  color: #fff;
+  padding: 8px 18px;
+  box-shadow: var(--shadow-sm);
+}
+.btn-primary:hover  { background-color: var(--brand-secondary); }
+.btn-primary:active { opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  padding: 8px 16px;
+}
+.btn-secondary:hover  { background-color: var(--bg-surface-hover); border-color: var(--border-strong); }
+.btn-secondary:active { opacity: 0.85; }
+.btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+}
+.btn-outline:hover  { background-color: var(--bg-surface-elevated); }
+.btn-outline:active { opacity: 0.85; }
+
+/* ── Global Typography Utilities ────────────────────────────────────────────── */
+
+.page-title {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.section-heading {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+}
+
+.card-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* ── Responsive Layout Utilities ─────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  :root { --sidebar-width: 240px; }
+}
+
+@media (max-width: 768px) {
+  :root { --sidebar-width: 0px; }
 }

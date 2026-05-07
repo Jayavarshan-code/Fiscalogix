@@ -9,97 +9,58 @@
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
 
 .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 20px;
   padding: 20px 28px;
+  flex-wrap: wrap;
 }
 
 .page-title {
-  font-size: 1.65rem;
+  font-size: var(--text-3xl);
   font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 6px;
-  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .page-subtitle {
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
 }
 
 .header-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
   align-items: center;
 }
 
-.btn-primary {
-  background-color: var(--brand-primary);
-  color: white;
-  padding: 8px 16px;
-  border-radius: var(--border-radius-md);
-  font-weight: 500;
-  font-size: 0.875rem;
-  transition: background-color 0.2s;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 160px;
+/* ── Buttons — Dashboard overrides global sizing ─────────────────────────── */
+
+.header-actions .btn-primary,
+.header-actions .btn-secondary {
+  min-width: auto;       /* don't force 160px in a tight header */
+  padding: 7px 14px;
 }
 
-.btn-primary:hover {
-  background-color: var(--brand-secondary);
-}
-
-.btn-secondary {
-  background-color: var(--bg-surface);
-  color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  padding: 8px 16px;
-  border-radius: var(--border-radius-md);
-  font-weight: 500;
-  font-size: 0.875rem;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-width: 160px;
-}
-
-.btn-secondary:hover {
-  background-color: var(--bg-surface-hover);
-  border-color: var(--border-strong);
-}
-
-.btn-outline {
-  background-color: transparent;
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  padding: 6px 12px;
-  border-radius: var(--border-radius-md);
-  font-weight: 500;
-  font-size: 0.75rem;
-  transition: all 0.2s;
-}
-
-.btn-outline:hover {
-  background-color: var(--bg-surface-elevated);
-}
+/* ── KPI Grid ────────────────────────────────────────────────────────────── */
 
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
 }
+
+/* ── Charts Grid ─────────────────────────────────────────────────────────── */
 
 .charts-grid {
   display: grid;
@@ -122,25 +83,12 @@
 }
 
 .card-header h3 {
-  font-size: 1rem;
+  font-size: var(--text-base);
   font-weight: 600;
+  color: var(--text-primary);
 }
 
-.chart-placeholder {
-  flex: 1;
-  background-color: var(--bg-canvas);
-  border-radius: var(--border-radius-sm);
-  border: 1px dashed var(--border-strong);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.placeholder-text {
-  color: var(--text-tertiary);
-  font-size: 0.875rem;
-  font-weight: 500;
-}
+/* ── Alerts / Systemic Status ────────────────────────────────────────────── */
 
 .alerts-section {
   display: flex;
@@ -149,12 +97,11 @@
 }
 
 .section-title {
-  font-size: 1rem;
+  font-size: var(--text-xs);
   font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.01em;
+  color: var(--text-tertiary);
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  opacity: 0.7;
 }
 
 .alerts-list {
@@ -175,9 +122,7 @@
   transition: box-shadow 0.2s;
 }
 
-.alert-item:hover {
-  box-shadow: var(--shadow-sm);
-}
+.alert-item:hover { box-shadow: var(--shadow-sm); }
 
 .alert-item.critical {
   border-left-color: var(--semantic-critical);
@@ -189,17 +134,11 @@
   background-color: var(--semantic-warning-bg);
 }
 
-.alert-icon {
-  margin-top: 2px;
-}
+.alert-icon { margin-top: 2px; }
 
-.alert-item.critical .alert-icon {
-  color: var(--semantic-critical);
-}
+.alert-item.critical .alert-icon { color: var(--semantic-critical); }
 
-.alert-content {
-  flex: 1;
-}
+.alert-content { flex: 1; }
 
 .alert-content h4 {
   font-size: 0.95rem;
@@ -208,6 +147,76 @@
 }
 
 .alert-content p {
-  font-size: 0.875rem;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+
+/* Tablet: 900–1200px */
+@media (max-width: 1200px) {
+  .dashboard-container {
+    padding: 32px 36px 48px 48px;
+    gap: 28px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+}
+
+/* Small tablet / large phone: 600–900px */
+@media (max-width: 900px) {
+  .dashboard-container {
+    padding: 24px 24px 40px 24px;
+    gap: 24px;
+  }
+
+  .dashboard-header {
+    padding: 16px 20px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-card {
+    min-height: 280px;
+  }
+}
+
+/* Phone: <600px */
+@media (max-width: 600px) {
+  .dashboard-container {
+    padding: 16px 16px 32px 16px;
+    gap: 20px;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .header-actions {
+    width: 100%;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary {
+    flex: 1;
+    min-width: 0;
+  }
 }

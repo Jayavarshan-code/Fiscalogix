@@ -7,6 +7,12 @@
   flex-direction: column;
   flex-shrink: 0;
   z-index: 10;
+  transition: width 0.2s ease;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .app-sidebar { display: none; }
 }
 
 .sidebar-header {
