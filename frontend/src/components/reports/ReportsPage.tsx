@@ -108,14 +108,14 @@ export const ReportsPage: React.FC = () => {
   const handlePrint = () => window.print();
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div style={{ padding: '40px 48px 56px 64px', maxWidth: 1200 }}>
       {/* Header */}
-      <header style={{ marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <header style={{ marginBottom: 36, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 28 }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <FileSpreadsheet size={24} /> Reports &amp; Export
+            <FileSpreadsheet size={22} /> Reports &amp; Export
           </h1>
-          <p className="page-subtitle">
+          <p className="page-subtitle" style={{ marginTop: 4 }}>
             CFO-ready Excel workbooks, JSON summaries, and freight analytics — all in INR.
           </p>
         </div>
@@ -123,18 +123,18 @@ export const ReportsPage: React.FC = () => {
           <button
             className="btn-secondary"
             onClick={handlePrint}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 'auto', padding: '8px 16px' }}
           >
-            <Download size={15} /> Print / PDF
+            <Download size={14} /> Print / PDF
           </button>
           <button
             className="btn-primary"
             onClick={handleExcelExport}
             disabled={exporting}
-            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 'auto', padding: '8px 20px' }}
           >
-            <FileSpreadsheet size={15} />
-            {exporting ? 'Generating...' : 'Export Excel (4 Sheets)'}
+            <FileSpreadsheet size={14} />
+            {exporting ? 'Generating...' : 'Export Excel'}
           </button>
         </div>
       </header>
@@ -146,28 +146,28 @@ export const ReportsPage: React.FC = () => {
       )}
 
       {/* Excel Export Info */}
-      <section className="glass-panel" style={{ padding: 24, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Excel Workbook Contents</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <section className="glass-panel" style={{ padding: '24px 28px', marginBottom: 28 }}>
+        <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 18, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6 }}>Excel Workbook Contents</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
           {[
             { sheet: 'KPI Summary',      desc: 'Total revenue, cost, ReVM, loss shipments, avg delay' },
             { sheet: 'Shipment Detail',  desc: 'Per-shipment REVM, delay cost, WACC, SLA penalty' },
             { sheet: 'AR Aging',         desc: '5-bucket receivables aging with action items' },
             { sheet: 'Carrier Gap',      desc: 'Working capital gap per carrier with risk rating' },
           ].map(({ sheet, desc }) => (
-            <div key={sheet} style={{ padding: '14px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p style={{ fontWeight: 700, fontSize: 12, marginBottom: 6 }}>{sheet}</p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{desc}</p>
+            <div key={sheet} style={{ padding: '16px 18px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.09)' }}>
+              <p style={{ fontWeight: 700, fontSize: 12, marginBottom: 8 }}>{sheet}</p>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>{desc}</p>
             </div>
           ))}
         </div>
       </section>
 
       {/* KPI Summary */}
-      <section className="glass-panel" style={{ padding: 24, marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <BarChart3 size={16} /> KPI Summary
+      <section className="glass-panel" style={{ padding: '24px 28px', marginBottom: 28 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6 }}>
+            <BarChart3 size={14} /> KPI Summary
           </h2>
           <button
             className="btn-secondary"
@@ -205,9 +205,9 @@ export const ReportsPage: React.FC = () => {
 
       {/* Financial Impact Block */}
       {financialImpact && Object.keys(financialImpact).length > 0 && (
-        <section className="glass-panel" style={{ padding: 24, marginBottom: 24 }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <TrendingUp size={16} /> Financial Impact (Fiscalogix Recommendations)
+        <section className="glass-panel" style={{ padding: '24px 28px', marginBottom: 28 }}>
+          <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6 }}>
+            <TrendingUp size={14} /> Financial Impact
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16 }}>
             <KPITile label="Unlocked Working Capital" value={fmt(financialImpact.unlocked_working_capital ?? 0)} status="safe" />
@@ -224,11 +224,11 @@ export const ReportsPage: React.FC = () => {
       )}
 
       {/* Carrier Gap Analysis */}
-      <section className="glass-panel" style={{ padding: 24, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Anchor size={16} /> Carrier Gap Analysis
+      <section className="glass-panel" style={{ padding: '24px 28px', marginBottom: 28 }}>
+        <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6 }}>
+          <Anchor size={14} /> Carrier Gap Analysis
         </h2>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
           Days between carrier payment due and client collection — the working capital you fund in between.
         </p>
 
@@ -273,11 +273,11 @@ export const ReportsPage: React.FC = () => {
       </section>
 
       {/* Concentration Risk */}
-      <section className="glass-panel" style={{ padding: 24 }}>
-        <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Users size={16} /> Concentration Risk
+      <section className="glass-panel" style={{ padding: '24px 28px' }}>
+        <h2 style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6 }}>
+          <Users size={14} /> Concentration Risk
         </h2>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 18 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
           Entities exceeding safe concentration thresholds (30% client revenue / 50% port volume).
         </p>
 
@@ -339,24 +339,24 @@ const KPITile: React.FC<KPITileProps> = ({ label, value, icon, status }) => {
 
   return (
     <div style={{
-      padding: '14px 18px', borderRadius: 8,
+      padding: '18px 20px', borderRadius: 10,
       background: 'rgba(255,255,255,0.03)',
       border: `1px solid ${borderColor}`,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8, color: 'var(--text-muted)', fontSize: 11 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
         {icon}
         {label}
       </div>
-      <p style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>{value}</p>
+      <p style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: '-0.01em' }}>{value}</p>
     </div>
   );
 };
 
 const th: React.CSSProperties = {
-  padding: '8px 12px', textAlign: 'left', fontWeight: 600,
+  padding: '10px 16px', textAlign: 'left', fontWeight: 600, fontSize: 11, letterSpacing: '0.05em',
 };
 const td: React.CSSProperties = {
-  padding: '10px 12px', color: 'var(--text-secondary)',
+  padding: '13px 16px', color: 'var(--text-secondary)', fontSize: 13,
 };
 
 export default ReportsPage;
