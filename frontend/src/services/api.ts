@@ -313,10 +313,10 @@ export const apiService = {
     return await response.json();
   },
 
-  /** POST /api/v1/predict/efi — StochasticMIP EFI optimization */
+  /** POST /api/v1/optimize/efi — StochasticMIP EFI optimization */
   async optimizeEFI(candidateMatrix: Record<string, any>[][], available_cash = 1000000, risk_appetite = 'BALANCED') {
     const response = await fetch(
-      `${API_BASE_URL}/api/v1/predict/efi?available_cash=${available_cash}&risk_appetite=${risk_appetite}`,
+      `${API_BASE_URL}/api/v1/optimize/efi?available_cash=${available_cash}&risk_appetite=${risk_appetite}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeader() },

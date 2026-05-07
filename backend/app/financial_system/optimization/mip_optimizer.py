@@ -137,6 +137,8 @@ class MIPOptimizer:
                         })
                         break
         
-        # Cache the result for 15 minutes (optimization contexts change relatively frequently)
-        cache.setex(cache_key, 900, json.dumps(optimized_decisions))
+        try:
+            cache.setex(cache_key, 900, json.dumps(optimized_decisions))
+        except Exception:
+            pass
         return optimized_decisions

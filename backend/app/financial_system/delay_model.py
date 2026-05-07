@@ -161,7 +161,10 @@ class DelayPredictionModel:
                 origin_key = str(row.get("route", "LOCAL")).split("-")[0].split("_")[0].upper()
                 ml_delay  *= self._port_intel.get_congestion_multiplier(origin_key)
             res = round(ml_delay, 1)
-            cache.setex(row_key, 3600, res)
+            try:
+                cache.setex(row_key, 3600, res)
+            except Exception:
+                pass
             return res
 
         # --- Named carrier registry heuristic ---
@@ -194,7 +197,10 @@ class DelayPredictionModel:
             predicted_delay *= congestion_factor
 
         res = round(predicted_delay, 1)
-        cache.setex(row_key, 3600, res)
+        try:
+            cache.setex(row_key, 3600, res)
+        except Exception:
+            pass
         return res
 
     def compute_batch(self, rows_list):
@@ -226,5 +232,8 @@ class DelayPredictionModel:
             predictions = self.model.predict(df_aligned)
             results = [max(0.0, float(p)) for p in predictions]
 
-        cache.setex(cache_key, 3600, json.dumps(results))
+        try:
+            cache.setex(cache_key, 3600, json.dumps(results))
+        except Exception:
+            pass
         return results
