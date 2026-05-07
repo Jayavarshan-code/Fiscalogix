@@ -12,7 +12,6 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { formatCurrency } from '../../utils/currency';
 
 export const Dashboard: React.FC = () => {
-  const [hasShocks]       = useState(true);
   const { currency, fxRate, toggle: toggleCurrency, rateLabel } = useCurrency();
   const [showVision, setShowVision]     = useState(false);
   const [alerts, setAlerts]             = useState<any[]>([]);
@@ -54,6 +53,7 @@ export const Dashboard: React.FC = () => {
   const summary = data?.summary;
   const confidence = data?.confidence?.global_score;
   const shocks = data?.shocks ?? [];
+  const hasLiveShocks = !loading && shocks.length > 0;
   const waccBurn = data?.financial_impact?.wacc_cost;
   const tlcExposure = summary ? Math.abs((summary.total_cost ?? 0) - (summary.total_revm ?? 0)) : null;
 
@@ -157,7 +157,7 @@ export const Dashboard: React.FC = () => {
       <section className="kpi-grid">
         <KPICard
           title="Protected EBITDA"
-          value={loading ? '—' : summary ? formatCurrency(summary.total_profit ?? 0, currency, fxRate) : '₹4.2Cr'}
+          value={loading ? '—' : summary ? formatCurrency(summary.total_profit ?? 0, currency, fxRate) : '—'}
           trend={12}
           trendLabel="recovery active"
           icon={<ShieldCheck size={20} />}
@@ -165,7 +165,7 @@ export const Dashboard: React.FC = () => {
         />
         <KPICard
           title="Capital Burn (WACC)"
-          value={loading ? '—' : waccBurn != null ? formatCurrency(waccBurn, currency, fxRate) : '₹14.5L'}
+          value={loading ? '—' : waccBurn != null ? formatCurrency(waccBurn, currency, fxRate) : '—'}
           trend={-2.4}
           trendLabel="reduced decay"
           icon={<Activity size={20} />}
@@ -173,7 +173,7 @@ export const Dashboard: React.FC = () => {
         />
         <KPICard
           title="TLC Exposure"
-          value={loading ? '—' : tlcExposure != null ? formatCurrency(tlcExposure, currency, fxRate) : '₹82L'}
+          value={loading ? '—' : tlcExposure != null ? formatCurrency(tlcExposure, currency, fxRate) : '—'}
           trend={5.1}
           trendLabel="Tariff Volatility"
           icon={<AlertTriangle size={20} />}
@@ -181,7 +181,7 @@ export const Dashboard: React.FC = () => {
         />
         <KPICard
           title="System Confidence"
-          value={loading ? '—' : confidence != null ? `${(confidence * 100).toFixed(1)}%` : '98.2%'}
+          value={loading ? '—' : confidence != null ? `${(confidence * 100).toFixed(1)}%` : '—'}
           trend={1.2}
           trendLabel="Hardened Tuning"
           icon={<CheckCircle size={20} />}
@@ -219,40 +219,18 @@ export const Dashboard: React.FC = () => {
       <section className="alerts-section">
         <h3 className="section-title">Systemic Status</h3>
 
-        {(hasShocks && (shocks.length > 0 || !data)) ? (
+        {hasLiveShocks ? (
           <div className="alerts-list">
-            {shocks.length > 0 ? (
-              shocks.slice(0, 3).map((shock: any, idx: number) => (
-                <div key={idx} className="alert-item critical">
-                  <div className="alert-icon"><AlertTriangle size={16} /></div>
-                  <div className="alert-content">
-                    <h4>{shock.description || 'Supply Chain Shock Detected'}</h4>
-                    <p>{shock.detail || `Severity: ${shock.severity_score ?? 'Unknown'}`}</p>
-                  </div>
-                  <button className="btn-outline">View Mitigation (POE)</button>
+            {shocks.slice(0, 3).map((shock: any, idx: number) => (
+              <div key={idx} className="alert-item critical">
+                <div className="alert-icon"><AlertTriangle size={16} /></div>
+                <div className="alert-content">
+                  <h4>{shock.description || 'Supply Chain Shock Detected'}</h4>
+                  <p>{shock.detail || `Severity: ${shock.severity_score ?? 'Unknown'}`}</p>
                 </div>
-              ))
-            ) : (
-              // Fallback alerts when not yet loaded from API
-              <>
-                <div className="alert-item critical">
-                  <div className="alert-icon"><AlertTriangle size={16} /></div>
-                  <div className="alert-content">
-                    <h4>Projected Cash Deficit (-$45k) in 5 Days</h4>
-                    <p>Network delays on Route EU-US are extending working capital cycles beyond current liquidity buffers.</p>
-                  </div>
-                  <button className="btn-outline">View Mitigation (POE)</button>
-                </div>
-                <div className="alert-item warning">
-                  <div className="alert-icon"><AlertTriangle size={16} /></div>
-                  <div className="alert-content">
-                    <h4>Elevated Risk Exposure Cluster</h4>
-                    <p>3 shipments at high risk due to EU port labor strikes. Confidence: 82%.</p>
-                  </div>
-                  <button className="btn-outline">Analyze Matrix</button>
-                </div>
-              </>
-            )}
+                <button className="btn-outline">View Mitigation (POE)</button>
+              </div>
+            ))}
           </div>
         ) : (
           <div className="premium-card empty-state-card" style={{ textAlign: 'center', padding: '40px' }}>
