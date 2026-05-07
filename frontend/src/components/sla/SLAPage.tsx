@@ -526,6 +526,7 @@ export const SLAPage: React.FC = () => {
 
   // Negotiate state
   const [supplierId, setSupplierId]         = useState('');
+  const [delayVariance, setDelayVariance]   = useState('');
   const [currentTerms, setCurrentTerms]     = useState('30');
   const [targetTerms, setTargetTerms]       = useState('60');
   const [waccCost, setWaccCost]             = useState('');
