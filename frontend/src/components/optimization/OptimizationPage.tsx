@@ -1039,12 +1039,22 @@ interface OptimizationPageProps {
 
 export const OptimizationPage: React.FC<OptimizationPageProps> = ({ subView = 'overview', onSubNavigate }) => (
   <div className="p-8 max-w-5xl mx-auto">
-    <div className="mb-6">
-      <h2 className="text-2xl font-black text-primary tracking-tighter">Optimization Engine (POE)</h2>
-      <p className="text-sm text-secondary mt-1">
-        Mathematical solvers, stochastic simulation, and ML prediction pipelines.
-        Each panel shows the full analytical breakdown — not just a headline number.
-      </p>
+    <div className="mb-6 flex justify-between items-start">
+      <div>
+        <h2 className="text-2xl font-black text-primary tracking-tighter">Optimization Engine (POE)</h2>
+        <p className="text-sm text-secondary mt-1">
+          Mathematical solvers, stochastic simulation, and ML prediction pipelines.
+          Each panel shows the full analytical breakdown — not just a headline number.
+        </p>
+      </div>
+      {subView !== 'overview' && onSubNavigate && (
+        <button 
+          onClick={() => onSubNavigate('overview')}
+          className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1 mt-1"
+        >
+          ← BACK TO OVERVIEW
+        </button>
+      )}
     </div>
     {(subView === 'overview' || subView === 'delay') && <DelayPredictionPanel />}
     {(subView === 'overview' || subView === 'efi') && <EFIOptimizerPanel />}

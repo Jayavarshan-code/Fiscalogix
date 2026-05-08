@@ -23,79 +23,82 @@
   --text-3xl:  1.875rem;   /* 30px – page titles */
 
   /* ── Brand ────────────────────────────────────────────── */
-  --brand-primary:       #2563eb;
-  --brand-primary-light: rgba(37, 99, 235, 0.10);
-  --brand-secondary:     #4f46e5;
-  --brand-accent:        #d97706;
+  /* Surface Colors - Light Mode (Default) */
+  --bg-canvas: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f8fafc;
+  --bg-surface-hover: #e2e8f0;
 
-  /* ── Semantic / Status ────────────────────────────────── */
-  --semantic-safe:         #059669;
-  --semantic-safe-bg:      rgba(5, 150, 105, 0.08);
-  --semantic-warning:      #d97706;
-  --semantic-warning-bg:   rgba(217, 119, 6, 0.08);
-  --semantic-critical:     #dc2626;
-  --semantic-critical-bg:  rgba(220, 38, 38, 0.08);
-  --semantic-neutral-bg:   rgba(148, 163, 184, 0.08);
+  /* Typography - Light Mode */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-tertiary: #64748b;
 
-  /* ── Borders ──────────────────────────────────────────── */
-  --border-subtle: rgba(0, 0, 0, 0.10);
-  --border-strong: rgba(0, 0, 0, 0.20);
-  --border-radius-sm: 6px;
-  --border-radius-md: 12px;
-  --border-radius-lg: 20px;
+  /* Brand Colors */
+  --brand-primary: #2563eb;
+  --brand-secondary: #4f46e5;
+  --brand-accent: #d97706;
 
-  /* ── Glass / Depth ────────────────────────────────────── */
-  --glass-blur:   blur(12px);
-  --glass-border: 1px solid rgba(0, 0, 0, 0.05);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.05);
-  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.10);
-  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.10);
+  /* Semantic / Action Colors */
+  --semantic-safe: #059669;
+  --semantic-warning: #d97706;
+  --semantic-critical: #dc2626;
+  
+  /* Borders & Dividers - SHARP CORNERS */
+  --border-subtle: #cbd5e1;
+  --border-strong: #94a3b8;
+  --border-radius-sm: 0px;
+  --border-radius-md: 0px;
+  --border-radius-lg: 0px;
 
-  /* ── Layout ───────────────────────────────────────────── */
-  --sidebar-width:  280px;
-  --topbar-height:  72px;
-  --ribbon-height:  80px;
+  /* Clinical Effect - No Blurs */
+  --glass-blur: none;
+  --glass-border: 1px solid #cbd5e1;
+  --glass-shadow: none;
+
+  /* Shadows - Stark/Flat */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  
+  --sidebar-width: 280px;
+  --topbar-height: 72px;
 }
 
 .dark {
-  /* ── Surfaces ─────────────────────────────────────────── */
-  --bg-canvas:           #0b0f19;
-  --bg-body:             #0b0f19;
-  --bg-surface:          rgba(23, 28, 41, 0.80);
-  --bg-surface-elevated: rgba(30, 37, 54, 0.90);
-  --bg-surface-hover:    rgba(45, 55, 80, 1);
+  /* Surface Colors - High Contrast Terminal */
+  --bg-canvas: #020617;
+  --bg-surface: #0f172a;
+  --bg-surface-elevated: #1e293b;
+  --bg-surface-hover: #334155;
 
-  /* ── Typography ───────────────────────────────────────── */
-  --text-primary:   #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary:  #64748b;
+  /* Typography */
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
 
-  /* ── Brand ────────────────────────────────────────────── */
-  --brand-primary:       #3b82f6;
-  --brand-primary-light: rgba(59, 130, 246, 0.15);
-  --brand-secondary:     #6366f1;
-  --brand-accent:        #f59e0b;
+  /* Brand Colors - High Contrast */
+  --brand-primary: #3b82f6;
+  --brand-secondary: #6366f1;
+  --brand-accent: #fbbf24;
 
-  /* ── Semantic / Status ────────────────────────────────── */
-  --semantic-safe:        #10b981;
-  --semantic-safe-bg:     rgba(16, 185, 129, 0.10);
-  --semantic-warning:     #f59e0b;
-  --semantic-warning-bg:  rgba(245, 158, 11, 0.10);
-  --semantic-critical:    #ef4444;
-  --semantic-critical-bg: rgba(239, 68, 68, 0.10);
-  --semantic-neutral-bg:  rgba(148, 163, 184, 0.10);
+  /* Semantic / Action Colors */
+  --semantic-safe: #10b981;
+  --semantic-warning: #f59e0b;
+  --semantic-critical: #ef4444;
+  
+  /* Borders & Dividers */
+  --border-subtle: #334155;
+  --border-strong: #475569;
 
-  /* ── Borders ──────────────────────────────────────────── */
-  --border-subtle: rgba(255, 255, 255, 0.10);
-  --border-strong: rgba(255, 255, 255, 0.20);
+  /* Glassmorphism Effect - REMOVED */
+  --glass-border: 1px solid #334155;
+  --glass-shadow: none;
 
-  /* ── Glass / Depth ────────────────────────────────────── */
-  --glass-border: 1px solid rgba(255, 255, 255, 0.10);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  --shadow-sm: 0 2px 4px 0 rgba(0,0,0,0.10);
-  --shadow-md: 0 8px 16px -4px rgba(0,0,0,0.20);
-  --shadow-lg: 0 24px 48px -12px rgba(0,0,0,0.30);
+  /* Shadows - REMOVED */
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
 }
 
 * {
@@ -107,24 +110,24 @@
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-canvas);
-  background-image: 
-    radial-gradient(at 0% 0%, hsla(217,100%,15%,0.15) 0, transparent 50%), 
-    radial-gradient(at 100% 0%, hsla(250,100%,15%,0.15) 0, transparent 50%);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
 
-/* Glass Surface utility */
+.data-font {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  letter-spacing: -0.02em;
+}
+
+/* Clinical Surface utility */
 .glass-panel {
   background: var(--bg-surface);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
   border: var(--glass-border);
   border-radius: var(--border-radius-md);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+  transition: none;
 }
 
 .premium-card {
