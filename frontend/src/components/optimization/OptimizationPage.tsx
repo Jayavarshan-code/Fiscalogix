@@ -1032,7 +1032,12 @@ const InventoryQueuePanel: React.FC = () => {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export const OptimizationPage: React.FC = () => (
+interface OptimizationPageProps {
+  subView?: 'overview' | 'delay' | 'efi' | 'network' | 'montecarlo' | 'inventory';
+  onSubNavigate?: (sv: 'overview' | 'delay' | 'efi' | 'network' | 'montecarlo' | 'inventory') => void;
+}
+
+export const OptimizationPage: React.FC<OptimizationPageProps> = ({ subView = 'overview', onSubNavigate }) => (
   <div className="p-8 max-w-5xl mx-auto">
     <div className="mb-6">
       <h2 className="text-2xl font-black text-primary tracking-tighter">Optimization Engine (POE)</h2>
@@ -1041,10 +1046,10 @@ export const OptimizationPage: React.FC = () => (
         Each panel shows the full analytical breakdown — not just a headline number.
       </p>
     </div>
-    <DelayPredictionPanel />
-    <EFIOptimizerPanel />
-    <NetworkOptimizerPanel />
-    <MonteCarloPanel />
-    <InventoryQueuePanel />
+    {(subView === 'overview' || subView === 'delay') && <DelayPredictionPanel />}
+    {(subView === 'overview' || subView === 'efi') && <EFIOptimizerPanel />}
+    {(subView === 'overview' || subView === 'network') && <NetworkOptimizerPanel />}
+    {(subView === 'overview' || subView === 'montecarlo') && <MonteCarloPanel />}
+    {(subView === 'overview' || subView === 'inventory') && <InventoryQueuePanel />}
   </div>
 );
