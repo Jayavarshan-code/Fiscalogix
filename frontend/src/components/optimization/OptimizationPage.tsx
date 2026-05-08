@@ -2,8 +2,12 @@ import React, { useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, ReferenceLine, Cell, Legend,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
-import { Loader2, Zap, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, Clock, Terminal } from 'lucide-react';
+import {
+  Loader2, Zap, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, Clock, Terminal,
+  ArrowLeft, Network, Package, TrendingUp, BarChart3, Layers,
+} from 'lucide-react';
 import { apiService } from '../../services/api';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -16,7 +20,6 @@ const fmt$ = (v: number | null | undefined) => {
 };
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
-// Normal PDF at x for given mean + std
 function normPDF(x: number, mean: number, std: number) {
   return (1 / (std * Math.sqrt(2 * Math.PI))) * Math.exp(-0.5 * ((x - mean) / std) ** 2);
 }
@@ -179,7 +182,6 @@ const DelayPredictionPanel: React.FC = () => {
 
   return (
     <Section title="Batch Delay Prediction" sub="POST /api/v1/predict/delay — XGBoost regressor across shipment portfolio" badge="ML">
-      {/* Input table */}
       <div className="overflow-x-auto mb-3">
         <table className="w-full text-[10px]">
           <thead>
@@ -210,7 +212,6 @@ const DelayPredictionPanel: React.FC = () => {
 
       {result && (
         <div className="mt-4 space-y-4">
-          {/* Summary KPIs */}
           <div className="grid grid-cols-3 gap-2">
             <StatBox label="Model Version" value={result.model_version ?? '—'} />
             <StatBox
@@ -226,7 +227,6 @@ const DelayPredictionPanel: React.FC = () => {
             />
           </div>
 
-          {/* Risk gauge per shipment */}
           <div className="space-y-3">
             {predictions.map((p: any) => {
               const label = delayLabel(p.predicted_delay_days);
@@ -245,7 +245,6 @@ const DelayPredictionPanel: React.FC = () => {
                       {label}
                     </span>
                   </div>
-                  {/* Gauge bar */}
                   <div className="h-2 rounded-full bg-subtle mb-2 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
@@ -261,7 +260,6 @@ const DelayPredictionPanel: React.FC = () => {
             })}
           </div>
 
-          {/* Bar chart */}
           {predictions.length > 0 && (
             <div>
               <div className="text-[9px] font-bold text-muted uppercase mb-2">Delay Days by Shipment</div>
@@ -326,7 +324,6 @@ const EFIOptimizerPanel: React.FC = () => {
   }, 0);
   const budgetPct = Math.min(100, (usedCash / availableCash) * 100);
 
-  // Chart data: for each shipment, show all action options
   const chartData = CANDIDATE_MATRIX.map(actions => ({
     shipment: actions[0].shipment_id,
     ...Object.fromEntries(actions.map(a => [a.action_name, a.simulated_efi])),
@@ -336,7 +333,6 @@ const EFIOptimizerPanel: React.FC = () => {
 
   return (
     <Section title="EFI Portfolio Optimizer (StochasticMIP)" sub="POST /api/v1/predict/efi — Optimal action set under budget + CVaR constraint" badge="MIP">
-      {/* Controls */}
       <div className="flex gap-4 mb-4">
         <div>
           <label className="text-[9px] font-bold text-muted uppercase block mb-1">Risk Appetite</label>
@@ -359,7 +355,6 @@ const EFIOptimizerPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Candidate EFI comparison chart */}
       <div className="mb-4">
         <div className="text-[9px] font-bold text-muted uppercase mb-2">Candidate Actions — EFI per Shipment</div>
         <ResponsiveContainer width="100%" height={160}>
@@ -383,7 +378,6 @@ const EFIOptimizerPanel: React.FC = () => {
 
       {result && (
         <div className="mt-4 space-y-4">
-          {/* Budget utilization */}
           <div>
             <div className="flex justify-between text-[9px] text-muted mb-1">
               <span>Budget utilization</span>
@@ -400,7 +394,6 @@ const EFIOptimizerPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Decision cards */}
           {decisions.map((d: any, i: number) => {
             const holdEFI = CANDIDATE_MATRIX.flat().find(
               a => a.shipment_id === d.shipment_id && a.action_name === 'HOLD',
@@ -491,7 +484,6 @@ const NetworkResult: React.FC<{ result: any }> = ({ result }) => {
   }, 0);
   const savings = naiveCost - (result?.total_cost_usd ?? 0);
 
-  // Capacity utilization per lane
   const utilChart = plan.map(r => ({
     lane: `${r.origin.split(' ')[0]}→${r.destination.split(' ')[0]}`,
     shipped: r.quantity,
@@ -501,14 +493,12 @@ const NetworkResult: React.FC<{ result: any }> = ({ result }) => {
 
   return (
     <div className="space-y-4">
-      {/* KPIs */}
       <div className="grid grid-cols-3 gap-2">
         <StatBox label="Optimal Total Cost" value={fmt$(result?.total_cost_usd)} color="text-safe" />
         <StatBox label="Solver Status" value={result?.optimization_status ?? 'Optimal'} />
         <StatBox label="Savings vs Naïve" value={fmt$(savings)} sub="without capacity-aware routing" color="text-brand-primary" />
       </div>
 
-      {/* Lane cost bar chart */}
       {plan.length > 0 && (
         <>
           <div className="text-[9px] font-bold text-muted uppercase">Lane Cost Breakdown</div>
@@ -522,7 +512,6 @@ const NetworkResult: React.FC<{ result: any }> = ({ result }) => {
             </BarChart>
           </ResponsiveContainer>
 
-          {/* Capacity utilization */}
           <div>
             <div className="text-[9px] font-bold text-muted uppercase mb-2">Capacity Utilization per Lane</div>
             <div className="space-y-2">
@@ -546,7 +535,6 @@ const NetworkResult: React.FC<{ result: any }> = ({ result }) => {
             </div>
           </div>
 
-          {/* Routing table */}
           <div className="overflow-x-auto">
             <table className="w-full text-[10px]">
               <thead>
@@ -644,11 +632,9 @@ function buildDistributionCurve(legs: typeof MC_LEGS, targetDays: number) {
 
 function sensitivityRows(legs: typeof MC_LEGS, targetDays: number, baseProb: number) {
   return legs.map((leg, i) => {
-    // Shift this leg +2 days
     const shifted = legs.map((l, j) => j === i ? { ...l, mean_days: l.mean_days + 2 } : l);
     const newMean = shifted.reduce((s, l) => s + l.mean_days, 0);
     const std     = Math.sqrt(shifted.reduce((s, l) => s + l.std_days ** 2, 0));
-    // Normal CDF approx (Abramowitz & Stegun)
     const z = (targetDays - newMean) / std;
     const t = 1 / (1 + 0.2316419 * Math.abs(z));
     const poly = t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
@@ -672,12 +658,9 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
 
   const { points } = buildDistributionCurve(legs, targetDays);
 
-  // CVaR: expected cost at P95 tail
   const cvarCost = (p95 - targetDays) * legs.reduce((s, l) => s + l.cost_per_day, 0);
 
-  // Percentile risk ladder (estimated from normal)
   function normCDFInv(p: number) {
-    // Rough rational approximation
     const t = Math.sqrt(-2 * Math.log(p < 0.5 ? p : 1 - p));
     const c = [2.515517, 0.802853, 0.010328];
     const d = [1.432788, 0.189269, 0.001308];
@@ -694,7 +677,6 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
 
   return (
     <div className="space-y-4">
-      {/* KPIs */}
       <div className="grid grid-cols-3 gap-2">
         <StatBox
           label="On-Time Probability"
@@ -716,7 +698,6 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
         />
       </div>
 
-      {/* Distribution bell curve */}
       <div>
         <div className="text-[9px] font-bold text-muted uppercase mb-1">
           Arrival Distribution (μ={totalMean.toFixed(1)}d σ={totalStd.toFixed(1)}d)
@@ -753,7 +734,6 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
         </ResponsiveContainer>
       </div>
 
-      {/* Risk ladder */}
       <div>
         <div className="text-[9px] font-bold text-muted uppercase mb-2">Arrival Percentile Ladder</div>
         <div className="grid grid-cols-5 gap-1">
@@ -773,7 +753,6 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
         </div>
       </div>
 
-      {/* Leg breakdown */}
       <div>
         <div className="text-[9px] font-bold text-muted uppercase mb-2">Leg-by-Leg Contribution</div>
         <div className="space-y-1">
@@ -796,7 +775,6 @@ const MonteCarloResult: React.FC<{ result: any; legs: typeof MC_LEGS; targetDays
         </div>
       </div>
 
-      {/* Sensitivity table */}
       <div>
         <div className="text-[9px] font-bold text-muted uppercase mb-2">
           Sensitivity — If Each Leg Adds +2 Days
@@ -848,7 +826,6 @@ const MonteCarloPanel: React.FC = () => {
 
   return (
     <Section title="Monte Carlo Risk Simulation" sub="POST /optimization/monte_carlo_risk — Probabilistic CVaR across N scenarios (NumPy)" badge="Stochastic">
-      {/* Leg inputs */}
       <div className="grid grid-cols-3 gap-3 mb-4 text-[10px]">
         {MC_LEGS.map((l, i) => (
           <div key={i} className="p-2.5 bg-surface rounded-xl border border-subtle">
@@ -903,7 +880,6 @@ const MEIO_NODES = [
 const MEIOResult: React.FC<{ result: any; serviceLevel: number }> = ({ result, serviceLevel }) => {
   const nodes: any[] = Array.isArray(result) ? result : [];
 
-  // Naïve = demand_mean × lead_time_days (no variability buffer)
   const chartData = nodes.map((n: any) => {
     const src = MEIO_NODES.find(m => m.node_id === n.node_id);
     const naive = src ? src.demand_mean * src.lead_time_days : 0;
@@ -923,14 +899,12 @@ const MEIOResult: React.FC<{ result: any; serviceLevel: number }> = ({ result, s
 
   return (
     <div className="space-y-4">
-      {/* KPIs */}
       <div className="grid grid-cols-3 gap-2">
         <StatBox label="Service Level" value={`${(serviceLevel * 100).toFixed(1)}%`} sub={`z = ${nodes[0]?.z_score_used ?? '—'}`} />
         <StatBox label="Nodes Optimised" value={nodes.length} />
         <StatBox label="Est. Annual Holding Savings" value={fmt$(totalAnnualSavings)} color="text-safe" sub="vs naïve demand×lead-time" />
       </div>
 
-      {/* Comparison bar chart */}
       {chartData.length > 0 && (
         <>
           <div className="text-[9px] font-bold text-muted uppercase mb-1">Inventory: Naïve vs Optimal vs Safety Stock</div>
@@ -952,7 +926,6 @@ const MEIOResult: React.FC<{ result: any; serviceLevel: number }> = ({ result, s
         </>
       )}
 
-      {/* Per-node detail */}
       <div className="space-y-2">
         {chartData.map(r => (
           <div key={r.node} className="flex items-center justify-between p-3 bg-surface rounded-xl border border-subtle">
@@ -966,7 +939,6 @@ const MEIOResult: React.FC<{ result: any; serviceLevel: number }> = ({ result, s
         ))}
       </div>
 
-      {/* Reorder insight */}
       <div className="p-3 rounded-xl bg-brand-primary/5 border border-brand-primary/20 text-[10px] text-secondary">
         <strong className="text-primary">Reorder cadence:</strong> with a weekly order cycle (7-day EOQ),
         each node replenishes every 7 days. Safety stock buffers demand variability
@@ -1030,36 +1002,246 @@ const InventoryQueuePanel: React.FC = () => {
   );
 };
 
+// ── Overview ──────────────────────────────────────────────────────────────────
+
+type OptSubView = 'overview' | 'delay' | 'efi' | 'network' | 'montecarlo' | 'inventory';
+
+const RADAR_DATA = [
+  { metric: 'Delay Safety',        portfolio: 72, industry: 78 },
+  { metric: 'EFI Performance',     portfolio: 84, industry: 75 },
+  { metric: 'Network Efficiency',  portfolio: 91, industry: 82 },
+  { metric: 'Schedule Confidence', portfolio: 68, industry: 74 },
+  { metric: 'Inventory Health',    portfolio: 79, industry: 80 },
+];
+
+const TIMELINE_DATA = [
+  { week: 'W1',  efficiency: 74, riskScore: 48, costIndex: 92 },
+  { week: 'W2',  efficiency: 76, riskScore: 45, costIndex: 90 },
+  { week: 'W3',  efficiency: 75, riskScore: 50, costIndex: 91 },
+  { week: 'W4',  efficiency: 78, riskScore: 43, costIndex: 88 },
+  { week: 'W5',  efficiency: 80, riskScore: 41, costIndex: 87 },
+  { week: 'W6',  efficiency: 79, riskScore: 44, costIndex: 86 },
+  { week: 'W7',  efficiency: 82, riskScore: 39, costIndex: 84 },
+  { week: 'W8',  efficiency: 84, riskScore: 37, costIndex: 83 },
+  { week: 'W9',  efficiency: 83, riskScore: 40, costIndex: 83 },
+  { week: 'W10', efficiency: 86, riskScore: 35, costIndex: 81 },
+  { week: 'W11', efficiency: 88, riskScore: 33, costIndex: 80 },
+  { week: 'W12', efficiency: 91, riskScore: 30, costIndex: 78 },
+];
+
+const ENGINE_CARDS: {
+  key: OptSubView;
+  label: string;
+  badge: string;
+  desc: string;
+  metric: string;
+  metricLabel: string;
+  color: string;
+  icon: React.ElementType;
+}[] = [
+  {
+    key: 'delay', label: 'Delay Prediction', badge: 'ML',
+    desc: 'XGBoost regressor across shipment portfolio predicts per-shipment delay risk.',
+    metric: '+1.4d', metricLabel: 'Avg predicted delay',
+    color: '#f97316', icon: Zap,
+  },
+  {
+    key: 'efi', label: 'EFI Portfolio', badge: 'MIP',
+    desc: 'Stochastic MIP selects optimal action set under budget and CVaR constraints.',
+    metric: '$18.2k', metricLabel: 'Best EFI action',
+    color: '#3b82f6', icon: BarChart3,
+  },
+  {
+    key: 'network', label: 'Network Router', badge: 'MILP',
+    desc: 'Min-cost flow with capacity constraints routes FEU across global lanes.',
+    metric: '$3.6M', metricLabel: 'Optimal lane cost',
+    color: '#8b5cf6', icon: Network,
+  },
+  {
+    key: 'montecarlo', label: 'Monte Carlo', badge: 'Stochastic',
+    desc: 'Probabilistic CVaR across 10k+ scenarios with arrival distribution curves.',
+    metric: '87.3%', metricLabel: 'P(on-time)',
+    color: '#22c55e', icon: TrendingUp,
+  },
+  {
+    key: 'inventory', label: 'Inventory MEIO', badge: 'MEIO',
+    desc: 'Safety stock optimisation across multi-echelon distribution network.',
+    metric: '$142k', metricLabel: 'Est. annual savings',
+    color: '#ec4899', icon: Package,
+  },
+];
+
+const OptimizationOverview: React.FC<{ onNavigate: (sv: OptSubView) => void }> = ({ onNavigate }) => (
+  <div>
+    {/* Header */}
+    <div className="mb-6">
+      <div className="flex items-center gap-3 mb-1">
+        <Layers size={22} style={{ color: 'var(--brand-primary)' }} />
+        <h2 style={{ fontSize: '1.5rem', fontWeight: 900, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+          Optimization Engine
+        </h2>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+        Portfolio health radar and 12-week performance timeline across all five solvers.
+        Click any engine card to dive into its full analytical panel.
+      </p>
+    </div>
+
+    {/* Charts row */}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 20, marginBottom: 24 }}>
+      {/* Radar */}
+      <div className="glass-panel" style={{ padding: '20px 16px' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: 12 }}>
+          Portfolio Health Radar
+        </div>
+        <ResponsiveContainer width="100%" height={240}>
+          <RadarChart data={RADAR_DATA} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+            <PolarGrid stroke="rgba(148,163,184,0.2)" />
+            <PolarAngleAxis dataKey="metric" tick={{ fontSize: 9, fill: 'var(--text-tertiary)' }} />
+            <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
+            <Radar name="Industry Avg" dataKey="industry" stroke="#94a3b8" fill="#94a3b8" fillOpacity={0.15} strokeWidth={1.5} strokeDasharray="4 2" />
+            <Radar name="Your Portfolio" dataKey="portfolio" stroke="var(--brand-primary)" fill="var(--brand-primary)" fillOpacity={0.25} strokeWidth={2} />
+            <Legend iconSize={8} wrapperStyle={{ fontSize: 9 }} />
+            <Tooltip contentStyle={{ fontSize: 10, borderRadius: 6 }} />
+          </RadarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Timeline */}
+      <div className="glass-panel" style={{ padding: '20px 16px' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: 12 }}>
+          12-Week Portfolio Trend
+        </div>
+        <ResponsiveContainer width="100%" height={240}>
+          <AreaChart data={TIMELINE_DATA} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gEff" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.03} />
+              </linearGradient>
+              <linearGradient id="gRisk" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
+                <stop offset="95%" stopColor="#ef4444" stopOpacity={0.03} />
+              </linearGradient>
+              <linearGradient id="gCost" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0.03} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148,163,184,0.12)" />
+            <XAxis dataKey="week" tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <YAxis domain={[20, 100]} tick={{ fontSize: 9, fill: '#64748b' }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ fontSize: 10, borderRadius: 6 }} />
+            <Legend iconSize={8} wrapperStyle={{ fontSize: 9 }} />
+            <Area type="monotone" dataKey="efficiency" name="Efficiency" stroke="#3b82f6" strokeWidth={2} fill="url(#gEff)" dot={false} />
+            <Area type="monotone" dataKey="riskScore"  name="Risk Score" stroke="#ef4444" strokeWidth={2} fill="url(#gRisk)" dot={false} />
+            <Area type="monotone" dataKey="costIndex"  name="Cost Index" stroke="#22c55e" strokeWidth={2} fill="url(#gCost)" dot={false} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+
+    {/* Engine cards */}
+    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: 12 }}>
+      Optimization Engines — Click to Open
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      {ENGINE_CARDS.map(card => {
+        const Icon = card.icon;
+        return (
+          <button
+            key={card.key}
+            onClick={() => onNavigate(card.key)}
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 12,
+              padding: '16px 14px',
+              textAlign: 'left',
+              cursor: 'pointer',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.borderColor = card.color;
+              (e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 2px ${card.color}22`;
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-subtle)';
+              (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Icon size={16} style={{ color: card.color }} />
+              <span style={{
+                fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 4,
+                background: card.color + '20', color: card.color, textTransform: 'uppercase', letterSpacing: '0.04em',
+              }}>
+                {card.badge}
+              </span>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 4 }}>{card.label}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-tertiary)', lineHeight: 1.4, marginBottom: 12 }}>{card.desc}</div>
+            <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 10 }}>
+              <div style={{ fontSize: 17, fontWeight: 900, color: card.color }}>{card.metric}</div>
+              <div style={{ fontSize: 9, color: 'var(--text-tertiary)' }}>{card.metricLabel}</div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 interface OptimizationPageProps {
-  subView?: 'overview' | 'delay' | 'efi' | 'network' | 'montecarlo' | 'inventory';
-  onSubNavigate?: (sv: 'overview' | 'delay' | 'efi' | 'network' | 'montecarlo' | 'inventory') => void;
+  subView?: OptSubView;
+  onSubNavigate?: (sv: OptSubView) => void;
 }
 
-export const OptimizationPage: React.FC<OptimizationPageProps> = ({ subView = 'overview', onSubNavigate }) => (
-  <div className="p-8 max-w-5xl mx-auto">
-    <div className="mb-6 flex justify-between items-start">
-      <div>
-        <h2 className="text-2xl font-black text-primary tracking-tighter">Optimization Engine (POE)</h2>
-        <p className="text-sm text-secondary mt-1">
-          Mathematical solvers, stochastic simulation, and ML prediction pipelines.
-          Each panel shows the full analytical breakdown — not just a headline number.
-        </p>
-      </div>
-      {subView !== 'overview' && onSubNavigate && (
-        <button 
-          onClick={() => onSubNavigate('overview')}
-          className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1 mt-1"
-        >
-          ← BACK TO OVERVIEW
-        </button>
+const SUB_TITLES: Record<OptSubView, string> = {
+  overview:   'Optimizer Overview',
+  delay:      'Delay Prediction',
+  efi:        'EFI Portfolio Optimizer',
+  network:    'Network Router',
+  montecarlo: 'Monte Carlo Simulation',
+  inventory:  'Inventory MEIO',
+};
+
+export const OptimizationPage: React.FC<OptimizationPageProps> = ({ subView = 'overview', onSubNavigate }) => {
+  const goBack = () => onSubNavigate?.('overview');
+
+  return (
+    <div style={{ padding: '32px 40px', maxWidth: 1100, margin: '0 auto' }}>
+      {/* Breadcrumb for sub-views */}
+      {subView !== 'overview' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <button
+            onClick={goBack}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontSize: 11, fontWeight: 700, color: 'var(--brand-primary)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}
+          >
+            <ArrowLeft size={13} /> Optimizer Overview
+          </button>
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>/</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {SUB_TITLES[subView]}
+          </span>
+        </div>
       )}
+
+      {subView === 'overview' && onSubNavigate && (
+        <OptimizationOverview onNavigate={onSubNavigate} />
+      )}
+
+      {subView === 'delay'      && <DelayPredictionPanel />}
+      {subView === 'efi'        && <EFIOptimizerPanel />}
+      {subView === 'network'    && <NetworkOptimizerPanel />}
+      {subView === 'montecarlo' && <MonteCarloPanel />}
+      {subView === 'inventory'  && <InventoryQueuePanel />}
     </div>
-    {(subView === 'overview' || subView === 'delay') && <DelayPredictionPanel />}
-    {(subView === 'overview' || subView === 'efi') && <EFIOptimizerPanel />}
-    {(subView === 'overview' || subView === 'network') && <NetworkOptimizerPanel />}
-    {(subView === 'overview' || subView === 'montecarlo') && <MonteCarloPanel />}
-    {(subView === 'overview' || subView === 'inventory') && <InventoryQueuePanel />}
-  </div>
-);
+  );
+};
