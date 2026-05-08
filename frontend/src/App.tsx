@@ -26,8 +26,17 @@ const MainApp = () => {
   const [activeView, setActiveView] = useState<
     'dashboard' | 'matrix' | 'admin' | 'ingest' | 'warehouse' |
     'cashflow' | 'shield' | 'recovery' | 'enterprise' | 'optimization' | 'realtime' |
-    'alerts' | 'reports' | 'gst' | 'sla'
+    'alerts' | 'reports' | 'gst' | 'sla' |
+    'opt_delay' | 'opt_efi' | 'opt_network' | 'opt_montecarlo' | 'opt_inventory'
   >('dashboard');
+
+  const optimizerSubView = (
+    activeView === 'opt_delay'      ? 'delay'      :
+    activeView === 'opt_efi'        ? 'efi'        :
+    activeView === 'opt_network'    ? 'network'    :
+    activeView === 'opt_montecarlo' ? 'montecarlo' :
+    activeView === 'opt_inventory'  ? 'inventory'  : 'overview'
+  ) as 'overview' | 'delay' | 'efi' | 'network' | 'montecarlo' | 'inventory';
   const { currentUser } = useAuth();
 
   const [showRegister, setShowRegister] = useState(false);
@@ -67,7 +76,12 @@ const MainApp = () => {
 
         {activeView === 'recovery' && <RecoveryDashboard />}
         {activeView === 'enterprise' && <EnterpriseModulesPage />}
-        {activeView === 'optimization' && <OptimizationPage />}
+        {(activeView === 'optimization' || activeView.startsWith('opt_')) && (
+          <OptimizationPage
+            subView={optimizerSubView}
+            onSubNavigate={(sv) => setActiveView(sv === 'overview' ? 'optimization' : `opt_${sv}` as any)}
+          />
+        )}
         {activeView === 'realtime' && <RealtimeHubPage />}
 
         {activeView === 'alerts' && <AlertsPage />}
