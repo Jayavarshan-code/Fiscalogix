@@ -108,10 +108,10 @@ class DecisionEngine:
             "drivers":    drivers,
             "confidence": adjusted_confidence,
             "revm_pct":   round(revm_pct * 100, 2),   # Surface magnitude for UI
-            "tier":       self._severity_tier(revm_pct, risk_prob, dynamic_risk_threshold)
+            "tier":       self._severity_tier(revm_pct, risk_prob, dynamic_risk_threshold, delay)
         }
 
-    def _severity_tier(self, revm_pct, risk_prob, threshold):
+    def _severity_tier(self, revm_pct, risk_prob, threshold, delay):
         """Returns a numeric tier (1–5) for UI colour-coding and sorting."""
         if revm_pct < self.SEVERE_LOSS_PCT:
             return 5   # 🔴 Critical
@@ -119,6 +119,6 @@ class DecisionEngine:
             return 4   # 🟠 High
         if revm_pct < self.MINOR_LOSS_PCT or risk_prob > threshold:
             return 3   # 🟡 Medium
-        if risk_prob > threshold * 0.80:
+        if delay > 3.0 or risk_prob > threshold * 0.80:
             return 2   # 🔵 Low-Medium
         return 1       # 🟢 Nominal

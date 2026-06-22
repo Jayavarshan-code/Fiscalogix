@@ -168,7 +168,7 @@ class CLVCalibrator:
         self,
         customer_id: str,
         tier: str,
-        stats: dict,
+        stats,
     ) -> Optional[dict]:
         """
         Computes the calibrated CLV multiplier from pre-aggregated SQL stats.
@@ -179,6 +179,22 @@ class CLVCalibrator:
         Using SQL aggregates instead of raw rows means no row cap — enterprise
         customers with 50k+ orders are calibrated on their full history.
         """
+        if isinstance(stats, list):
+            if not stats:
+                return None
+            orders_all_time = len(stats)
+            orders_12m = sum(1 for o in stats if o.get("days_ago", 999) <= 365)
+            all_vals = [float(o.get("order_value") or 0) for o in stats]
+            avg_val_all = sum(all_vals) / orders_all_time
+            recent_vals = [float(o.get("order_value") or 0) for o in stats if o.get("days_ago", 999) <= 365]
+            avg_val_12 = sum(recent_vals) / len(recent_vals) if recent_vals else None
+            stats = {
+                "orders_all_time": orders_all_time,
+                "orders_12m": orders_12m,
+                "avg_value_all_time": avg_val_all,
+                "avg_value_12m": avg_val_12,
+            }
+
         base_mult   = self._base_tier_multipliers.get(tier, 3.0)
         annual_freq = _TIER_ANNUAL_FREQUENCY.get(tier, 4)
 

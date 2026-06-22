@@ -107,7 +107,13 @@ class FutureImpactModel:
         )
 
         if predicted_delay <= 0:
-            return 0.0
+            return {
+                "value":            0.0,
+                "clv_multiplier":   round(clv_multiplier, 3),
+                "clv_source":       clv_source,
+                "churn_probability": 0.0,
+                "clv_at_risk":      round(clv_at_risk, 2),
+            }
 
         if predicted_delay <= tolerance:
             # Linear zone: churn grows slowly within SLA tolerance band
